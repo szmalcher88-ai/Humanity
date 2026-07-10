@@ -68,13 +68,32 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Phase checklist
 
-- [ ] **Phase 0** — IN PROGRESS (2026-07-10). Scaffold + WebGPU init +
-      fail-loud diagnostics + HUD + fly camera + params + CANON_DIMENSIONS
-      (cited) + Playwright harness written; sanity scene (compute→storage→
-      instanced blocks, StorageTexture, TSL displacement, CPU geometry,
-      shadows) written. PENDING: typecheck, first boot, headless shot proof,
-      commit.
-- [ ] Phase 1 — plateau terrain (control map + geology + sand + quarry cuts)
+- [x] **Phase 0** — DONE 2026-07-10 (commit 4ff7717). Scaffold, WebGPU init
+      + fail-loud diagnostics, HUD, fly camera, params, Playwright harness
+      (headless WebGPU proven), compare tool, CANON_DIMENSIONS (cited,
+      self-audit consistent). Sanity: 113 fps, compute→storage→instanced
+      blocks + StorageTexture + displacement + shadows + GPU timestamps.
+      KEY ENV FACTS: headless Chromium needs --force_high_performance_gpu
+      or it picks the Intel iGPU (probe-adapter.ts verified); the Claude
+      Browser pane tab is `visibility:hidden` → rAF never fires → app looks
+      hung there — USE THE HARNESS, not the pane, for verification.
+- [~] **Phase 1** — CORE BUILT 2026-07-11. GizaControl (authored geography:
+      tilted Mokattam plateau, full-boundary escarpment polyline, Main Wadi,
+      Maadi knolls, Khufu quarry + haul-out, floodplain, Nile + harbor +
+      approach channel, bedrock knolls under G1/G2 sites), HeightSynthesis
+      (4096² + masks at 2048²), QuarryCarve (1.12 m lifts, bay jitter,
+      trench grid), SandTransport (saltation+repose+diffusion — diffusion
+      REQUIRED or texel-scale transverse ripples stripe the desert),
+      Heightfield orchestrator, CDLOD TerrainTiles + far shell, Giza splat
+      material (5 families), world scene + placeholder sun/water.
+      SOLVED: reversed-Z depth (classic z-fights at 3 km with 2 m water
+      freeboard — reversedDepthBuffer:true; POST PASSES: sky depth = 0!);
+      quarry "moonscape" was FRAGMENT NORMAL noise, not geometry (bake
+      edits changing nothing = look at the material, not the heightfield);
+      sand ripple albedo streaking (now normal-only + distance-faded).
+      CARRIED to Phase-2 delta loop (needs real light to judge): escarpment
+      face definition, sand drift bands near escarpment, floodplain green
+      strength, far-shell look, quarry bench concentration/dressing.
 - [ ] Phase 2 — atmosphere/sun/shadows/volumetrics/clouds/post color script
 - [ ] Phase 3 — Great Pyramid block system + casing + LOD; queens + satellite
 - [ ] Phase 4 — Khufu complex + sacred axis + mastaba fields

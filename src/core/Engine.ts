@@ -70,6 +70,10 @@ export class Engine {
     const renderer = new WebGPURenderer({
       antialias: false,
       trackTimestamp: true,
+      // 8 km sightlines with 2 m water freeboard: classic depth z-fights at
+      // ~3 km (found in Phase 1 top-downs). NOTE for post passes: sky depth
+      // is 0, not 1, under reversed-Z.
+      reversedDepthBuffer: true,
       requiredLimits: hooks.diag ? buildRequiredLimits(hooks.diag) : {},
     });
     await renderer.init();

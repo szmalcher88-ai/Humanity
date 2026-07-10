@@ -18,8 +18,8 @@ export type SceneBuilder = (ctx: WorldContext) => Promise<void>;
 const registry = new Map<string, () => Promise<SceneBuilder>>();
 
 registry.set('sanity', async () => (await import('./SanityScene')).buildSanityScene);
-// 'world' and 'gallery' arrive with Phases 1 and 3; alias to sanity until then
-registry.set('world', async () => (await import('./SanityScene')).buildSanityScene);
+registry.set('world', async () => (await import('./TerrainScene')).buildWorldScene);
+// 'gallery' arrives with Phase 3; alias to sanity until then
 registry.set('gallery', async () => (await import('./SanityScene')).buildSanityScene);
 
 export async function resolveScene(name: string): Promise<SceneBuilder> {

@@ -83,8 +83,8 @@ async function boot(): Promise<void> {
 
   const boot = document.getElementById('boot');
   if (boot) {
-    boot.style.opacity = '0';
-    setTimeout(() => boot.remove(), 450);
+    // remove immediately — a slow fade ghosts into harness screenshots
+    boot.remove();
   }
   progress(1, 'ready');
   hooks.ready = true;
