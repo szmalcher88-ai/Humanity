@@ -101,6 +101,25 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 - [ ] Phase 6 — worker city, industry, quarry dressing, motion pass
 - [ ] Phase 7 — perf, bookmarks, flythrough, full battery, two-frame test
 
+- [~] **Phase 2** — CORE BUILT 2026-07-11. Ported from LAAS (attributed):
+      Atmosphere LUTs, SunSky (REWRITTEN: astronomical Giza equinox sun,
+      warm sand ground-bounce hemisphere), Clouds (coverage 0.22 sparse
+      cumulus + cloud shadows), CSM+PCSS+contact shadows, PostStack (aerial,
+      GTAO+bilateral, TRAA w/ analytic velocity, bloom, auto-exposure,
+      grade), Egyptian ColorScript, GpuProfiler, heat shimmer (new, in
+      post; gated by noon-ness × grazing × 40-1400 m band).
+      ATMOSPHERE ADAPTED: dry-desert Mie (Beta_M 5.4e-3), dust layer
+      0.038/km desert vs 0.065/km valley (valleyK by fragment world-x),
+      warm dust spectrum; altitudes are ASL (world Y + 60).
+      **CRITICAL FINDING: reversedDepthBuffer is INCOMPATIBLE with
+      CSMShadowNode (three 0.184)** — empty cascade maps read fully
+      occluded (bisected: stock node, no casters, ablate=pcss). REVERTED
+      to classic depth, near=0.7, polygonOffset on water. Revisit = patch
+      addon cascade cameras' _reversedDepth before updateProjectionMatrix.
+      CARRIED: froxel dust volumetrics (Phase 6 with work-site plumes),
+      cirrus layer, exposure/contrast tuning + full DELTA loop once the
+      pyramid exists (Phase 3), night sky (stars/moon).
+
 ## Key decisions log
 
 - 2026-07-10: three pinned 0.184.0 (D-8). World frame: origin = G1 center,

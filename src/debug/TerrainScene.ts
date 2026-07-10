@@ -1,38 +1,21 @@
 /**
- * World scene — Phase 1: the plateau, wadi, quarry, floodplain, and Nile
- * corridor as terrain. Lighting is a placeholder sun (Phase 2 brings the
- * Hillaire atmosphere + CSM); water is a flat stage plane (Phase 5 brings
- * the flowing Nile) — both are honest stand-ins so the geography reads.
+ * World scene — the plateau, wadi, quarry, floodplain, and Nile corridor,
+ * lit by the Phase-2 stack: Hillaire atmosphere + astronomical sun + IBL +
+ * CSM/PCSS shadows + post (aerial perspective, GTAO, TRAA, bloom, grade).
+ * Water is a flat stage plane until Phase 5's flowing Nile.
  */
 
-import { DirectionalLight, HemisphereLight, Mesh, PlaneGeometry, Vector3 } from 'three';
+import { Mesh, PlaneGeometry } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { float, vec3 } from 'three/tsl';
+import { PostStack } from '../render/PostStack';
+import { setupSunShadows } from '../render/ShadowSetup';
+import { Clouds } from '../sky/Clouds';
+import { SunSky } from '../sky/SunSky';
 import { Heightfield } from '../world/Heightfield';
 import { TerrainTiles } from '../world/TerrainTiles';
 import { NILE_WATER_Y, TERRAIN_CZ } from '../world/WorldConst';
 import type { WorldContext } from './Scenes';
-
-/** solar position for Giza on the canonical equinox day, hour T (0..24).
- *  Phase 2 replaces this with the full astronomical model + atmosphere. */
-export function sunDirection(T: number): Vector3 {
-  const lat = (29.9792 * Math.PI) / 180;
-  const hourAngle = ((T - 12) / 24) * 2 * Math.PI;
-  const decl = 0; // equinox
-  const sinAlt =
-    Math.sin(lat) * Math.sin(decl) + Math.cos(lat) * Math.cos(decl) * Math.cos(hourAngle);
-  const alt = Math.asin(sinAlt);
-  const cosAz =
-    (Math.sin(decl) - Math.sin(alt) * Math.sin(lat)) / (Math.cos(alt) * Math.cos(lat));
-  let azFromN = Math.acos(Math.min(1, Math.max(-1, cosAz)));
-  if (T > 12) azFromN = 2 * Math.PI - azFromN; // afternoon: sun in the west
-  // world frame: +X east, +Z south, north = −Z. Azimuth measured from north.
-  const dx = Math.sin(azFromN);
-  const dz = -Math.cos(azFromN);
-  const y = Math.sin(alt);
-  const h = Math.cos(alt);
-  return new Vector3(dx * h, y, dz * h);
-}
 
 export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const { engine, seed } = ctx;
@@ -40,7 +23,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
 
   const hf = await Heightfield.generate(renderer, engine.params, seed, ctx.progress);
 
-  ctx.progress(0.92, 'terrain: building tiles');
+  ctx.progress(0.88, 'terrain: building tiles');
   const debugView = new URLSearchParams(window.location.search).get('view');
   const tiles = new TerrainTiles(hf, debugView);
   scene.add(tiles.mesh);
@@ -58,6 +41,10 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     m.colorNode = vec3(0.05, 0.1, 0.1);
     m.roughnessNode = float(0.08);
     m.metalnessNode = float(0);
+    // classic depth: bias water away so terrain wins far coplanar ties
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = 2;
+    m.polygonOffsetUnits = 8;
     return m;
   };
   const river = new Mesh(new PlaneGeometry(700, 4600), mkWater());
@@ -71,25 +58,35 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   harbor.receiveShadow = true;
   scene.add(harbor);
 
-  // --- placeholder sun + skylight (Phase 2: atmosphere/IBL/CSM) -------------
-  const T = engine.params.timeOfDay;
-  const sunDir = sunDirection(T);
-  const sun = new DirectionalLight(0xfff0d8, 3.2);
-  sun.position.copy(sunDir.clone().multiplyScalar(2500));
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(4096, 4096);
-  const S = 1600;
-  sun.shadow.camera.left = -S;
-  sun.shadow.camera.right = S;
-  sun.shadow.camera.top = S;
-  sun.shadow.camera.bottom = -S;
-  sun.shadow.camera.near = 100;
-  sun.shadow.camera.far = 6000;
-  sun.shadow.bias = -0.0008;
-  scene.add(sun);
-  scene.add(new HemisphereLight(0x9db8e0, 0x6a5940, 0.55));
+  // --- Phase-2 lighting stack -------------------------------------------------
+  ctx.progress(0.9, 'sky: atmosphere LUTs');
+  const sunSky = new SunSky(engine, engine.params.timeOfDay);
+  await sunSky.init(renderer);
+
+  ctx.progress(0.92, 'sky: cloud noise');
+  const clouds = new Clouds(sunSky.atmosphere);
+  await clouds.init(renderer);
+  await clouds.refreshShadow(renderer);
+  engine.onUpdate((dt) => clouds.tick(renderer, dt));
+
+  ctx.progress(0.94, 'shadows: CSM + PCSS');
+  setupSunShadows(
+    sunSky.sun,
+    camera,
+    (wxz) => clouds.shadowAt(wxz),
+    { maxFar: 3600, lightMargin: 900 },
+  );
+
+  ctx.progress(0.96, 'post: pipeline');
+  const post = new PostStack(engine, sunSky.atmosphere, engine.params.timeOfDay, clouds);
+  engine.post = post;
 
   // --- hooks ------------------------------------------------------------------
+  engine.hooks.setTimeOfDay = (t): void => {
+    engine.params.timeOfDay = t;
+    void sunSky.setTimeOfDay(t).then(() => clouds.refreshShadow(renderer));
+    post.setTimeOfDay(t);
+  };
   engine.hooks.groundProbe = (x, z) => ({
     ground: hf.heightAtCpu(x, z),
     water: hf.waterYAtCpu(x, z),

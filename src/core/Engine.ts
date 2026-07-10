@@ -8,6 +8,7 @@
 import { ACESFilmicToneMapping, PerspectiveCamera, Scene } from 'three';
 import { TimestampQuery, WebGPURenderer } from 'three/webgpu';
 import { buildRequiredLimits } from './Diagnostics';
+import { GpuProfiler } from './GpuProfiler';
 import type { EngineStats, AkhetHooks } from './Hooks';
 import type { AkhetParams } from './Params';
 
@@ -39,17 +40,19 @@ export class Engine {
   private settleWaiters: { frames: number; resolve: () => void }[] = [];
   private timestampsSupported = false;
   private timestampPending = false;
+  private profiler: GpuProfiler | null = null;
 
   private constructor(renderer: WebGPURenderer, params: AkhetParams, hooks: AkhetHooks) {
     this.renderer = renderer;
     this.params = params;
     this.hooks = hooks;
     this.scene = new Scene();
-    // 0.3 m near / 30 km far: ≥8 km visible range (brief §2) with headroom
+    // 0.7 m near / 30 km far: ≥8 km visible range (brief §2); near raised
+    // for classic-depth precision (see the depth decision in create())
     this.camera = new PerspectiveCamera(
       55,
       window.innerWidth / window.innerHeight,
-      0.3,
+      0.7,
       30000,
     );
     this.camera.position.set(0, 10, 30);
@@ -67,13 +70,16 @@ export class Engine {
   }
 
   static async create(params: AkhetParams, hooks: AkhetHooks): Promise<Engine> {
+    // DEPTH DECISION (2026-07-11): reversedDepthBuffer is INCOMPATIBLE with
+    // CSMShadowNode in three 0.184 — cascade maps read fully occluded even
+    // with zero casters (stock node, bisected). Classic depth + near 0.7
+    // gives ~1.2 m precision at 3.4 km; the water/plain coplanarity hazard
+    // is handled by polygonOffset on water + Phase-5 water sitting in
+    // carved channels. Revisit reversed-Z only if far coplanar artifacts
+    // reappear (then: patch the addon's cascade cameras).
     const renderer = new WebGPURenderer({
       antialias: false,
       trackTimestamp: true,
-      // 8 km sightlines with 2 m water freeboard: classic depth z-fights at
-      // ~3 km (found in Phase 1 top-downs). NOTE for post passes: sky depth
-      // is 0, not 1, under reversed-Z.
-      reversedDepthBuffer: true,
       requiredLimits: hooks.diag ? buildRequiredLimits(hooks.diag) : {},
     });
     await renderer.init();
@@ -102,6 +108,7 @@ export class Engine {
 
     const engine = new Engine(renderer, params, hooks);
     engine.timestampsSupported = (hooks.diag?.features ?? []).includes('timestamp-query');
+    if (engine.timestampsSupported) engine.profiler = new GpuProfiler(renderer);
 
     window.addEventListener('resize', () => {
       engine.camera.aspect = window.innerWidth / window.innerHeight;
@@ -185,8 +192,12 @@ export class Engine {
         this.renderer.resolveTimestampsAsync(TimestampQuery.COMPUTE),
       ])
         .then(() => {
-          s.gpuPasses['render'] = this.renderer.info.render.timestamp;
-          s.gpuPasses['compute'] = this.renderer.info.compute.timestamp;
+          if (this.profiler) {
+            this.profiler.collect(s.gpuPasses);
+          } else {
+            s.gpuPasses['render'] = this.renderer.info.render.timestamp;
+            s.gpuPasses['compute'] = this.renderer.info.compute.timestamp;
+          }
         })
         .catch(() => {
           /* timestamps unsupported mid-run — ignore */

@@ -393,11 +393,13 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     const escFace = smoothstep(-30, 30, sdE).mul(smoothstep(280, 120, sdE));
     const wadiWall = smoothstep(WADI_HALF_WIDTH + 40, WADI_HALF_WIDTH - 20, wadi.dist)
       .mul(smoothstep(WADI_HALF_WIDTH * 0.35, WADI_HALF_WIDTH * 0.7, wadi.dist));
+    // narrow band on the STEEP mid-flank only — wide bands printed bench
+    // contour "fingerprints" across gentle sandy slopes (ToD sweep finding)
     let knollFlank: NF = float(0);
     for (const [kx, kz, kr] of KNOLLS) {
       const d = p.sub(vec2(kx, kz)).length();
       knollFlank = knollFlank.max(
-        smoothstep(kr * 0.95, kr * 0.7, d).mul(smoothstep(kr * 0.15, kr * 0.4, d)),
+        smoothstep(kr * 0.78, kr * 0.6, d).mul(smoothstep(kr * 0.28, kr * 0.45, d)),
       );
     }
     const shelfMask = escFace.max(wadiWall).max(knollFlank)

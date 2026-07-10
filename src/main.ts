@@ -72,10 +72,12 @@ async function boot(): Promise<void> {
   hooks.getPose = (): ReturnType<FlyCamera['getPose']> => fly.getPose();
   hooks.settle = (frames?: number): Promise<void> => engine.settle(frames ?? 8);
   hooks.flyCamEnabled = (on): void => fly.setEnabled(on);
-  // time-of-day control lands with the Phase-2 sky; accept and store for now
-  hooks.setTimeOfDay = (t): void => {
-    engine.params.timeOfDay = Math.min(24, Math.max(0, t));
-  };
+  if (!hooks.setTimeOfDay) {
+    // scenes with a sky wire their own; fallback stores the value only
+    hooks.setTimeOfDay = (t): void => {
+      engine.params.timeOfDay = Math.min(24, Math.max(0, t));
+    };
+  }
 
   progress(0.95, 'first frames');
   engine.start();
