@@ -8,6 +8,7 @@
 import { Mesh, PlaneGeometry } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { float, vec3 } from 'three/tsl';
+import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods } from '../monuments/Monuments';
 import { PostStack } from '../render/PostStack';
 import { setupSunShadows } from '../render/ShadowSetup';
@@ -41,6 +42,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     (a, s) => a + s.lod.stoneCount,
     0,
   );
+
+  ctx.progress(0.89, 'monuments: temples, causeway, mastaba fields');
+  buildKhufuComplex(scene, seed);
 
   // --- placeholder water stages (flat, dark; Phase 5 = flowing river) ------
   // constrained to the river corridor + harbor so terrain that happens to

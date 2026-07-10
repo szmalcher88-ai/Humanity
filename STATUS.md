@@ -143,6 +143,21 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
       CARRIED: pyramidion decision (D-9 pending), golden-hour hero delta
       loop (needs /reference), gallery scene, gaps at platform edge SE.
 
+- [~] **Phase 4** — CORE BUILT 2026-07-11. KhufuComplex.ts: merged static
+      CPU-built geometry (GeoWriter battered boxes + per-vertex tone), 3
+      draws (Tura/local/basalt): court pavement as ~17k INDIVIDUAL slabs,
+      temenos wall w/ east gate, mortuary temple (basalt court, pillar
+      rows, axis doorways), walled+ROOFED causeway on embankment (180
+      segments, 60% overlap, walls raised one step — 60 coarse segments
+      opened daylight slits; embankment batter ~0 or pier V-gaps appear),
+      valley temple on platform, S boat pits w/ cover beams + E boat-shaped
+      pits, queens' chapels, WESTERN grid cemetery (~370 mastabas, 16%
+      unbuilt plots, size classes, chapels) + EASTERN field (~32 larger).
+      GATE ITEMS PENDING: walls read FLAT GRAY in shade (needs SS-bounce
+      strengthening / probe GI + block-course meso detail on all massing
+      walls); inhabited test needs Phase-6 dressing; axis-walk verify.
+      Causeway roof-slab ends read as dashed ticks (minor).
+
 ## Key decisions log
 
 - 2026-07-10: three pinned 0.184.0 (D-8). World frame: origin = G1 center,
@@ -158,9 +173,23 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
-1. `npm run typecheck` → fix → boot dev server → verify sanity scene renders
-   (headed browser pane first, then headless shot via tools/shoot.ts).
-2. Confirm headless WebGPU recipe on THIS machine (Optimus!) — cache flags.
-3. Commit Phase-0 milestone; write shots/phase-0 proof images.
-4. Phase 0 gate: harness produces side-by-side comparisons; dimension table
-   cited. Then Phase 1 terrain.
+1. **Probe GI + bounce pass** (unblocks 3 carried gates at once): port
+   LAAS ProbeGI (terrain-relative irradiance probes) + strengthen the
+   SS bounce so SHADED WALLS/CASING pick up warm sand bounce — currently
+   flat gray (court-walk shot, causeway pyramid face). Then dim hemi via
+   sunSky.dimAmbientForGI(). Run shadow-color test on walls.
+2. **Wall meso detail**: block courses on temenos/temple/causeway/mastaba
+   walls (GeoWriter: split walls into course rows like casing, or
+   course-line normal detail in the material). Pillar A: no smooth walls.
+3. **Phase 1+2+3 DELTA loop under the new light** (escarpment definition,
+   exposure/contrast, quarry benches) — needs /reference frames from the
+   human (D-1); ask again, or run vs written criteria.
+4. **Phase 5**: Nile water (LAAS WaterSurface port + flow), harbor basin
+   docks/piers, ≥12 vessel variants, palms (LAAS veg pipeline can be
+   adapted: TreeBuilder→palm skeleton), field parcels ≥500k instances.
+5. Phase 6: worker city generator, quarry dressing, debris, wind/particles/
+   smoke (port Wind/Particles/Froxels), THEN inhabited tests.
+6. Bookmarks (1-9) + walk-mode port (LAAS FlyCamera walk rig) + gallery.
+7. Sand-transport re-run with monument obstacle masks (drifts vs walls).
+8. Camera yaw convention for shots: yaw = atan2(−dx, −dz) — I fumbled
+   this three times; the formula is now in tools notes here.
