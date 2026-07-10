@@ -8,6 +8,7 @@
 import { Mesh, PlaneGeometry } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { float, vec3 } from 'three/tsl';
+import { buildMonuments, updateMonumentLods } from '../monuments/Monuments';
 import { PostStack } from '../render/PostStack';
 import { setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
@@ -23,7 +24,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
 
   const hf = await Heightfield.generate(renderer, engine.params, seed, ctx.progress);
 
-  ctx.progress(0.88, 'terrain: building tiles');
+  ctx.progress(0.86, 'terrain: building tiles');
   const debugView = new URLSearchParams(window.location.search).get('view');
   const tiles = new TerrainTiles(hf, debugView);
   scene.add(tiles.mesh);
@@ -32,6 +33,14 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     tiles.update(camera);
     engine.stats.counters['terrain.tiles'] = tiles.activeTiles;
   });
+
+  ctx.progress(0.88, 'monuments: casing the pyramids');
+  const sites = buildMonuments(scene, seed);
+  engine.onUpdate(() => updateMonumentLods(sites, camera.position));
+  engine.stats.counters['monuments.stones'] = sites.reduce(
+    (a, s) => a + s.lod.stoneCount,
+    0,
+  );
 
   // --- placeholder water stages (flat, dark; Phase 5 = flowing river) ------
   // constrained to the river corridor + harbor so terrain that happens to

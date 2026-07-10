@@ -120,6 +120,29 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
       cirrus layer, exposure/contrast tuning + full DELTA loop once the
       pyramid exists (Phase 3), night sky (stars/moon).
 
+- [~] **Phase 3** — CORE BUILT + AUDIT PASSING 2026-07-11. PyramidSpec
+      (pure course solver: Petrie sawtooth profile, 210 courses normalized
+      to survey height; casing layout w/ width jitter normalized per course;
+      SMOOTH planarity wave field ±0.2° — per-stone random tilts read as
+      popcorn/facets) + PyramidBuilder (63k instanced chamfered stones for
+      G1+queens+satellite, per-stone tone/rough, always-on backing pyramid
+      = far LOD + joint slot floor; stones toggle at ~1.3 km) + Monuments
+      assembly from CANON. Terrain platforms leveled in GizaControl (G1
+      court Y=0, queens' terrace −1.2). tools/audit.ts: 11 checks PASS —
+      canon/spec consistency, course count, stone floor, T=6/12/18 sun
+      cardinality, rendered shadow azimuth Δ1.6° (sector-luminance method;
+      absolute thresholds fail — sky fill keeps shadows bright).
+      **DEBUG SAGA (the "waffle")**: casing read as egg-crate lattice at
+      close range. NOT geometry (corner silhouette razor straight), NOT
+      chamfers, NOT tilts — it was GTAO: exactly-coplanar neighbor stone
+      walls z-fight in the depth buffer → AO turns the noise into
+      per-stone blotches. FIX: 1.4 cm real joint gaps + backing 7 cm
+      behind faces. LESSON: when bake-side edits change nothing, the
+      artifact is in the POST/lighting chain — ablate first, theorize
+      second.
+      CARRIED: pyramidion decision (D-9 pending), golden-hour hero delta
+      loop (needs /reference), gallery scene, gaps at platform edge SE.
+
 ## Key decisions log
 
 - 2026-07-10: three pinned 0.184.0 (D-8). World frame: origin = G1 center,

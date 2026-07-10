@@ -206,6 +206,19 @@ export const QUARRY_KHUFU_CENTER: CanonPlacement = {
   source: 'Lehner & Hawass 2017 ch.4 quarry maps',
 };
 
+/** Queens' pyramids G1-a/b/c: N→S row east of G1, south of the mortuary
+ *  temple axis. Row x-offset and ~52 m pitch from published plans. */
+export const QUEENS_CENTERS: CanonPlacement[] = [
+  { x: 190, z: -18, confidence: 'C', source: 'Lehner 1997 p.116 plan (G1-a)' },
+  { x: 190, z: 34, confidence: 'C', source: 'Lehner 1997 p.116 plan (G1-b)' },
+  { x: 190, z: 86, confidence: 'C', source: 'Lehner 1997 p.116 plan (G1-c)' },
+];
+
+/** Satellite pyramid G1-d, just outside the SE corner of the enclosure. */
+export const G1D_CENTER: CanonPlacement = {
+  x: 130, z: 130, confidence: 'B', source: 'Hawass 1996 (SE corner find)',
+};
+
 /** Heit el-Ghurab worker town (SE, beyond Wall of the Crow). */
 export const WORKER_TOWN_CENTER: CanonPlacement = {
   x: 560, z: 860, confidence: 'B',

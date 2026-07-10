@@ -377,6 +377,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     h = h.add(smoothstep(br, br * 0.25, d).mul(rise));
   }
 
+
   /* --- geology detail: limestone shelving + surface roughness ------------- */
   const hardStrata = mx_noise_float(
     vec2(h.mul(0.13), mx_noise_float(p.div(700)).mul(1.7)).add(
@@ -431,6 +432,18 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
         .mul(quarryMask.oneMinus()),
     );
   }
+
+  /* --- prepared construction platforms (Phase 3+) -------------------------
+   * Applied AFTER all natural detail: worked surfaces are dead flat.
+   * G1 court leveled at Y=0 (baseline within 2.1 cm — CANON tolerance);
+   * covers pyramid + court + satellite corner. Queens' row gets its own
+   * terrace cut into the east slope. */
+  const dG1 = p.abs();
+  const g1Pad = smoothstep(190, 165, dG1.x.max(dG1.y));
+  h = mix(h, float(0), g1Pad);
+  const dQ = p.sub(vec2(190, 34)).abs();
+  const qPad = smoothstep(26, 14, dQ.x).mul(smoothstep(122, 102, dQ.y));
+  h = mix(h, float(-1.2), qPad.mul(g1Pad.oneMinus()));
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */
   if (!full) {
