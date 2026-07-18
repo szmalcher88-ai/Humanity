@@ -173,9 +173,15 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
-1. **Phase 5**: Nile water (LAAS WaterSurface port + flow), harbor basin
-   docks/piers, ≥12 vessel variants, palms (LAAS veg pipeline can be
-   adapted: TreeBuilder→palm skeleton), field parcels ≥500k instances.
+1. **Phase 5 remainder**: harbor stone quay + wooden piers on piles;
+   ≥12 procedural vessel variants (cargo barge / traveling boat / papyrus
+   skiff × sizes/cargo) moored+anchored+beached; canal lines w/ palm rows;
+   reeds/papyrus at shorelines; sycamore/tamarisk classes. THEN the harbor
+   dawn gate shot.
+2. Phase-5 polish queue: tuft thin-blade aliasing beyond ~120 m (LAAS-style
+   card/far-tuft LOD); water sun-glint verify at low sun + wet shoreline
+   band; palm crown fullness (2 blade layers per frond); carpet visible
+   under sparse-fade transition could use dithering.
 2. Phase 6: worker city generator, quarry dressing, debris, wind/particles/
    smoke (port Wind/Particles/Froxels), THEN inhabited tests.
 3. **DELTA loop under the GI light** (escarpment definition, exposure/
@@ -189,7 +195,30 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    (probes are terrain-relative — acceptable at massing stage).
 7. Camera yaw for shots: yaw = atan2(−dx, −dz).
 
-## DONE this session (2026-07-18)
+## DONE this session (2026-07-18) — part 2: Phase 5 core
+
+- **NileWater** (src/water/NileWater.ts): flow-advected two-scale ripple
+  normals (northward drift, harbor slower), TRUE sky reflection via
+  atmosphere.skyColor(reflect) with fresnel on a FLATTENED normal (LAAS
+  white-sheet lesson), depth absorption over the real sampled bed
+  (silty shallows → deep blue-green), freeze-safe worldTime advection.
+- **Palms** (src/vegetation/Palms.ts): 5,400 procedural date palms, 8
+  variants (trunk curve/rings, 15-22 fronds, crown-asymmetry bias), banks/
+  harbor/canal-hugging gaussian groves; PER-VARIANT BUFFER SLICES
+  (instanceIndex restarts per InstancedMesh — a shared buffer renders all
+  variants at the same positions!); per-instance yaw/scale/growth-lean
+  (height-shear)/tone.
+- **Fields** (src/vegetation/Fields.ts): 537 parcels in two bank belts
+  (worksZone-gated), 750k instanced 5-blade tufts in sown rows w/
+  per-parcel maturity tone (late-peret green-gold) + 12% fallow; CONFORMAL
+  parcel carpets (per-vertex terrain height +12 cm — flat quads buried
+  under ±0.35 m micro-relief) for the closed-canopy far read.
+  BUG LOG: carpet quads first wound DOWNWARD (backface-culled from every
+  view — "invisible carpet"); winding is (a,c,b),(a,d,c) for +Y.
+- Perf with everything: 45-56 fps at 1080p, ~14.5M tris in veg-heavy
+  frames. Tuft blades alias out beyond ~120 m (queued card LOD).
+
+## DONE this session (2026-07-18) — part 1
 
 - **ProbeGI ported + Giza-adapted** (src/gpu/passes/ProbeGI.ts): 256²×6
   terrain-relative SH-L1 probes, heightfield march, GIZA ALBEDO PROXY

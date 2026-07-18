@@ -5,9 +5,6 @@
  * Water is a flat stage plane until Phase 5's flowing Nile.
  */
 
-import { Mesh, PlaneGeometry } from 'three';
-import { MeshPhysicalNodeMaterial } from 'three/webgpu';
-import { float, vec3 } from 'three/tsl';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods } from '../monuments/Monuments';
@@ -15,9 +12,11 @@ import { PostStack } from '../render/PostStack';
 import { setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
 import { SunSky } from '../sky/SunSky';
+import { buildFields } from '../vegetation/Fields';
+import { buildPalms } from '../vegetation/Palms';
+import { NileWater } from '../water/NileWater';
 import { Heightfield } from '../world/Heightfield';
 import { TerrainTiles } from '../world/TerrainTiles';
-import { NILE_WATER_Y, TERRAIN_CZ } from '../world/WorldConst';
 import type { WorldContext } from './Scenes';
 
 export async function buildWorldScene(ctx: WorldContext): Promise<void> {
@@ -59,30 +58,18 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   ctx.progress(0.89, 'monuments: temples, causeway, mastaba fields');
   buildKhufuComplex(scene, seed, gi);
 
-  // --- placeholder water stages (flat, dark; Phase 5 = flowing river) ------
-  // constrained to the river corridor + harbor so terrain that happens to
-  // dip below stage level elsewhere never shows phantom water
-  const mkWater = (): MeshPhysicalNodeMaterial => {
-    const m = new MeshPhysicalNodeMaterial();
-    m.colorNode = vec3(0.05, 0.1, 0.1);
-    m.roughnessNode = float(0.08);
-    m.metalnessNode = float(0);
-    // classic depth: bias water away so terrain wins far coplanar ties
-    m.polygonOffset = true;
-    m.polygonOffsetFactor = 2;
-    m.polygonOffsetUnits = 8;
-    return m;
-  };
-  const river = new Mesh(new PlaneGeometry(700, 4600), mkWater());
-  river.rotateX(-Math.PI / 2);
-  river.position.set(2050, NILE_WATER_Y, TERRAIN_CZ);
-  river.receiveShadow = true;
-  scene.add(river);
-  const harbor = new Mesh(new PlaneGeometry(950, 560), mkWater());
-  harbor.rotateX(-Math.PI / 2);
-  harbor.position.set(1330, NILE_WATER_Y, -130);
-  harbor.receiveShadow = true;
-  scene.add(harbor);
+  ctx.progress(0.9, 'floodplain: palms and field parcels');
+  const palmCount = buildPalms(scene, seed, hf, gi);
+  const fields = buildFields(scene, seed, hf, gi);
+  engine.stats.counters['veg.palms'] = palmCount;
+  engine.stats.counters['veg.tufts'] = fields.count;
+  engine.stats.counters['veg.parcels'] = fields.parcels;
+
+  // --- Nile + harbor water (flow, sky reflection, depth absorption) --------
+  ctx.progress(0.91, 'water: the Nile');
+  const water = new NileWater(hf, sunSky.atmosphere);
+  for (const m of water.meshes) scene.add(m);
+  engine.onUpdate((_dt, worldTime) => water.tick(worldTime));
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');
