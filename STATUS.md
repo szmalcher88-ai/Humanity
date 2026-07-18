@@ -173,11 +173,13 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
-1. **Phase 5 remainder**: harbor stone quay + wooden piers on piles;
-   ≥12 procedural vessel variants (cargo barge / traveling boat / papyrus
-   skiff × sizes/cargo) moored+anchored+beached; canal lines w/ palm rows;
-   reeds/papyrus at shorelines; sycamore/tamarisk classes. THEN the harbor
-   dawn gate shot.
+1. **Phase 5 remainder**: reeds/papyrus at shorelines; sycamore/tamarisk
+   classes; canal lines w/ palm rows; wet shore band. DONE THIS SESSION:
+   quay + 3 piers on piles + bollards + dock clutter; ~21 lofted vessels
+   (barge w/ deck cargo / traveler w/ mast+furled sail+cabin+steering
+   oars / papyrus skiff — every hull individually seeded) moored,
+   anchored, on the river, beached (src/water/Vessels.ts).
+   Vessel bobbing → Phase 6 motion pass.
 2. Phase-5 polish queue: tuft thin-blade aliasing beyond ~120 m (LAAS-style
    card/far-tuft LOD); water sun-glint verify at low sun + wet shoreline
    band; palm crown fullness (2 blade layers per frond); carpet visible

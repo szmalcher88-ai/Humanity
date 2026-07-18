@@ -15,6 +15,7 @@ import { SunSky } from '../sky/SunSky';
 import { buildFields } from '../vegetation/Fields';
 import { buildPalms } from '../vegetation/Palms';
 import { NileWater } from '../water/NileWater';
+import { buildHarbor } from '../water/Vessels';
 import { Heightfield } from '../world/Heightfield';
 import { TerrainTiles } from '../world/TerrainTiles';
 import type { WorldContext } from './Scenes';
@@ -70,6 +71,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const water = new NileWater(hf, sunSky.atmosphere);
   for (const m of water.meshes) scene.add(m);
   engine.onUpdate((_dt, worldTime) => water.tick(worldTime));
+
+  ctx.progress(0.915, 'harbor: quay, piers, vessels');
+  engine.stats.counters['harbor.vessels'] = buildHarbor(scene, seed, gi);
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');
