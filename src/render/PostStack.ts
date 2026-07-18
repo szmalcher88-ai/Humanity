@@ -506,7 +506,9 @@ export class PostStack {
       const recLum = luminance(withAO.rgb).add(0.25);
       const recTint = withAO.rgb.div(recLum);
       withBounce = withAO.rgb.add(
-        bounceTex.rgb.mul(recTint).mul(bounceTex.a).mul(0.16),
+        // 0.16 → 0.3: shaded walls/casing were reading flat gray — desert
+        // bounce off sunlit sand/pavement is a primary light source here
+        bounceTex.rgb.mul(recTint).mul(bounceTex.a).mul(0.3),
       ) as unknown as typeof withAO;
     }
 

@@ -8,6 +8,7 @@
 
 import type { Scene, Vector3 } from 'three';
 import type { WorldSeed } from '../core/Seed';
+import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import {
   G1_BASE_SIDE,
   G1_COURSE1_HEIGHT,
@@ -34,7 +35,11 @@ function heightFromSlope(baseSide: number, slopeDeg: number): number {
   return (baseSide / 2) * Math.tan((slopeDeg * Math.PI) / 180);
 }
 
-export function buildMonuments(scene: Scene, seed: WorldSeed): MonumentSite[] {
+export function buildMonuments(
+  scene: Scene,
+  seed: WorldSeed,
+  gi: ProbeGI | null = null,
+): MonumentSite[] {
   const sites: MonumentSite[] = [];
 
   const add = (
@@ -60,7 +65,7 @@ export function buildMonuments(scene: Scene, seed: WorldSeed): MonumentSite[] {
       courseMin,
       rng: seed.rng(`monument-${name}`),
     });
-    const lod = buildPyramid(spec);
+    const lod = buildPyramid(spec, gi);
     scene.add(lod.near);
     scene.add(lod.far);
     sites.push({ name, spec, lod });

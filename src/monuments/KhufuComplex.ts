@@ -22,9 +22,24 @@ import {
   type Scene,
 } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
-import { attribute, clamp, float, vec3 } from 'three/tsl';
-import type { NV3 } from '../gpu/TSLTypes';
+import {
+  attribute,
+  clamp,
+  float,
+  fract,
+  hash,
+  floor as tslFloor,
+  normalWorld,
+  positionWorld,
+  smoothstep,
+  transformNormalToView,
+  vec2,
+  vec3,
+} from 'three/tsl';
+import type { NF, NV3 } from '../gpu/TSLTypes';
 import type { Rng, WorldSeed } from '../core/Seed';
+import type { ProbeGI } from '../gpu/passes/ProbeGI';
+import { giLightMap } from './PyramidBuilder';
 import {
   G1_BASE_SIDE,
   G1_CAUSEWAY_WIDTH,
@@ -107,13 +122,65 @@ class GeoWriter {
   }
 }
 
-function limestoneMaterial(base: [number, number, number]): MeshPhysicalNodeMaterial {
+/**
+ * Massing limestone with BLOCK-COURSE meso detail (Pillar A: no smooth
+ * walls): world-Y course bands (~0.55 m) with jittered per-course tone,
+ * vertical joints hashed per course on the wall-tangent coordinate, and a
+ * shallow normal dip into each joint line. Reads as coursed masonry from
+ * 3-40 m without any per-block geometry.
+ */
+function limestoneMaterial(
+  base: [number, number, number],
+  gi: ProbeGI | null,
+  courseH = 0.55,
+): MeshPhysicalNodeMaterial {
   const m = new MeshPhysicalNodeMaterial();
   const tone = attribute('tone', 'vec3') as unknown as NV3;
-  m.colorNode = vec3(...base).mul(tone);
-  m.roughnessNode = clamp(float(0.62), 0, 1);
+
+  const courseIdx = tslFloor(positionWorld.y.div(courseH));
+  const courseF = fract(positionWorld.y.div(courseH));
+  // wall-tangent coordinate: pick the dominant horizontal axis of the
+  // normal; blocks run along the other axis
+  const nAbs = normalWorld.xz.abs();
+  const alongCoord = nAbs.x.greaterThan(nAbs.y).select(
+    positionWorld.z,
+    positionWorld.x,
+  );
+  const blockW = float(1.15);
+  const jitter = hash(courseIdx.add(7.3)).mul(0.73);
+  const blockF = fract(alongCoord.div(blockW).add(jitter));
+  const blockIdx = tslFloor(alongCoord.div(blockW).add(jitter));
+
+  // joint lines: shallow V in the shading normal near course/joint edges
+  const horizJ = smoothstep(0.0, 0.06, courseF).mul(smoothstep(1.0, 0.94, courseF));
+  const vertJ = smoothstep(0.0, 0.045, blockF).mul(smoothstep(1.0, 0.955, blockF));
+  const jointK = horizJ.mul(vertJ); // 1 on faces, →0 in the joints
+  const upright = smoothstep(0.75, 0.45, normalWorld.y.abs()); // walls only
+
+  // per-block tone jitter
+  const blockTone = hash(blockIdx.mul(13.7).add(courseIdx.mul(101.3)))
+    .mul(0.1)
+    .add(0.95) as unknown as NF;
+
+  m.colorNode = vec3(...base)
+    .mul(tone)
+    .mul(blockTone)
+    .mul(jointK.oneMinus().mul(0.22).mul(upright).oneMinus());
+  // normal dip toward the joints (cheap meso bevel)
+  const dipY = horizJ.oneMinus().mul(courseF.sub(0.5).sign()).mul(0.35);
+  const dipA = vertJ.oneMinus().mul(blockF.sub(0.5).sign()).mul(0.3);
+  const dipVec = vec3(
+    nAbs.x.greaterThan(nAbs.y).select(float(0), dipA),
+    dipY,
+    nAbs.x.greaterThan(nAbs.y).select(dipA, float(0)),
+  ).mul(upright);
+  const nDetail = normalWorld.add(dipVec).normalize();
+  m.normalNode = transformNormalToView(nDetail);
+  m.roughnessNode = clamp(float(0.62).add(jointK.oneMinus().mul(0.2)), 0, 1);
   m.metalnessNode = float(0);
   m.specularIntensity = 0.4;
+  giLightMap(m, gi, normalWorld as unknown as NV3, 1.5);
+  void vec2;
   return m;
 }
 
@@ -126,7 +193,11 @@ export interface ComplexInfo {
   causewayEnd: Vector3;
 }
 
-export function buildKhufuComplex(scene: Scene, seed: WorldSeed): ComplexInfo {
+export function buildKhufuComplex(
+  scene: Scene,
+  seed: WorldSeed,
+  gi: ProbeGI | null = null,
+): ComplexInfo {
   const rng = seed.rng('khufu-complex');
   const half = G1_BASE_SIDE.value / 2; // 115.18
   const court = G1_COURT_PAVEMENT_WIDTH.value; // 10.1
@@ -386,9 +457,11 @@ export function buildKhufuComplex(scene: Scene, seed: WorldSeed): ComplexInfo {
   }
 
   /* --- materialize ------------------------------------------------------------- */
-  const turaMesh = new Mesh(tura.build(), limestoneMaterial([0.85, 0.825, 0.77]));
-  const localMesh = new Mesh(local.build(), limestoneMaterial([0.74, 0.68, 0.57]));
-  const basaltMesh = new Mesh(basalt.build(), limestoneMaterial([0.16, 0.16, 0.17]));
+  // pavement slabs get fine 0.35 m "courses" (they are slabs, not walls —
+  // upright gate zeroes the joint effect on their tops anyway)
+  const turaMesh = new Mesh(tura.build(), limestoneMaterial([0.85, 0.825, 0.77], gi, 0.5));
+  const localMesh = new Mesh(local.build(), limestoneMaterial([0.74, 0.68, 0.57], gi, 0.55));
+  const basaltMesh = new Mesh(basalt.build(), limestoneMaterial([0.16, 0.16, 0.17], gi, 0.5));
   for (const m of [turaMesh, localMesh, basaltMesh]) {
     m.castShadow = true;
     m.receiveShadow = true;

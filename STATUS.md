@@ -173,23 +173,36 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
-1. **Probe GI + bounce pass** (unblocks 3 carried gates at once): port
-   LAAS ProbeGI (terrain-relative irradiance probes) + strengthen the
-   SS bounce so SHADED WALLS/CASING pick up warm sand bounce — currently
-   flat gray (court-walk shot, causeway pyramid face). Then dim hemi via
-   sunSky.dimAmbientForGI(). Run shadow-color test on walls.
-2. **Wall meso detail**: block courses on temenos/temple/causeway/mastaba
-   walls (GeoWriter: split walls into course rows like casing, or
-   course-line normal detail in the material). Pillar A: no smooth walls.
-3. **Phase 1+2+3 DELTA loop under the new light** (escarpment definition,
-   exposure/contrast, quarry benches) — needs /reference frames from the
-   human (D-1); ask again, or run vs written criteria.
-4. **Phase 5**: Nile water (LAAS WaterSurface port + flow), harbor basin
+1. **Phase 5**: Nile water (LAAS WaterSurface port + flow), harbor basin
    docks/piers, ≥12 vessel variants, palms (LAAS veg pipeline can be
    adapted: TreeBuilder→palm skeleton), field parcels ≥500k instances.
-5. Phase 6: worker city generator, quarry dressing, debris, wind/particles/
+2. Phase 6: worker city generator, quarry dressing, debris, wind/particles/
    smoke (port Wind/Particles/Froxels), THEN inhabited tests.
-6. Bookmarks (1-9) + walk-mode port (LAAS FlyCamera walk rig) + gallery.
-7. Sand-transport re-run with monument obstacle masks (drifts vs walls).
-8. Camera yaw convention for shots: yaw = atan2(−dx, −dz) — I fumbled
-   this three times; the formula is now in tools notes here.
+3. **DELTA loop under the GI light** (escarpment definition, exposure/
+   contrast, quarry benches, casing golden-hour hero) — needs /reference
+   frames from the human (D-1); ask again, or run vs written criteria.
+4. Bookmarks (1-9) + walk-mode port (LAAS FlyCamera walk rig) + gallery.
+5. Sand-transport re-run with monument obstacle masks (drifts vs walls).
+6. GI polish queue: probe chroma could go further (shaded-wall sat 0.10 —
+   warm hue correct, push saturation via bounce weight/probe albedo);
+   mortuary-temple interior court gets no probe line-of-sight nuance
+   (probes are terrain-relative — acceptable at massing stage).
+7. Camera yaw for shots: yaw = atan2(−dx, −dz).
+
+## DONE this session (2026-07-18)
+
+- **ProbeGI ported + Giza-adapted** (src/gpu/passes/ProbeGI.ts): 256²×6
+  terrain-relative SH-L1 probes, heightfield march, GIZA ALBEDO PROXY
+  (sand/limestone/silt/quarry from masks), and an ANALYTIC RAY-PYRAMID
+  INTERSECTOR in the gather — the casing is a bounce/occlusion source
+  (canon Vol. V "primary lighting reference object" made literal); the
+  pyramid also blocks sun on bounce sources (its shadow darkens probes).
+  Wired via IrradianceNode setupLightMap into terrain tiles, casing
+  (lift 2.5), far pyramids, complex; hemisphere dimmed 0.15×; SS bounce
+  0.16→0.3; gi.invalidate() on ToD jumps. VERIFIED: shaded wall pixels
+  rgb(68,71,74) → rgb(101,96,91) (cool dead gray → warm, +40% value);
+  67 fps with probe tick.
+- **Block-course meso detail** on all complex massing (limestoneMaterial):
+  world-Y courses ~0.55 m, per-course joint jitter, per-block tone hash,
+  joint darkening + normal dip, upright-gated (slab tops stay clean).
+  Walls now read as coursed masonry at 3-40 m.

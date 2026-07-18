@@ -14,7 +14,7 @@
  */
 
 import { BufferAttribute, BufferGeometry, InstancedMesh, Mesh, Vector3 } from 'three';
-import { MeshPhysicalNodeMaterial } from 'three/webgpu';
+import { IrradianceNode, MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
   clamp,
   cos,
@@ -25,6 +25,7 @@ import {
   instanceIndex,
   mix,
   normalLocal,
+  normalWorld,
   positionLocal,
   positionWorld,
   sin,
@@ -35,7 +36,21 @@ import {
   varying,
 } from 'three/tsl';
 import type { NF, NV3 } from '../gpu/TSLTypes';
+import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { PyramidSpec } from './PyramidSpec';
+
+/** wire the probe field into a material as its ambient/light-map term */
+export function giLightMap(
+  m: MeshPhysicalNodeMaterial,
+  gi: ProbeGI | null,
+  normal: NV3,
+  lift = 2.0,
+): void {
+  if (!gi) return;
+  const irr = gi.irradiance(positionWorld as unknown as NV3, normal, lift);
+  (m as unknown as { setupLightMap: () => unknown }).setupLightMap = () =>
+    new IrradianceNode(irr as unknown as ConstructorParameters<typeof IrradianceNode>[0]);
+}
 
 const STONE_DEPTH = 0.8;
 /** chamfer fractions (of local unit box) — the visible joint read.
@@ -90,7 +105,7 @@ export interface PyramidLod {
   stoneCount: number;
 }
 
-export function buildPyramid(spec: PyramidSpec): PyramidLod {
+export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): PyramidLod {
   const p = spec.params;
   const n = spec.stones.length;
   const theta = (p.slopeDeg * Math.PI) / 180;
@@ -183,6 +198,9 @@ export function buildPyramid(spec: PyramidSpec): PyramidLod {
   mat.colorNode = baseCol.mul(tone).mul(float(1).sub(striate.mul(0.03)));
   mat.roughnessNode = clamp(float(0.42).add(varying(B.z) as unknown as NF), 0.25, 0.6);
   mat.metalnessNode = float(0);
+  // shaded casing faces pick up sand/sky bounce from the probe field —
+  // a modest lift keeps base courses sampling above the pavement layer
+  giLightMap(mat, gi, varying(tilted) as unknown as NV3, 2.5);
 
     const plainDebug = new URLSearchParams(window.location.search).get('plainstone') === '1';
   const geo = plainDebug
@@ -254,6 +272,7 @@ export function buildPyramid(spec: PyramidSpec): PyramidLod {
     .mul(float(1).sub(bandJ).sub(stoneJ));
   farMat.roughnessNode = float(0.45);
   farMat.metalnessNode = float(0);
+  giLightMap(farMat, gi, normalWorld as unknown as NV3, 2.5);
   const far = new Mesh(farGeo, farMat);
   far.position.set(p.cx, p.cy, p.cz);
   far.castShadow = true;

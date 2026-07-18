@@ -8,6 +8,7 @@
 import { Mesh, PlaneGeometry } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { float, vec3 } from 'three/tsl';
+import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods } from '../monuments/Monuments';
 import { PostStack } from '../render/PostStack';
@@ -25,9 +26,21 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
 
   const hf = await Heightfield.generate(renderer, engine.params, seed, ctx.progress);
 
+  // sky FIRST: the probe field needs the atmosphere, and materials take
+  // their GI hook at construction time
+  ctx.progress(0.84, 'sky: atmosphere LUTs');
+  const sunSky = new SunSky(engine, engine.params.timeOfDay);
+  await sunSky.init(renderer);
+
+  ctx.progress(0.85, 'gi: irradiance probe field');
+  const gi = new ProbeGI(hf, sunSky.atmosphere);
+  await gi.init(renderer);
+  engine.onUpdate(() => gi.tick(renderer));
+  sunSky.dimAmbientForGI();
+
   ctx.progress(0.86, 'terrain: building tiles');
   const debugView = new URLSearchParams(window.location.search).get('view');
-  const tiles = new TerrainTiles(hf, debugView);
+  const tiles = new TerrainTiles(hf, debugView, { gi });
   scene.add(tiles.mesh);
   scene.add(tiles.farShell);
   engine.onUpdate(() => {
@@ -36,7 +49,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   });
 
   ctx.progress(0.88, 'monuments: casing the pyramids');
-  const sites = buildMonuments(scene, seed);
+  const sites = buildMonuments(scene, seed, gi);
   engine.onUpdate(() => updateMonumentLods(sites, camera.position));
   engine.stats.counters['monuments.stones'] = sites.reduce(
     (a, s) => a + s.lod.stoneCount,
@@ -44,7 +57,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   );
 
   ctx.progress(0.89, 'monuments: temples, causeway, mastaba fields');
-  buildKhufuComplex(scene, seed);
+  buildKhufuComplex(scene, seed, gi);
 
   // --- placeholder water stages (flat, dark; Phase 5 = flowing river) ------
   // constrained to the river corridor + harbor so terrain that happens to
@@ -71,11 +84,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   harbor.receiveShadow = true;
   scene.add(harbor);
 
-  // --- Phase-2 lighting stack -------------------------------------------------
-  ctx.progress(0.9, 'sky: atmosphere LUTs');
-  const sunSky = new SunSky(engine, engine.params.timeOfDay);
-  await sunSky.init(renderer);
-
+  // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');
   const clouds = new Clouds(sunSky.atmosphere);
   await clouds.init(renderer);
@@ -98,6 +107,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.hooks.setTimeOfDay = (t): void => {
     engine.params.timeOfDay = t;
     void sunSky.setTimeOfDay(t).then(() => clouds.refreshShadow(renderer));
+    gi.invalidate(); // probes re-converge fast after the sun jump
     post.setTimeOfDay(t);
   };
   engine.hooks.groundProbe = (x, z) => ({

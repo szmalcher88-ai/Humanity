@@ -11,7 +11,7 @@
  */
 
 import { InstancedMesh, PlaneGeometry, RingGeometry, Mesh, type PerspectiveCamera } from 'three';
-import { MeshPhysicalNodeMaterial, type StorageBufferNode } from 'three/webgpu';
+import { IrradianceNode, MeshPhysicalNodeMaterial, type StorageBufferNode } from 'three/webgpu';
 import {
   cameraPosition,
   clamp,
@@ -31,6 +31,8 @@ import {
 } from 'three/tsl';
 import { DISP, buildTerrainShading } from '../render/TerrainMaterial';
 import { PERIOD_FBM, PERIOD_RID, PERIOD_VAL } from '../gpu/passes/NoiseBake';
+import type { ProbeGI } from '../gpu/passes/ProbeGI';
+import type { NV3 } from '../gpu/TSLTypes';
 import type { Heightfield } from './Heightfield';
 import { gizaTerrain } from './GizaControl';
 import { FAR_RADIUS, TERRAIN_CX, TERRAIN_CZ, WORLD_HALF, WORLD_SIZE } from './WorldConst';
@@ -52,9 +54,23 @@ export class TerrainTiles {
   activeTiles = 0;
   private rangePyr: Float32Array[] = [];
 
-  constructor(hf: Heightfield, debugView: string | null = null) {
+  constructor(
+    hf: Heightfield,
+    debugView: string | null = null,
+    opts: { gi?: ProbeGI } = {},
+  ) {
     this.hf = hf;
     this.buildRangePyramid();
+    const gi = opts.gi ?? null;
+    const giPatch = (
+      m: MeshPhysicalNodeMaterial,
+      normal: NV3,
+    ): void => {
+      if (!gi) return;
+      const irr = gi.irradiance(positionWorld, normal);
+      (m as unknown as { setupLightMap: () => unknown }).setupLightMap = () =>
+        new IrradianceNode(irr as unknown as ConstructorParameters<typeof IrradianceNode>[0]);
+    };
 
     this.tileData = new Float32Array(MAX_TILES * 4);
     this.tileBuf = instancedArray(this.tileData, 'vec4');
@@ -152,6 +168,7 @@ export class TerrainTiles {
     mat.normalNode = shading.normalNode;
     mat.roughnessNode = shading.roughnessNode;
     mat.metalnessNode = float(0);
+    giPatch(mat, shading.worldNormalNode);
 
     if (debugView === 'lod') {
       const lod = tile.w;
@@ -216,6 +233,7 @@ export class TerrainTiles {
     farMat.normalNode = farShading.normalNode;
     farMat.roughnessNode = farShading.roughnessNode;
     farMat.metalnessNode = float(0);
+    giPatch(farMat, farShading.worldNormalNode);
     this.farShell = new Mesh(ring, farMat);
     // farMat.positionNode uses positionLocal directly (already offset by
     // fxz = local + TERRAIN_C in the height math) — mesh stays at origin
