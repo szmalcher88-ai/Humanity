@@ -196,7 +196,18 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    mortuary-temple interior court gets no probe line-of-sight nuance
    (probes are terrain-relative — acceptable at massing stage).
 7. Camera yaw for shots: yaw = atan2(−dx, −dz).
-8. GROUND EVERYTHING: any structure off the leveled G1 court placed at a
+8. VALIDATE FOOTPRINT OVERLAPS on any placement change: the first queens
+   row (z −18/34/86) ran the mortuary temple's SE corner THROUGH G1-a,
+   and the south temenos wall (z≈135) through satellite G1-d. Fixed:
+   queens z 52/104/156 (row starts south of the temple, per the published
+   plan), G1-d z 151 (outside the enclosure), temenos east-wall gate now
+   exactly the temple front width (a wider gap floated the temple lintel
+   over open air). qPad terrace in GizaControl moved with the row
+   (center z 104). Check axis-aligned extents on paper BEFORE building.
+9. Afloat hulls need exaggerated freeboard (barge 1.2, traveler 1.15,
+   skiff 0.5): the silty water surface is opaque, a survey-accurate laden
+   trim reads as a swamped boat.
+10. GROUND EVERYTHING: any structure off the leveled G1 court placed at a
    fixed Y will float over dips and bury on rises (user screenshots:
    floating mastaba rows, causeway daylight gaps, half-buried beached
    skiffs). Rule: seat via hf.heightAtCpu — mastabas on the LOWEST

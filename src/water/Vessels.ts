@@ -137,7 +137,10 @@ function barge(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): 
   const tone: V3 = [0.45 * rng.range(0.85, 1.1), 0.34 * rng.range(0.85, 1.1), 0.21];
   const L = rng.range(16, 24);
   const B = L * rng.range(0.3, 0.36);
-  const deck = loftHull(w, { L, B, draft: 1.1, freeboard: 0.75, sweep: rng.range(0.4, 0.9), tone }, cx, cz, yaw, y);
+  // freeboard raised (0.75 → 1.2): the silty water is opaque at the
+  // surface, so a low-riding hull read as swamped — waterline art needs
+  // real height above water, not survey-accurate laden trim
+  const deck = loftHull(w, { L, B, draft: 0.9, freeboard: 1.2, sweep: rng.range(0.4, 0.9), tone }, cx, cz, yaw, y);
   // deck cargo: stone block or jar clusters
   const n = rng.int(4) + 2;
   for (let i = 0; i < n; i++) {
@@ -157,7 +160,7 @@ function traveler(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number
   const B = L * 0.24;
   const deck = loftHull(
     w,
-    { L, B, draft: 0.8, freeboard: 0.85, sweep: rng.range(1.2, 2.2), tone },
+    { L, B, draft: 0.6, freeboard: 1.15, sweep: rng.range(1.2, 2.2), tone },
     cx, cz, yaw, y,
   );
   const cy = Math.cos(yaw);
@@ -186,7 +189,7 @@ function skiff(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): 
   const L = rng.range(4.5, 7);
   loftHull(
     w,
-    { L, B: L * 0.26, draft: 0.28, freeboard: 0.35, sweep: rng.range(0.7, 1.2), tone },
+    { L, B: L * 0.26, draft: 0.2, freeboard: 0.5, sweep: rng.range(0.7, 1.2), tone },
     cx, cz, yaw, y,
   );
 }
@@ -259,8 +262,8 @@ export function buildHarbor(
     {
       const bx = px0 + len - 6 - rng.float() * 18;
       const tx = px0 + len - 8 - rng.float() * 18;
-      barge(w, rng, bx, pz - 7.5, rng.range(-0.12, 0.12), floatY(bx, pz - 7.5, 1.1));
-      traveler(w, rng, tx, pz + 7.5, Math.PI + rng.range(-0.12, 0.12), floatY(tx, pz + 7.5, 0.8));
+      barge(w, rng, bx, pz - 7.5, rng.range(-0.12, 0.12), floatY(bx, pz - 7.5, 0.9));
+      traveler(w, rng, tx, pz + 7.5, Math.PI + rng.range(-0.12, 0.12), floatY(tx, pz + 7.5, 0.6));
       vessels += 2;
     }
   }
@@ -277,9 +280,9 @@ export function buildHarbor(
     }
     anchored.push([x, z]);
     const yawB = rng.float() * Math.PI * 2;
-    if (i % 3 === 0) barge(w, rng, x, z, yawB, floatY(x, z, 1.1));
-    else if (i % 3 === 1) traveler(w, rng, x, z, yawB, floatY(x, z, 0.8));
-    else skiff(w, rng, x, z, yawB, floatY(x, z, 0.28));
+    if (i % 3 === 0) barge(w, rng, x, z, yawB, floatY(x, z, 0.9));
+    else if (i % 3 === 1) traveler(w, rng, x, z, yawB, floatY(x, z, 0.6));
+    else skiff(w, rng, x, z, yawB, floatY(x, z, 0.2));
     vessels++;
   }
 
@@ -291,15 +294,15 @@ export function buildHarbor(
     // meandering channel never leaves a hull sitting on a sandbar
     let x = x0;
     for (let p = 0; p < 8 && hf.heightAtCpu(x, z) > NILE_WATER_Y - 2.2; p++) x += 12;
-    if (rng.chance(0.5)) traveler(w, rng, x, z, rng.range(-0.3, 0.3), floatY(x, z, 0.8));
-    else barge(w, rng, x, z, rng.range(-0.3, 0.3) + Math.PI, floatY(x, z, 1.1));
+    if (rng.chance(0.5)) traveler(w, rng, x, z, rng.range(-0.3, 0.3), floatY(x, z, 0.6));
+    else barge(w, rng, x, z, rng.range(-0.3, 0.3) + Math.PI, floatY(x, z, 0.9));
     vessels++;
   }
   for (let i = 0; i < 5; i++) {
     // beached on the west bank margin — keel seated on the ground
     const z = rng.range(-500, 1200);
     const x = 1830 + rng.range(-14, 6);
-    skiff(w, rng, x, z, rng.range(0.8, 2.2), hf.heightAtCpu(x, z) + 0.24);
+    skiff(w, rng, x, z, rng.range(0.8, 2.2), hf.heightAtCpu(x, z) + 0.17);
     vessels++;
   }
 

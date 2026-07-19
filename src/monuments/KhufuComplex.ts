@@ -263,8 +263,10 @@ export function buildKhufuComplex(
     local.box(0, 0, -r, 2 * r + th, h, th, 0.98, 0.06); // north
     local.box(0, 0, r, 2 * r + th, h, th, 0.97, 0.06); // south
     local.box(-r, 0, 0, th, h, 2 * r + th, 0.99, 0.06); // west
-    // east wall in two runs leaving the temple doorway
-    const gateHalf = 12;
+    // east wall in two runs that stop AT the mortuary temple's flanks —
+    // the temple front fills the opening (a 24 m gate gap left the temple
+    // doorway lintel reading as a beam floating over open air)
+    const gateHalf = G1_MORTUARY_TEMPLE_NS.value / 2 + 0.25;
     const run = r - gateHalf;
     local.box(r, 0, -(gateHalf + run / 2), th, h, run, 0.98, 0.06);
     local.box(r, 0, gateHalf + run / 2, th, h, run, 0.98, 0.06);
@@ -431,7 +433,7 @@ export function buildKhufuComplex(
   }
 
   /* --- queens' chapels (small east-side chapels per queen) ------------------ */
-  for (const qz of [-18, 34, 86]) {
+  for (const qz of [52, 104, 156]) {
     const qx = 190 + 23 + 4.5;
     local.box(qx, Math.min(-1.2, grd(qx, qz) - 0.3), qz, 9, 4.6, 12, 0.96, 0.05);
   }

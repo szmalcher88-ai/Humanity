@@ -441,8 +441,11 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
   const dG1 = p.abs();
   const g1Pad = smoothstep(190, 165, dG1.x.max(dG1.y));
   h = mix(h, float(0), g1Pad);
-  const dQ = p.sub(vec2(190, 34)).abs();
-  const qPad = smoothstep(26, 14, dQ.x).mul(smoothstep(122, 102, dQ.y));
+  // centered on the queens' row (z 52..156 after the collision fix) and
+  // wide enough that the 46 m bases sit fully on the terrace, not corners
+  // hanging off the east slope
+  const dQ = p.sub(vec2(190, 104)).abs();
+  const qPad = smoothstep(34, 25, dQ.x).mul(smoothstep(102, 84, dQ.y));
   h = mix(h, float(-1.2), qPad.mul(g1Pad.oneMinus()));
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */
