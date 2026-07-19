@@ -35,12 +35,18 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   ctx.progress(0.85, 'gi: irradiance probe field');
   const gi = new ProbeGI(hf, sunSky.atmosphere);
   await gi.init(renderer);
-  engine.onUpdate(() => gi.tick(renderer));
+  // reduced preset: probe refresh every 2nd frame (halves compute cost;
+  // the field is temporally EMA'd anyway)
+  let giFrame = 0;
+  const giEvery = engine.params.preset === 'low' ? 2 : 1;
+  engine.onUpdate(() => {
+    if (giFrame++ % giEvery === 0) gi.tick(renderer);
+  });
   sunSky.dimAmbientForGI();
 
   ctx.progress(0.86, 'terrain: building tiles');
   const debugView = new URLSearchParams(window.location.search).get('view');
-  const tiles = new TerrainTiles(hf, debugView, { gi });
+  const tiles = new TerrainTiles(hf, debugView, { gi, preset: engine.params.preset });
   scene.add(tiles.mesh);
   scene.add(tiles.farShell);
   engine.onUpdate(() => {
@@ -60,8 +66,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   buildKhufuComplex(scene, seed, gi);
 
   ctx.progress(0.9, 'floodplain: palms and field parcels');
-  const palmCount = buildPalms(scene, seed, hf, gi);
-  const fields = buildFields(scene, seed, hf, gi);
+  const palmCount = buildPalms(scene, seed, hf, gi, engine.params.preset);
+  const fields = buildFields(scene, seed, hf, gi, engine.params.preset);
   engine.stats.counters['veg.palms'] = palmCount;
   engine.stats.counters['veg.tufts'] = fields.count;
   engine.stats.counters['veg.parcels'] = fields.parcels;
@@ -83,11 +89,14 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.onUpdate((dt) => clouds.tick(renderer, dt));
 
   ctx.progress(0.94, 'shadows: CSM + PCSS');
+  const lowQ = engine.params.preset === 'low';
   setupSunShadows(
     sunSky.sun,
     camera,
     (wxz) => clouds.shadowAt(wxz),
-    { maxFar: 3600, lightMargin: 900 },
+    lowQ
+      ? { maxFar: 2400, lightMargin: 900, cascades: 2, mapSize: 1024 }
+      : { maxFar: 3600, lightMargin: 900 },
   );
 
   ctx.progress(0.96, 'post: pipeline');

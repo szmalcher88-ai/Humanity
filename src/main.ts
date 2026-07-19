@@ -43,6 +43,22 @@ async function boot(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log('[akhet] WebGPU adapter:', describeDiagnostics(diag).join(' | '));
 
+  // Optimus trap: browsers default to the power-saving iGPU and Windows
+  // ignores powerPreference (crbug 369219127). If we landed on Intel and
+  // the user didn't pick a preset, drop to the reduced preset (smaller
+  // grids and instance counts — never fewer systems) and cap DPR at 1.
+  const onIGpu = (diag.vendor ?? '').toLowerCase().includes('intel');
+  if (onIGpu && !new URLSearchParams(window.location.search).has('preset')) {
+    params.preset = 'low';
+    if (params.dpr === null) params.dpr = 1;
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[akhet] Running on the INTEGRATED GPU — reduced preset engaged. ' +
+        'For full quality: Windows Settings > System > Display > Graphics > ' +
+        'add your browser > High performance.',
+    );
+  }
+
   progress(0.12, 'creating renderer');
   const engine = await Engine.create(params, hooks);
   const seed = new WorldSeed(params.seed);

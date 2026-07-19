@@ -38,10 +38,13 @@ import { gizaTerrain } from './GizaControl';
 import { FAR_RADIUS, TERRAIN_CX, TERRAIN_CZ, WORLD_HALF, WORLD_SIZE } from './WorldConst';
 
 const MAX_TILES = 2048;
-const PATCH_SEGS = 64;
-const SPLIT_K = 2.1;
-const MIN_TILE = 64;
-const MIN_TILE_ROUGH = 32;
+/** reduced preset halves the patch grid (¼ the terrain raster load) and
+ *  splits later/coarser — terrain raster+fill is THE iGPU whale (98 ms
+ *  of a 158 ms bare-desert frame, probe-igpu attribution) */
+const PATCH_SEGS_BY_PRESET = { low: 32, high: 64, ultra: 64 } as const;
+const SPLIT_K_BY_PRESET = { low: 1.6, high: 2.1, ultra: 2.1 } as const;
+const MIN_TILE_BY_PRESET = { low: 96, high: 64, ultra: 64 } as const;
+const MIN_TILE_ROUGH_BY_PRESET = { low: 64, high: 32, ultra: 32 } as const;
 
 export class TerrainTiles {
   readonly mesh: InstancedMesh;
@@ -49,6 +52,9 @@ export class TerrainTiles {
   private tileData: Float32Array;
   private tileBuf: StorageBufferNode<'vec4'>;
   private hf: Heightfield;
+  private splitK = 2.1;
+  private minTile = 64;
+  private minTileRough = 32;
   private lastCamX = Infinity;
   private lastCamZ = Infinity;
   activeTiles = 0;
@@ -57,17 +63,28 @@ export class TerrainTiles {
   constructor(
     hf: Heightfield,
     debugView: string | null = null,
-    opts: { gi?: ProbeGI } = {},
+    opts: { gi?: ProbeGI; preset?: 'low' | 'high' | 'ultra' } = {},
   ) {
     this.hf = hf;
     this.buildRangePyramid();
+    const preset = opts.preset ?? 'high';
+    const PATCH_SEGS = PATCH_SEGS_BY_PRESET[preset];
+    const SPLIT_K = SPLIT_K_BY_PRESET[preset];
+    this.splitK = SPLIT_K;
+    this.minTile = MIN_TILE_BY_PRESET[preset];
+    this.minTileRough = MIN_TILE_ROUGH_BY_PRESET[preset];
     const gi = opts.gi ?? null;
+    // reduced preset: even the terrain evaluates probe GI per-vertex —
+    // 1-2 m quads near the camera make the interpolation error invisible
+    // and it strips the per-fragment texture3D×3 + bilinear (iGPU whale)
+    const giVertex = opts.preset === 'low';
     const giPatch = (
       m: MeshPhysicalNodeMaterial,
       normal: NV3,
     ): void => {
       if (!gi) return;
-      const irr = gi.irradiance(positionWorld, normal);
+      let irr = gi.irradiance(positionWorld, normal);
+      if (giVertex) irr = varying(irr) as unknown as typeof irr;
       (m as unknown as { setupLightMap: () => unknown }).setupLightMap = () =>
         new IrradianceNode(irr as unknown as ConstructorParameters<typeof IrradianceNode>[0]);
     };
@@ -163,6 +180,7 @@ export class TerrainTiles {
       wpos: worldXZ,
       uv: worldUV,
       far: false,
+      lite: preset === 'low',
     });
     mat.colorNode = shading.colorNode;
     mat.normalNode = shading.normalNode;
@@ -228,6 +246,7 @@ export class TerrainTiles {
       wpos: worldXZ,
       uv: worldUV,
       far: true,
+      lite: preset === 'low',
     });
     farMat.colorNode = farShading.colorNode;
     farMat.normalNode = farShading.normalNode;
@@ -289,7 +308,7 @@ export class TerrainTiles {
     const lvl = Math.max(
       0,
       Math.min(
-        Math.round(Math.log2(Math.max(size, MIN_TILE) / MIN_TILE)),
+        Math.round(Math.log2(Math.max(size, 64) / 64)),
         this.rangePyr.length - 1,
       ),
     );
@@ -332,8 +351,8 @@ export class TerrainTiles {
       const dist = Math.hypot(dx, dz, dy);
       const range = this.heightRange(ox, oz, size);
       const errBoost = Math.min(1 + (range / size) * 0.8, 1.8);
-      const minTile = range > size * 0.85 ? MIN_TILE_ROUGH : MIN_TILE;
-      if (size > minTile && dist < size * SPLIT_K * errBoost) {
+      const minTile = range > size * 0.85 ? this.minTileRough : this.minTile;
+      if (size > minTile && dist < size * this.splitK * errBoost) {
         const q = size / 4;
         const h = size / 2;
         recurse(ox - q, oz - q, h, lod + 1);

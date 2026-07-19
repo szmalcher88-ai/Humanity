@@ -60,6 +60,9 @@ export interface TerrainShadingInputs {
   /** uv over the terrain grid for the baked textures */
   uv: NV2;
   far: boolean;
+  /** reduced preset: half the noise fetches (ripple/worley/ridged skipped —
+   *  terrain fill is the iGPU whale) */
+  lite?: boolean;
 }
 
 export interface TerrainShading {
@@ -98,9 +101,12 @@ export function buildTerrainShading(inp: TerrainShadingInputs): TerrainShading {
   const rockExp = msk.w;
 
   /* --- noise fetches ------------------------------------------------------ */
+  const lite = inp.lite === true;
   const nA1 = texture(inp.noiseA, wpos.div(1.1 * PERIOD_FBM)); // fbm + grads
-  const nB1 = texture(inp.noiseB, wpos.div(2.3 * PERIOD_RID)); // ridged + grads
-  const nWor = texture(inp.noiseB, wpos.div(0.45 * PERIOD_WOR)).a; // pebbles
+  const nB1 = lite ? nA1 : texture(inp.noiseB, wpos.div(2.3 * PERIOD_RID));
+  const nWor = lite
+    ? nA1.r
+    : texture(inp.noiseB, wpos.div(0.45 * PERIOD_WOR)).a; // pebbles
   const macro = texture(inp.noiseA, wpos.div(2.9 * PERIOD_VAL)).r; // ~740 m
   const macroK = macro.mul(0.24).add(0.88); // ±12% tone variation
 
@@ -111,14 +117,14 @@ export function buildTerrainShading(inp: TerrainShadingInputs): TerrainShading {
   const wdir = vec2(WIND_X, WIND_Z);
   const perp = vec2(-WIND_Z, WIND_X);
   const rippleP = vec2(wpos.dot(wdir).div(0.4), wpos.dot(perp).div(1.6));
-  const ripple = texture(inp.noiseA, rippleP.div(PERIOD_FBM));
+  const ripple = lite ? nA1 : texture(inp.noiseA, rippleP.div(PERIOD_FBM));
   const rippleH = ripple.g; // fbm value = crest/trough
   const rippleGrad = ripple.ba; // d/dx, d/dz in ripple space
   // camera-distance fade for all ripple contributions (close-range meso)
   const camDist = positionWorld.sub(cameraPosition).length();
-  const rippleFade = smoothstep(70, 25, camDist);
+  const rippleFade = lite ? float(0) : smoothstep(70, 25, camDist);
   // fine grain speckle — the actual texture of sand at eye height
-  const grain = texture(inp.noiseA, wpos.div(0.021 * PERIOD_VAL)).r;
+  const grain = lite ? nA1.g : texture(inp.noiseA, wpos.div(0.021 * PERIOD_VAL)).r;
 
   /* --- per-family albedo ---------------------------------------------------- */
   // bedrock: strata banding comes from the baked geometry benches; here we

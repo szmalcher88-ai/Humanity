@@ -465,7 +465,6 @@ export function buildKhufuComplex(
   for (const m of [turaMesh, localMesh, basaltMesh]) {
     m.castShadow = true;
     m.receiveShadow = true;
-    m.frustumCulled = false;
     scene.add(m);
   }
 

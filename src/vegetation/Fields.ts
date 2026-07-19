@@ -39,14 +39,17 @@ import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { NILE_WATER_Y } from '../world/WorldConst';
 
-const TUFTS = 750_000;
+/** tuft budget by quality preset (reduced preset: fewer instances and a
+ *  shorter fade — never fewer systems; brief §6) */
+const TUFT_BUDGET = { low: 120_000, high: 750_000, ultra: 900_000 } as const;
+const BLADES_BY_PRESET = { low: 3, high: 5, ultra: 5 } as const;
 const FADE_NEAR = 700;
 const FADE_FAR = 1150;
+const FADE_FAR_LOW = 750;
 
-/** 5-blade crossed tuft, ~0.9 m tall, origin at the root */
-function tuftGeometry(): BufferGeometry {
+/** crossed-blade tuft, ~0.9 m tall, origin at the root */
+function tuftGeometry(BLADES: number): BufferGeometry {
   const pos: number[] = [];
-  const BLADES = 5;
   for (let b = 0; b < BLADES; b++) {
     const az = (b / BLADES) * Math.PI * 2 + b * 0.7;
     const lean = 0.16 + 0.1 * Math.sin(b * 12.9898);
@@ -81,8 +84,11 @@ export function buildFields(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
+  preset: 'low' | 'high' | 'ultra' = 'high',
 ): ParcelInfo {
   const rng = seed.rng('fields');
+  const TUFTS = TUFT_BUDGET[preset];
+  const fadeFar = preset === 'low' ? FADE_FAR_LOW : FADE_FAR;
 
   /* --- parcel plan: strips along the river on both banks ------------------ */
   interface Parcel {
@@ -225,7 +231,7 @@ export function buildFields(
   const B = bufB.element(instanceIndex);
   const camD = A.xyz.sub(cameraPosition).length();
   // collapse far tufts to zero size (degenerate tris rasterize nothing)
-  const fade = smoothstep(FADE_FAR, FADE_NEAR, camD);
+  const fade = smoothstep(fadeFar, FADE_NEAR, camD);
   const scale = B.w.mul(fade);
   const yaw = A.w;
   const cy = cos(yaw);
@@ -253,7 +259,7 @@ export function buildFields(
   giLightMap(mat, gi, varying(nBlend) as unknown as NV3, 1.2);
   void hash;
 
-  const mesh = new InstancedMesh(tuftGeometry(), mat, count);
+  const mesh = new InstancedMesh(tuftGeometry(BLADES_BY_PRESET[preset]), mat, count);
   mesh.frustumCulled = false;
   mesh.castShadow = false; // 0.5M casters would swamp the cascades; contact+AO carry it
   mesh.receiveShadow = true;

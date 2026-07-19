@@ -53,12 +53,25 @@ export class Hud {
       }
     });
 
+    // adapter tag on the always-on chip: on Optimus laptops the browser
+    // silently lands on the Intel iGPU (2 fps vs 50) — make it VISIBLE
+    const vendor = (engine.hooks.diag?.vendor ?? '?').split(' ')[0];
+    const igpu = vendor?.toLowerCase().includes('intel') ?? false;
     engine.onUpdate((dt) => {
       this.acc += dt;
       if (this.acc >= 0.25) {
         this.acc = 0;
         if (this.visible) this.render();
-        else this.fpsEl.textContent = `${this.engine.stats.fps.toFixed(0)} fps`;
+        else {
+          const fps = this.engine.stats.fps;
+          let line = `${fps.toFixed(0)} fps · ${vendor}${this.params.preset === 'low' ? ' · low' : ''}`;
+          if (igpu && fps < 24) {
+            line +=
+              '\n⚠ integrated GPU — set your browser to' +
+              '\n"High performance" in Windows Graphics settings';
+          }
+          this.fpsEl.textContent = line;
+        }
       }
     });
   }

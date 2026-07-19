@@ -13,7 +13,7 @@
  * the raking-light sparkle (canon Vol. V casing characteristics).
  */
 
-import { BufferAttribute, BufferGeometry, InstancedMesh, Mesh, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, InstancedMesh, Mesh, Sphere, Vector3 } from 'three';
 import { IrradianceNode, MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
   clamp,
@@ -39,15 +39,24 @@ import type { NF, NV3 } from '../gpu/TSLTypes';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { PyramidSpec } from './PyramidSpec';
 
-/** wire the probe field into a material as its ambient/light-map term */
+/**
+ * Wire the probe field into a material as its ambient/light-map term.
+ * stage 'vertex': irradiance evaluates per-VERTEX and interpolates — for
+ * small primitives (stones, blades, fronds, planks) this is visually
+ * sub-quantization vs the 16 m probe grid, and it removes 3×texture3D +
+ * a 4-tap heightfield bilinear from EVERY FRAGMENT (the iGPU whale:
+ * r.scene 65→ms-scale win). Large surfaces (terrain tiles) stay fragment.
+ */
 export function giLightMap(
   m: MeshPhysicalNodeMaterial,
   gi: ProbeGI | null,
   normal: NV3,
   lift = 2.0,
+  stage: 'vertex' | 'fragment' = 'vertex',
 ): void {
   if (!gi) return;
-  const irr = gi.irradiance(positionWorld as unknown as NV3, normal, lift);
+  let irr = gi.irradiance(positionWorld as unknown as NV3, normal, lift);
+  if (stage === 'vertex') irr = varying(irr) as unknown as typeof irr;
   (m as unknown as { setupLightMap: () => unknown }).setupLightMap = () =>
     new IrradianceNode(irr as unknown as ConstructorParameters<typeof IrradianceNode>[0]);
 }
@@ -233,8 +242,20 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
     mat.colorNode = vec3(1, 1, 1);
     mat.emissiveNode = varying(nWorld.mul(0.5).add(0.5)) as unknown as NV3;
   }
-  const near = new InstancedMesh(geo, mat, n);
-  near.frustumCulled = false;
+  // per-pyramid geometry VIEW sharing the same attribute buffers, with an
+  // explicit world-space bounding sphere: frustumCulled=false submitted
+  // 63k instances (1.3M tris of vertex work) even facing AWAY (iGPU probe)
+  const geoView = new BufferGeometry();
+  const posAttr = geo.getAttribute('position');
+  if (posAttr) geoView.setAttribute('position', posAttr);
+  const nrmAttr = geo.getAttribute('normal');
+  if (nrmAttr) geoView.setAttribute('normal', nrmAttr);
+  geoView.boundingSphere = new Sphere(
+    new Vector3(p.cx, p.cy + p.height / 2, p.cz),
+    Math.hypot(p.baseSide * 0.7071, p.height / 2) + 8,
+  );
+  const near = new InstancedMesh(geoView, mat, n);
+  near.frustumCulled = true;
   near.castShadow = true;
   near.receiveShadow = true;
 
@@ -277,7 +298,6 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   far.position.set(p.cx, p.cy, p.cz);
   far.castShadow = true;
   far.receiveShadow = true;
-  far.frustumCulled = false;
 
   // --- LOD switch: backing stays on; stones toggle ---------------------------
   const center = new Vector3(p.cx, p.cy + H / 2, p.cz);

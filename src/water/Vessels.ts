@@ -256,7 +256,6 @@ export function buildHarbor(
   const mesh = new Mesh(w.build(), mat);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  mesh.frustumCulled = false;
   scene.add(mesh);
   return vessels;
 }

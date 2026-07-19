@@ -183,7 +183,12 @@ export class PostStack {
           halfAo,
           // GTAO defaults are mesh-viewer scale: 16 samples cost ~50 ms on
           // terrain vistas (Phase-2 finding) — 8 samples, 1.6 m radius
-          { samples: 8, radius: 1.6, distanceFallOff: 0.6 },
+          // reduced preset: 4 samples — iGPU pays ~2× per sample here
+          {
+            samples: engine.params.preset === 'low' ? 4 : 8,
+            radius: 1.6,
+            distanceFallOff: 0.6,
+          },
         ),
       });
     }
@@ -225,7 +230,12 @@ export class PostStack {
     let aoTexNode: NV4 | null = null;
     let bounceTex: NV4 | null = null;
     if (halfEntries.length > 0) {
-      const halfPass = new HalfResMrtNode(halfEntries, 0.5);
+      // reduced preset: the cloud march + AO run at 0.35× instead of 0.5×
+      // (TAA absorbs the upsample; ray count is the iGPU whale)
+      const halfPass = new HalfResMrtNode(
+        halfEntries,
+        engine.params.preset === 'low' ? 0.35 : 0.5,
+      );
       if (halfAo) {
         // the AO noise tiling must read the pass's true half-res dims
         halfAo.value = halfPass.resolution.value;

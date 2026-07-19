@@ -39,7 +39,7 @@ import type { NF, NV3 } from '../gpu/TSLTypes';
 import { NILE_WATER_Y } from '../world/WorldConst';
 
 const VARIANTS = 8;
-const TARGET = 5400;
+const TARGET = { low: 2400, high: 5400, ultra: 6500 } as const;
 
 /** one palm variant: trunk + frond crown, grown from a seed */
 function palmGeometry(rng: Rng): BufferGeometry {
@@ -127,8 +127,10 @@ export function buildPalms(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
+  preset: 'low' | 'high' | 'ultra' = 'high',
 ): number {
   const rng = seed.rng('palms');
+  const target = TARGET[preset];
 
   // --- placement: cluster along water ---------------------------------------
   // grove anchors near banks/harbor/canal-side; rejection-sample on the CPU
@@ -147,7 +149,7 @@ export function buildPalms(
     anchors.push([rng.range(950, 1750), rng.range(-330, 80), rng.range(10, 26)]);
   }
   let tries = 0;
-  while (spots.length < TARGET && tries < TARGET * 30) {
+  while (spots.length < target && tries < target * 30) {
     tries++;
     const an = anchors[rng.int(anchors.length)] as [number, number, number];
     const r = Math.abs(rng.gauss()) * an[2];
