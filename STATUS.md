@@ -218,6 +218,33 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    water plane showed INSIDE open hulls ("swamped boats") — same class as
    the carpet-winding bug; deck order is (prev.gl, prev.gr, cur.gr, cur.gl).
 
+## DONE this session (2026-07-19) — placement tooling
+
+- **Footprint registry + collision audit + Inspector** (src/debug/
+  Footprints.ts, CollisionAudit.ts, Inspector.ts, EditOverrides.ts):
+  every structure registers a logical OBB footprint (family, ground
+  policy, allow-list); runCollisionAudit() detects overlap / float /
+  buried / stranded-hull; runs at boot (console + counters), is a GATE
+  in tools/audit.ts (collisionTest boots the world headless), and drives
+  a red/yellow box overlay (?debug=collisions).
+- **Inspector (Unity-lite)**: E or ?edit=1 → click-select via ray-AABB,
+  arrows move ±1 m (Shift ×5, Alt ×0.2), R reset, X export patch,
+  Esc deselect. Edits are DELTAS over canon placements (edPos() consulted
+  by builders), live rebuild of pyramids+complex+harbor in ~200 ms
+  (structures Group disposed + rebuilt), audit re-runs after every move.
+  Deltas persist in localStorage; export patch → apply to CODE (fixed-
+  layout pillar: the scene is never the source of truth). Harness hooks:
+  __akhet.collisionAudit / editNudge / editExport; tools/test-inspector.ts
+  is the smoke test (provoke overlap → detect → reset → clean).
+- **First catches by the validator** (previously unknown defects): the
+  causeway ran THROUGH the eastern mastaba field (7 overlaps) and dove
+  under the escarpment crest at x 320-380 (roof buried 2.6 m); beached
+  skiffs at fixed x sat on the river bottom under 8 m of water where the
+  channel meanders. Fixed: causeway grade lifts over terrain (smoothed
+  per-segment ys[], walls sealed by local rise), eastern mastabas skip
+  plots within 28 m of the causeway line, beached skiffs walk the
+  floodplain east to the actual shoreline for their z.
+
 ## DONE this session (2026-07-18) — part 2: Phase 5 core
 
 - **NileWater** (src/water/NileWater.ts): flow-advected two-scale ripple

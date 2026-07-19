@@ -5,9 +5,10 @@
  * Water is a flat stage plane until Phase 5's flowing Nile.
  */
 
+import { Group, Mesh, type Material } from 'three';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
-import { buildMonuments, updateMonumentLods } from '../monuments/Monuments';
+import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { PostStack } from '../render/PostStack';
 import { setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
@@ -18,6 +19,8 @@ import { NileWater } from '../water/NileWater';
 import { buildHarbor } from '../water/Vessels';
 import { Heightfield } from '../world/Heightfield';
 import { TerrainTiles } from '../world/TerrainTiles';
+import { fpClear } from './Footprints';
+import { Inspector } from './Inspector';
 import type { WorldContext } from './Scenes';
 
 export async function buildWorldScene(ctx: WorldContext): Promise<void> {
@@ -54,16 +57,42 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['terrain.tiles'] = tiles.activeTiles;
   });
 
-  ctx.progress(0.88, 'monuments: casing the pyramids');
-  const sites = buildMonuments(scene, seed, gi);
-  engine.onUpdate(() => updateMonumentLods(sites, camera.position));
-  engine.stats.counters['monuments.stones'] = sites.reduce(
-    (a, s) => a + s.lod.stoneCount,
-    0,
-  );
+  // --- structures: pyramids + complex + harbor works in one rebuildable
+  // group. The Inspector re-runs this with edit overrides applied; the
+  // footprint registry is cleared and re-filled on every build.
+  const STRUCT_FAMILIES = [
+    'pyramids', 'temenos', 'temple', 'causeway', 'boatpits', 'chapels',
+    'mastabas-west', 'mastabas-east', 'pavement', 'vessels', 'harbor-works',
+  ];
+  const structures = new Group();
+  scene.add(structures);
+  let sites: MonumentSite[] = [];
+  const rebuildStructures = (): void => {
+    fpClear(STRUCT_FAMILIES);
+    for (const c of [...structures.children]) {
+      c.traverse((o) => {
+        if (o instanceof Mesh) {
+          o.geometry.dispose();
+          const m = o.material as Material | Material[];
+          if (Array.isArray(m)) m.forEach((mm) => mm.dispose());
+          else m.dispose();
+        }
+      });
+      structures.remove(c);
+    }
+    sites = buildMonuments(structures, seed, gi);
+    buildKhufuComplex(structures, seed, hf, gi);
+    engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
+    engine.stats.counters['monuments.stones'] = sites.reduce(
+      (a, s) => a + s.lod.stoneCount,
+      0,
+    );
+  };
 
+  ctx.progress(0.88, 'monuments: casing the pyramids');
   ctx.progress(0.89, 'monuments: temples, causeway, mastaba fields');
-  buildKhufuComplex(scene, seed, hf, gi);
+  rebuildStructures();
+  engine.onUpdate(() => updateMonumentLods(sites, camera.position));
 
   ctx.progress(0.9, 'floodplain: palms and field parcels');
   const palmCount = buildPalms(scene, seed, hf, gi, engine.params.preset);
@@ -79,7 +108,25 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.onUpdate((_dt, worldTime) => water.tick(worldTime));
 
   ctx.progress(0.915, 'harbor: quay, piers, vessels');
-  engine.stats.counters['harbor.vessels'] = buildHarbor(scene, seed, hf, gi);
+  // (harbor is part of rebuildStructures above)
+
+  // --- placement Inspector + collision audit (E key / ?edit=1) -------------
+  const inspector = new Inspector({
+    scene,
+    camera,
+    canvas: renderer.domElement as HTMLCanvasElement,
+    hf,
+    rebuild: rebuildStructures,
+  });
+  const boot = inspector.audit();
+  engine.stats.counters['collision.issues'] = boot.length;
+  window.__akhet.collisionAudit = () => {
+    const issues = inspector.audit();
+    engine.stats.counters['collision.issues'] = issues.length;
+    return issues;
+  };
+  window.__akhet.editNudge = (id, dx, dz) => inspector.nudge(id, dx, dz);
+  window.__akhet.editExport = () => inspector.exportPatch();
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');

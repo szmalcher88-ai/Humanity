@@ -38,6 +38,8 @@ export interface GpuDiagnostics {
   limits: Record<string, number>;
 }
 
+import type { CollisionIssue } from '../debug/CollisionAudit';
+
 export interface AkhetHooks {
   /** true once the first frames have rendered and the GPU pipeline is verified */
   ready: boolean;
@@ -62,6 +64,12 @@ export interface AkhetHooks {
   settle: ((frames?: number) => Promise<void>) | null;
   /** enable/disable fly-camera input (flythrough takes the wheel) */
   flyCamEnabled: ((on: boolean) => void) | null;
+  /** run the footprint collision/consistency audit (harness gate) */
+  collisionAudit: (() => CollisionIssue[]) | null;
+  /** Inspector: nudge an editable placement by (dx, dz) and rebuild */
+  editNudge: ((id: string, dx: number, dz: number) => void) | null;
+  /** Inspector: export pending edit deltas as a canon patch string */
+  editExport: (() => string) | null;
 }
 
 declare global {
@@ -86,6 +94,9 @@ export function initHooks(): AkhetHooks {
     setTimeOfDay: null,
     settle: null,
     flyCamEnabled: null,
+    collisionAudit: null,
+    editNudge: null,
+    editExport: null,
   };
   window.__akhet = hooks;
   return hooks;

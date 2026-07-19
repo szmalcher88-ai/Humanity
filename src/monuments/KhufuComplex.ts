@@ -19,7 +19,7 @@ import {
   BufferGeometry,
   Mesh,
   Vector3,
-  type Scene,
+  type Object3D,
 } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
@@ -40,6 +40,8 @@ import type { NF, NV3 } from '../gpu/TSLTypes';
 import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
+import { edPos } from '../debug/EditOverrides';
+import { fpReg } from '../debug/Footprints';
 import { giLightMap } from './PyramidBuilder';
 import {
   G1_BASE_SIDE,
@@ -195,7 +197,7 @@ export interface ComplexInfo {
 }
 
 export function buildKhufuComplex(
-  scene: Scene,
+  scene: Object3D,
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null = null,
@@ -253,6 +255,11 @@ export function buildKhufuComplex(
         z += d;
       }
     }
+    fpReg({
+      id: 'court-pavement', family: 'pavement', x: 0, z: 0,
+      hx: paveOuter, hz: paveOuter, y0: 0, y1: 0.16,
+      ground: 'none', passive: true,
+    });
   }
 
   /* --- temenos wall (gap at the mortuary temple, east) --------------------- */
@@ -263,6 +270,14 @@ export function buildKhufuComplex(
     local.box(0, 0, -r, 2 * r + th, h, th, 0.98, 0.06); // north
     local.box(0, 0, r, 2 * r + th, h, th, 0.97, 0.06); // south
     local.box(-r, 0, 0, th, h, 2 * r + th, 0.99, 0.06); // west
+    const wall = (id: string, x: number, z: number, hx: number, hz: number): void =>
+      fpReg({
+        id: `temenos:${id}`, family: 'temenos', x, z, hx, hz,
+        y0: 0, y1: h, ground: 'platform', allow: ['temple', 'pavement'],
+      });
+    wall('north', 0, -r, r + th / 2, th / 2);
+    wall('south', 0, r, r + th / 2, th / 2);
+    wall('west', -r, 0, th / 2, r + th / 2);
     // east wall in two runs that stop AT the mortuary temple's flanks —
     // the temple front fills the opening (a 24 m gate gap left the temple
     // doorway lintel reading as a beam floating over open air)
@@ -270,6 +285,8 @@ export function buildKhufuComplex(
     const run = r - gateHalf;
     local.box(r, 0, -(gateHalf + run / 2), th, h, run, 0.98, 0.06);
     local.box(r, 0, gateHalf + run / 2, th, h, run, 0.98, 0.06);
+    wall('east-n', r, -(gateHalf + run / 2), th / 2, run / 2);
+    wall('east-s', r, gateHalf + run / 2, th / 2, run / 2);
   }
 
   /* --- mortuary temple (east front, on the axis) --------------------------- */
@@ -308,11 +325,18 @@ export function buildKhufuComplex(
         );
       }
     }
+    fpReg({
+      id: 'mortuary-temple', family: 'temple', x: mtX, z: 0,
+      hx: mtW / 2, hz: mtL / 2, y0: 0, y1: h,
+      ground: 'platform', allow: ['temenos', 'pavement', 'causeway'],
+    });
   }
 
   /* --- causeway: embankment + walls + roof, slit-lit ------------------------ */
+  // valley temple is a canon placement — editable; the causeway END follows
+  const [vtX, vtZ] = edPos('valley-temple', VALLEY_TEMPLE_CENTER.x, VALLEY_TEMPLE_CENTER.z);
   const cwStart = new Vector3(mtX + mtW / 2, 0, 0);
-  const cwEnd = new Vector3(VALLEY_TEMPLE_CENTER.x - 22, -41.0, VALLEY_TEMPLE_CENTER.z);
+  const cwEnd = new Vector3(vtX - 22, -41.0, vtZ);
   {
     const dir = cwEnd.clone().sub(cwStart);
     const len = Math.hypot(dir.x, dir.z);
@@ -328,12 +352,37 @@ export function buildKhufuComplex(
     const segL = len / segN;
     const step = Math.abs(dir.y) / segN;
     const t = rng.fork('causeway');
+    // corridor GRADE: the straight temple→valley line dives under the
+    // escarpment crest around x 320-380 (collision audit: roof buried up
+    // to 2.6 m). Real causeways were graded over crests — lift the line
+    // to terrain where the ground rises above it, then smooth.
+    const ys = new Float32Array(segN);
+    for (let i = 0; i < segN; i++) {
+      const fm = (i + 0.5) / segN;
+      const lx = cwStart.x + dir.x * fm;
+      const lz = cwStart.z + dir.z * fm;
+      ys[i] = Math.max(cwStart.y + dir.y * fm, grd(lx, lz) + 0.35);
+    }
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 1; i < segN - 1; i++) {
+        const a = ys[i - 1] as number;
+        const b = ys[i] as number;
+        const c = ys[i + 1] as number;
+        ys[i] = (a + 2 * b + c) / 4;
+      }
+    }
     for (let i = 0; i < segN; i++) {
       const f0 = i / segN;
       const f1 = (i + 1) / segN;
       const xm = cwStart.x + dir.x * ((f0 + f1) / 2);
       const zm = cwStart.z + dir.z * ((f0 + f1) / 2);
-      const ym = cwStart.y + dir.y * ((f0 + f1) / 2);
+      const ym = ys[i] as number;
+      // seal against the graded neighbors, not just the linear step
+      const rise = Math.max(
+        step,
+        Math.abs((ys[Math.min(i + 1, segN - 1)] as number) - ym),
+        Math.abs((ys[Math.max(i - 1, 0)] as number) - ym),
+      );
       const L = segL * 1.6;
       // embankment pedestal down to the ACTUAL terrain under this segment
       // (a fixed depth from the corridor line left daylight gaps where the
@@ -351,34 +400,41 @@ export function buildKhufuComplex(
       // Near-zero batter: GeoWriter batter insets BOTH axes with height —
       // at 28 m of pedestal a 0.05 batter tapered each segment ~1.4 m
       // lengthwise and opened a dark colonnade of V-gaps between piers.
-      local.box(xm, embBase, zm, L, ym - embBase + step, w + 2.4, 0.93, 0.004, yaw);
+      local.box(xm, embBase, zm, L, ym - embBase + rise, w + 2.4, 0.93, 0.004, yaw);
       // floor slabs
-      tura.box(xm, ym - 0.02, zm, L, 0.16 + step, w - wallTh * 2, t.range(0.94, 1.0), 0, yaw);
-      // side walls (raised by one step so consecutive segments seal)
+      tura.box(xm, ym - 0.02, zm, L, 0.16 + rise, w - wallTh * 2, t.range(0.94, 1.0), 0, yaw);
+      // side walls (raised by the local grade rise so segments seal)
       const off = (w / 2 - wallTh / 2);
       local.box(
         xm - Math.sin(yaw) * off, ym, zm + Math.cos(yaw) * off,
-        L, wallH + step, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
+        L, wallH + rise, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
       );
       local.box(
         xm + Math.sin(yaw) * off, ym, zm - Math.cos(yaw) * off,
-        L, wallH + step, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
+        L, wallH + rise, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
       );
       // roof slabs with the central light slit (two runs, gap 0.45 m)
       const roofHalf = (w - 0.45) / 4 + 0.45 / 2;
       for (const s of [-1, 1]) {
         local.box(
           xm - Math.sin(yaw) * s * roofHalf, ym + wallH, zm + Math.cos(yaw) * s * roofHalf,
-          L, 0.5 + step, (w - 0.45) / 2 - 0.35, 0.96, 0, yaw,
+          L, 0.5 + rise, (w - 0.45) / 2 - 0.35, 0.96, 0, yaw,
         );
+      }
+      if (i % 6 === 0) {
+        fpReg({
+          id: `causeway:${i}`, family: 'causeway', x: xm, z: zm,
+          hx: (segL * 6) / 2, hz: (w + 2.4) / 2, y0: embBase, y1: ym + wallH + 0.7,
+          yaw, ground: 'grounded', allow: ['temple', 'temenos', 'pavement'],
+        });
       }
     }
   }
 
   /* --- valley temple (massing on its floodplain-edge platform) -------------- */
   {
-    const vx = VALLEY_TEMPLE_CENTER.x;
-    const vz = VALLEY_TEMPLE_CENTER.z;
+    const vx = vtX;
+    const vz = vtZ;
     const vy = -41.5;
     const h = 8;
     const th = 2.6;
@@ -397,6 +453,11 @@ export function buildKhufuComplex(
       local.box(xw, vy, vz + (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
       local.box(xw, vy + h - 1.5, vz, th, 1.5, dHalf * 2, 0.97, 0);
     }
+    fpReg({
+      id: 'valley-temple', family: 'temple', x: vx, z: vz,
+      hx: (W + 10) / 2, hz: (L + 10) / 2, y0: vy - 5, y1: vy + h,
+      ground: 'grounded', allow: ['causeway'], editable: true,
+    });
   }
 
   /* --- boat pits ------------------------------------------------------------- */
@@ -407,11 +468,14 @@ export function buildKhufuComplex(
       const pz = half + 6.5;
       const L = 32.5;
       const W = 3.4;
+      let low = Infinity;
       for (let b = 0; b < 22; b++) {
         const bx = px - L / 2 + (b + 0.5) * (L / 22);
+        const by = grd(bx, pz) - 0.05; // seated flush on the ground
+        low = Math.min(low, by);
         tura.box(
           bx,
-          grd(bx, pz) - 0.05, // seated flush on the ground, not hovering
+          by,
           pz,
           L / 22 - 0.05,
           0.6 + t.range(-0.02, 0.02),
@@ -419,6 +483,11 @@ export function buildKhufuComplex(
           t.range(0.88, 0.98),
         );
       }
+      fpReg({
+        id: `boatpit:s:${px}`, family: 'boatpits', x: px, z: pz,
+        hx: L / 2, hz: (W + 1.2) / 2, y0: low, y1: low + 0.7,
+        ground: 'grounded', allow: ['pavement'],
+      });
     }
     // two eastern boat-shaped pits (shallow sunken forms, massing)
     for (const pz of [-72, 72]) {
@@ -432,10 +501,17 @@ export function buildKhufuComplex(
     }
   }
 
-  /* --- queens' chapels (small east-side chapels per queen) ------------------ */
-  for (const qz of [52, 104, 156]) {
-    const qx = 190 + 23 + 4.5;
-    local.box(qx, Math.min(-1.2, grd(qx, qz) - 0.3), qz, 9, 4.6, 12, 0.96, 0.05);
+  /* --- queens' chapels (follow the queens' canon/edited positions) ---------- */
+  for (const [qi, qz0] of ([52, 104, 156] as const).entries()) {
+    const name = ['G1-a', 'G1-b', 'G1-c'][qi] ?? `q${qi}`;
+    const [qcx, qz] = edPos(`pyramid:${name}`, 190, qz0);
+    const qx = qcx + 23 + 4.5;
+    const qy = Math.min(-1.2, grd(qx, qz) - 0.3);
+    local.box(qx, qy, qz, 9, 4.6, 12, 0.96, 0.05);
+    fpReg({
+      id: `chapel:${name}`, family: 'chapels', x: qx, z: qz,
+      hx: 4.5, hz: 6, y0: qy, y1: qy + 4.6, ground: 'grounded',
+    });
   }
 
   /* --- mastaba fields ---------------------------------------------------------- */
@@ -443,11 +519,12 @@ export function buildKhufuComplex(
     const t = rng.fork('mastabas-west');
     const pE = MASTABA_GRID_PITCH_EW.value;
     const pN = MASTABA_GRID_PITCH_NS.value;
-    // WESTERN field: the great grid cemetery
+    // WESTERN field: the great grid cemetery (whole grid movable as one)
+    const [wOx, wOz] = edPos('mastabas-west', -(half + 55), -205);
     for (let col = 0; col < 17; col++) {
       for (let row = 0; row < 26; row++) {
-        const x = -(half + 55) - col * pE + t.range(-1.2, 1.2);
-        const z = -205 + row * pN + t.range(-0.8, 0.8);
+        const x = wOx - col * pE + t.range(-1.2, 1.2);
+        const z = wOz + row * pN + t.range(-0.8, 0.8);
         if (t.chance(0.16)) continue; // unbuilt / robbed plots
         const scale = t.chance(0.08) ? t.range(1.25, 1.6) : t.range(0.82, 1.1);
         const L = MASTABA_NUCLEUS_LENGTH.value * scale;
@@ -461,6 +538,11 @@ export function buildKhufuComplex(
             grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
           ) - 0.5;
         local.box(x, gy, z, W, H + 0.5, L, t.range(0.82, 1.0), 0.16);
+        fpReg({
+          id: `mastaba:w:${col}:${row}`, family: 'mastabas-west', x, z,
+          hx: W / 2, hz: L / 2, y0: gy, y1: gy + H + 0.5, ground: 'grounded',
+          editGroup: 'mastabas-west',
+        });
         // ~40%: small offering chapel on the east face
         if (t.chance(0.4)) {
           const cx2 = x + W / 2 + 1.6;
@@ -469,13 +551,25 @@ export function buildKhufuComplex(
         }
       }
     }
-    // EASTERN field (royal family): fewer, larger, east of the queens
+    // EASTERN field (royal family): fewer, larger, east of the queens.
+    // The causeway's right-of-way cuts through this area (collision audit
+    // caught tombs straddling the corridor) — skip plots within its margin,
+    // like the real cemetery respects the causeway line.
+    const abx = cwEnd.x - cwStart.x;
+    const abz = cwEnd.z - cwStart.z;
+    const abL2 = abx * abx + abz * abz;
+    const distToCauseway = (px: number, pz: number): number => {
+      const tt = Math.max(0, Math.min(1, ((px - cwStart.x) * abx + (pz - cwStart.z) * abz) / abL2));
+      return Math.hypot(px - (cwStart.x + abx * tt), pz - (cwStart.z + abz * tt));
+    };
     const te = rng.fork('mastabas-east');
+    const [eOx, eOz] = edPos('mastabas-east', 255, -110);
     for (let col = 0; col < 4; col++) {
       for (let row = 0; row < 9; row++) {
-        const x = 255 + col * (pE + 4) + te.range(-1, 1);
-        const z = -110 + row * (pN + 6) + te.range(-1, 1);
+        const x = eOx + col * (pE + 4) + te.range(-1, 1);
+        const z = eOz + row * (pN + 6) + te.range(-1, 1);
         if (te.chance(0.1)) continue;
+        if (distToCauseway(x, z) < 28) continue;
         const L = MASTABA_NUCLEUS_LENGTH.value * te.range(1.0, 1.35);
         const W = MASTABA_NUCLEUS_WIDTH.value * te.range(1.0, 1.3);
         const H = MASTABA_NUCLEUS_HEIGHT.value * te.range(0.95, 1.25);
@@ -485,6 +579,11 @@ export function buildKhufuComplex(
             grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
           ) - 0.5;
         local.box(x, gy, z, W, H + 0.5, L, te.range(0.85, 1.02), 0.16);
+        fpReg({
+          id: `mastaba:e:${col}:${row}`, family: 'mastabas-east', x, z,
+          hx: W / 2, hz: L / 2, y0: gy, y1: gy + H + 0.5, ground: 'grounded',
+          editGroup: 'mastabas-east',
+        });
         if (te.chance(0.6)) {
           const cx2 = x + W / 2 + 1.8;
           const cz2 = z + te.range(-L / 3, L / 3);

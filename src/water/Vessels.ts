@@ -14,12 +14,13 @@
  * motion pass.
  */
 
-import { BufferAttribute, BufferGeometry, Mesh, type Scene } from 'three';
+import { BufferAttribute, BufferGeometry, Mesh, type Object3D } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { attribute, float, vec3 } from 'three/tsl';
 import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
+import { fpReg } from '../debug/Footprints';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NV3 } from '../gpu/TSLTypes';
 import { NILE_WATER_Y } from '../world/WorldConst';
@@ -80,6 +81,8 @@ interface HullParams {
   tone: V3;
 }
 
+let hullSeq = 0;
+
 /** loft a hull at (cx, baseY, cz) rotated by yaw; returns deck height.
  *  baseY = waterline for afloat hulls, ground+draft for beached ones */
 function loftHull(
@@ -90,6 +93,12 @@ function loftHull(
   yaw: number,
   baseY: number,
 ): number {
+  fpReg({
+    id: `vessel:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
+    hx: p.L / 2, hz: p.B / 2, yaw,
+    y0: baseY - p.draft, y1: baseY + p.freeboard + p.sweep,
+    ground: 'afloat', draft: p.draft, intra: true,
+  });
   const N = 9;
   const cy = Math.cos(yaw);
   const sy = Math.sin(yaw);
@@ -195,7 +204,7 @@ function skiff(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): 
 }
 
 export function buildHarbor(
-  scene: Scene,
+  scene: Object3D,
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
@@ -203,6 +212,7 @@ export function buildHarbor(
   const rng = seed.rng('harbor');
   const w = new W();
   let vessels = 0;
+  hullSeq = 0;
 
   /** waterline for an afloat hull — but if the bed is too shallow for the
    *  draft (bank margins, sandbars), seat the keel ON the ground instead.
@@ -236,6 +246,11 @@ export function buildHarbor(
     for (let i = 0; i < 6; i++) {
       w.box(qx + 5.4, NILE_WATER_Y + 1.1, qz0 + 15 + i * 30, 0.4, 0.7, 0.4, [0.5, 0.45, 0.36]);
     }
+    fpReg({
+      id: 'quay', family: 'harbor-works', x: qx, z: (qz0 + qz1) / 2,
+      hx: 7, hz: (qz1 - qz0) / 2, y0: NILE_WATER_Y - 4.5, y1: NILE_WATER_Y + 1.1,
+      ground: 'none',
+    });
   }
 
   /* --- three timber piers on piles, rooted at the local shoreline ----------- */
@@ -250,6 +265,11 @@ export function buildHarbor(
       }
     }
     w.box(px0 + len / 2, NILE_WATER_Y + 1.0, pz, len, 0.22, 4.6, [0.5, 0.38, 0.24]);
+    fpReg({
+      id: `pier:${pz}`, family: 'harbor-works', x: px0 + len / 2, z: pz,
+      hx: len / 2, hz: 2.3, y0: NILE_WATER_Y + 1.0, y1: NILE_WATER_Y + 1.9,
+      ground: 'none',
+    });
     // dockside clutter: crates/jars on the deck
     const n = rng.int(5) + 2;
     for (let i = 0; i < n; i++) {
@@ -299,9 +319,13 @@ export function buildHarbor(
     vessels++;
   }
   for (let i = 0; i < 5; i++) {
-    // beached on the west bank margin — keel seated on the ground
+    // beached on the west bank — walk east across the floodplain to the
+    // actual shoreline for THIS z (a fixed x landed skiffs on the river
+    // bottom where the channel meanders west; collision audit caught it)
     const z = rng.range(-500, 1200);
-    const x = 1830 + rng.range(-14, 6);
+    let sx = 1750;
+    while (sx < 1980 && hf.heightAtCpu(sx + 4, z) > NILE_WATER_Y + 0.25) sx += 4;
+    const x = sx - 5 + rng.range(-3, 2);
     skiff(w, rng, x, z, rng.range(0.8, 2.2), hf.heightAtCpu(x, z) + 0.17);
     vessels++;
   }

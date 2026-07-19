@@ -184,8 +184,48 @@ async function shadowTest(): Promise<void> {
   );
 }
 
+/** boot the world headless and gate on the footprint collision audit —
+ *  overlaps, floating and buried structures, stranded hulls */
+async function collisionTest(): Promise<void> {
+  const { launchWebGPU, akhetUrl } = await import('./launch');
+  const { browser } = await launchWebGPU();
+  const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
+  page.on('console', (msg) => {
+    if (msg.text().startsWith('[akhet] collision')) console.log(`  ${msg.text()}`);
+  });
+  await page.goto(akhetUrl({ scene: 'world', hud: false }), {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.waitForFunction(
+    () => window.__akhet && (window.__akhet.ready || window.__akhet.error !== null),
+    undefined,
+    { timeout: 240000, polling: 250 },
+  );
+  const issues = await page.evaluate(() =>
+    window.__akhet.collisionAudit ? window.__akhet.collisionAudit() : null,
+  );
+  await browser.close();
+  if (issues === null) {
+    check('collision audit hook present', false, 'collisionAudit hook missing');
+    return;
+  }
+  for (const it of issues.slice(0, 12)) {
+    console.log(
+      `  ${it.kind}: ${it.a}${it.b ? ` × ${it.b}` : ''} depth ${it.depth.toFixed(2)} at (${it.x.toFixed(0)}, ${it.z.toFixed(0)})`,
+    );
+  }
+  check(
+    'footprint collision audit clean',
+    issues.length === 0,
+    `${issues.length} issue(s): overlaps / floating / buried / stranded hulls`,
+  );
+}
+
 const wantShadow = process.argv.includes('--shadow');
-(wantShadow ? shadowTest() : Promise.resolve()).then(() => {
-  console.log(failures === 0 ? '\nAUDIT PASSED' : `\nAUDIT FAILED (${failures})`);
-  process.exit(failures === 0 ? 0 : 1);
-});
+const skipWorld = process.argv.includes('--fast');
+(skipWorld ? Promise.resolve() : collisionTest())
+  .then(() => (wantShadow ? shadowTest() : Promise.resolve()))
+  .then(() => {
+    console.log(failures === 0 ? '\nAUDIT PASSED' : `\nAUDIT FAILED (${failures})`);
+    process.exit(failures === 0 ? 0 : 1);
+  });

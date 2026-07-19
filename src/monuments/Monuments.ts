@@ -6,9 +6,11 @@
  * stay internally consistent (the audit enforces it).
  */
 
-import type { Scene, Vector3 } from 'three';
+import type { Object3D, Vector3 } from 'three';
 import type { WorldSeed } from '../core/Seed';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
+import { edPos } from '../debug/EditOverrides';
+import { fpReg } from '../debug/Footprints';
 import {
   G1_BASE_SIDE,
   G1_COURSE1_HEIGHT,
@@ -36,7 +38,7 @@ function heightFromSlope(baseSide: number, slopeDeg: number): number {
 }
 
 export function buildMonuments(
-  scene: Scene,
+  scene: Object3D,
   seed: WorldSeed,
   gi: ProbeGI | null = null,
 ): MonumentSite[] {
@@ -46,16 +48,18 @@ export function buildMonuments(
     name: string,
     baseSide: number,
     slopeDeg: number,
-    cx: number,
+    cx0: number,
     cy: number,
-    cz: number,
+    cz0: number,
     courseCount: number,
     course1: number,
     courseMin: number,
   ): void => {
+    const [cx, cz] = edPos(`pyramid:${name}`, cx0, cz0);
+    const H = heightFromSlope(baseSide, slopeDeg);
     const spec = buildSpec({
       baseSide,
-      height: heightFromSlope(baseSide, slopeDeg),
+      height: H,
       slopeDeg,
       cx,
       cy,
@@ -69,6 +73,18 @@ export function buildMonuments(
     scene.add(lod.near);
     scene.add(lod.far);
     sites.push({ name, spec, lod });
+    fpReg({
+      id: `pyramid:${name}`,
+      family: 'pyramids',
+      x: cx,
+      z: cz,
+      hx: baseSide / 2,
+      hz: baseSide / 2,
+      y0: cy,
+      y1: cy + H,
+      ground: 'platform',
+      editable: name !== 'G1', // the world origin stays put
+    });
   };
 
   // Akhet Khufu — platform leveled at world Y = 0
