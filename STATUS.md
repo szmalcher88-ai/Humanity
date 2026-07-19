@@ -196,6 +196,16 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    mortuary-temple interior court gets no probe line-of-sight nuance
    (probes are terrain-relative — acceptable at massing stage).
 7. Camera yaw for shots: yaw = atan2(−dx, −dz).
+8. GROUND EVERYTHING: any structure off the leveled G1 court placed at a
+   fixed Y will float over dips and bury on rises (user screenshots:
+   floating mastaba rows, causeway daylight gaps, half-buried beached
+   skiffs). Rule: seat via hf.heightAtCpu — mastabas on the LOWEST
+   footprint corner −0.5 m, causeway pedestal to min(4 samples) −2 m,
+   harbor works probe their own shoreline (shoreX: first x with enough
+   depth), afloat hulls fall back to keel-on-bed when the spot is too
+   shallow (floatY). Boat deck strips: winding faced DOWN → culled → the
+   water plane showed INSIDE open hulls ("swamped boats") — same class as
+   the carpet-winding bug; deck order is (prev.gl, prev.gr, cur.gr, cur.gl).
 
 ## DONE this session (2026-07-18) — part 2: Phase 5 core
 

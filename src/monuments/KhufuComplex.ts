@@ -38,6 +38,7 @@ import {
 } from 'three/tsl';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import type { Rng, WorldSeed } from '../core/Seed';
+import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from './PyramidBuilder';
 import {
@@ -196,9 +197,14 @@ export interface ComplexInfo {
 export function buildKhufuComplex(
   scene: Scene,
   seed: WorldSeed,
+  hf: Heightfield,
   gi: ProbeGI | null = null,
 ): ComplexInfo {
   const rng = seed.rng('khufu-complex');
+  /** terrain height under a structure — everything off the leveled court
+   *  MUST be grounded here (fixed-Y placement floated the mastaba fields
+   *  and causeway over undulating ground / buried them on rises) */
+  const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
   const half = G1_BASE_SIDE.value / 2; // 115.18
   const court = G1_COURT_PAVEMENT_WIDTH.value; // 10.1
   const temenosD = G1_TEMENOS_DISTANCE.value; // 10.1
@@ -327,12 +333,23 @@ export function buildKhufuComplex(
       const zm = cwStart.z + dir.z * ((f0 + f1) / 2);
       const ym = cwStart.y + dir.y * ((f0 + f1) / 2);
       const L = segL * 1.6;
-      // embankment pedestal down to terrain (buried part hidden).
+      // embankment pedestal down to the ACTUAL terrain under this segment
+      // (a fixed depth from the corridor line left daylight gaps where the
+      // escarpment dips deeper than the allowance — floating wall runs).
+      // Sample both ends and both shoulders, seat 2 m below the lowest.
+      const ex = Math.cos(yaw);
+      const ez = Math.sin(yaw);
+      const gMin = Math.min(
+        grd(xm - ex * (L / 2), zm - ez * (L / 2)),
+        grd(xm + ex * (L / 2), zm + ez * (L / 2)),
+        grd(xm - ez * (w / 2 + 1.2), zm + ex * (w / 2 + 1.2)),
+        grd(xm + ez * (w / 2 + 1.2), zm - ex * (w / 2 + 1.2)),
+      );
+      const embBase = Math.min(ym - 1, gMin - 2);
       // Near-zero batter: GeoWriter batter insets BOTH axes with height —
       // at 28 m of pedestal a 0.05 batter tapered each segment ~1.4 m
       // lengthwise and opened a dark colonnade of V-gaps between piers.
-      const emb = 6 + Math.max(0, -ym + 2);
-      local.box(xm, ym - emb, zm, L, emb + step, w + 2.4, 0.93, 0.004, yaw);
+      local.box(xm, embBase, zm, L, ym - embBase + step, w + 2.4, 0.93, 0.004, yaw);
       // floor slabs
       tura.box(xm, ym - 0.02, zm, L, 0.16 + step, w - wallTh * 2, t.range(0.94, 1.0), 0, yaw);
       // side walls (raised by one step so consecutive segments seal)
@@ -389,12 +406,13 @@ export function buildKhufuComplex(
       const L = 32.5;
       const W = 3.4;
       for (let b = 0; b < 22; b++) {
+        const bx = px - L / 2 + (b + 0.5) * (L / 22);
         tura.box(
-          px - L / 2 + (b + 0.5) * (L / 22),
-          0.12,
+          bx,
+          grd(bx, pz) - 0.05, // seated flush on the ground, not hovering
           pz,
           L / 22 - 0.05,
-          0.55 + t.range(-0.02, 0.02),
+          0.6 + t.range(-0.02, 0.02),
           W + 1.2,
           t.range(0.88, 0.98),
         );
@@ -406,14 +424,16 @@ export function buildKhufuComplex(
       for (let s = 0; s < 9; s++) {
         const f = s / 8;
         const wl = 3.2 * Math.sin(Math.PI * Math.max(0.08, Math.min(0.92, f)));
-        local.box(px, -0.9, pz - 20 + f * 40, 4.5, 0.9, wl + 0.5, 0.8);
+        const sz = pz - 20 + f * 40;
+        local.box(px, grd(px, sz) - 0.9, sz, 4.5, 0.9, wl + 0.5, 0.8);
       }
     }
   }
 
   /* --- queens' chapels (small east-side chapels per queen) ------------------ */
   for (const qz of [-18, 34, 86]) {
-    local.box(190 + 23 + 4.5, -1.2, qz, 9, 4.2, 12, 0.96, 0.05);
+    const qx = 190 + 23 + 4.5;
+    local.box(qx, Math.min(-1.2, grd(qx, qz) - 0.3), qz, 9, 4.6, 12, 0.96, 0.05);
   }
 
   /* --- mastaba fields ---------------------------------------------------------- */
@@ -431,10 +451,19 @@ export function buildKhufuComplex(
         const L = MASTABA_NUCLEUS_LENGTH.value * scale;
         const W = MASTABA_NUCLEUS_WIDTH.value * t.range(0.85, 1.1);
         const H = MASTABA_NUCLEUS_HEIGHT.value * t.range(0.8, 1.15);
-        local.box(x, 0.0, z, W, H, L, t.range(0.82, 1.0), 0.16);
+        // seat on the LOWEST corner of the footprint, sunk 0.5 m — a fixed
+        // Y floated whole rows over dips and buried them on rises
+        const gy =
+          Math.min(
+            grd(x - W / 2, z - L / 2), grd(x + W / 2, z - L / 2),
+            grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
+          ) - 0.5;
+        local.box(x, gy, z, W, H + 0.5, L, t.range(0.82, 1.0), 0.16);
         // ~40%: small offering chapel on the east face
         if (t.chance(0.4)) {
-          local.box(x + W / 2 + 1.6, 0, z + t.range(-L / 3, L / 3), 3.2, 2.6, 4.2, 0.9, 0.06);
+          const cx2 = x + W / 2 + 1.6;
+          const cz2 = z + t.range(-L / 3, L / 3);
+          local.box(cx2, grd(cx2, cz2) - 0.4, cz2, 3.2, 3.0, 4.2, 0.9, 0.06);
         }
       }
     }
@@ -448,9 +477,16 @@ export function buildKhufuComplex(
         const L = MASTABA_NUCLEUS_LENGTH.value * te.range(1.0, 1.35);
         const W = MASTABA_NUCLEUS_WIDTH.value * te.range(1.0, 1.3);
         const H = MASTABA_NUCLEUS_HEIGHT.value * te.range(0.95, 1.25);
-        local.box(x, -1.4, z, W, H, L, te.range(0.85, 1.02), 0.16);
+        const gy =
+          Math.min(
+            grd(x - W / 2, z - L / 2), grd(x + W / 2, z - L / 2),
+            grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
+          ) - 0.5;
+        local.box(x, gy, z, W, H + 0.5, L, te.range(0.85, 1.02), 0.16);
         if (te.chance(0.6)) {
-          local.box(x + W / 2 + 1.8, -1.4, z + te.range(-L / 3, L / 3), 3.6, 2.8, 4.6, 0.92, 0.06);
+          const cx2 = x + W / 2 + 1.8;
+          const cz2 = z + te.range(-L / 3, L / 3);
+          local.box(cx2, grd(cx2, cz2) - 0.4, cz2, 3.6, 3.2, 4.6, 0.92, 0.06);
         }
       }
     }

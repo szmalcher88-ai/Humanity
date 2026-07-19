@@ -63,7 +63,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   );
 
   ctx.progress(0.89, 'monuments: temples, causeway, mastaba fields');
-  buildKhufuComplex(scene, seed, gi);
+  buildKhufuComplex(scene, seed, hf, gi);
 
   ctx.progress(0.9, 'floodplain: palms and field parcels');
   const palmCount = buildPalms(scene, seed, hf, gi, engine.params.preset);
@@ -79,7 +79,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.onUpdate((_dt, worldTime) => water.tick(worldTime));
 
   ctx.progress(0.915, 'harbor: quay, piers, vessels');
-  engine.stats.counters['harbor.vessels'] = buildHarbor(scene, seed, gi);
+  engine.stats.counters['harbor.vessels'] = buildHarbor(scene, seed, hf, gi);
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');

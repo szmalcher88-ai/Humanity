@@ -18,6 +18,7 @@ import { BufferAttribute, BufferGeometry, Mesh, type Scene } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import { attribute, float, vec3 } from 'three/tsl';
 import type { Rng, WorldSeed } from '../core/Seed';
+import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NV3 } from '../gpu/TSLTypes';
@@ -79,14 +80,22 @@ interface HullParams {
   tone: V3;
 }
 
-/** loft a hull at (cx, waterY, cz) rotated by yaw; returns deck height */
-function loftHull(w: W, p: HullParams, cx: number, cz: number, yaw: number): number {
+/** loft a hull at (cx, baseY, cz) rotated by yaw; returns deck height.
+ *  baseY = waterline for afloat hulls, ground+draft for beached ones */
+function loftHull(
+  w: W,
+  p: HullParams,
+  cx: number,
+  cz: number,
+  yaw: number,
+  baseY: number,
+): number {
   const N = 9;
   const cy = Math.cos(yaw);
   const sy = Math.sin(yaw);
   const P = (x: number, y: number, z: number): V3 => [
     cx + x * cy - z * sy,
-    NILE_WATER_Y + y,
+    baseY + y,
     cz + x * sy + z * cy,
   ];
   const half = (f: number): number => (p.B / 2) * Math.pow(Math.sin(Math.PI * f), 0.65);
@@ -113,20 +122,22 @@ function loftHull(w: W, p: HullParams, cx: number, cz: number, yaw: number): num
       w.quad(prev.pl, cur.pl, cur.gl, prev.gl, p.tone); // port upper
       w.quad(cur.kr, prev.kr, prev.pr, cur.pr, p.tone); // starboard lower
       w.quad(cur.pr, prev.pr, prev.gr, cur.gr, p.tone); // starboard upper
-      // deck strip between gunwales
+      // deck strip between gunwales — wound UPWARD (the first winding faced
+      // down and was backface-culled: open hulls showed the water plane
+      // inside, reading as swamped boats)
       const dt: V3 = [p.tone[0] * 1.15, p.tone[1] * 1.12, p.tone[2] * 1.05];
-      w.quad(prev.gl, cur.gl, cur.gr, prev.gr, dt);
+      w.quad(prev.gl, prev.gr, cur.gr, cur.gl, dt);
     }
     prev = cur;
   }
   return p.freeboard;
 }
 
-function barge(w: W, rng: Rng, cx: number, cz: number, yaw: number): void {
+function barge(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): void {
   const tone: V3 = [0.45 * rng.range(0.85, 1.1), 0.34 * rng.range(0.85, 1.1), 0.21];
   const L = rng.range(16, 24);
   const B = L * rng.range(0.3, 0.36);
-  const deck = loftHull(w, { L, B, draft: 1.1, freeboard: 0.75, sweep: rng.range(0.4, 0.9), tone }, cx, cz, yaw);
+  const deck = loftHull(w, { L, B, draft: 1.1, freeboard: 0.75, sweep: rng.range(0.4, 0.9), tone }, cx, cz, yaw, y);
   // deck cargo: stone block or jar clusters
   const n = rng.int(4) + 2;
   for (let i = 0; i < n; i++) {
@@ -134,115 +145,161 @@ function barge(w: W, rng: Rng, cx: number, cz: number, yaw: number): void {
     const t: V3 = rng.chance(0.5) ? [0.72, 0.68, 0.58] : [0.55, 0.4, 0.28];
     const s = rng.range(0.8, 1.7);
     w.box(
-      cx + fx * Math.cos(yaw), NILE_WATER_Y + deck, cz + fx * Math.sin(yaw),
+      cx + fx * Math.cos(yaw), y + deck, cz + fx * Math.sin(yaw),
       s, rng.range(0.5, 1.1), s * rng.range(0.7, 1.2), t, yaw,
     );
   }
 }
 
-function traveler(w: W, rng: Rng, cx: number, cz: number, yaw: number): void {
+function traveler(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): void {
   const tone: V3 = [0.5 * rng.range(0.85, 1.05), 0.36, 0.22];
   const L = rng.range(13, 19);
   const B = L * 0.24;
   const deck = loftHull(
     w,
     { L, B, draft: 0.8, freeboard: 0.85, sweep: rng.range(1.2, 2.2), tone },
-    cx, cz, yaw,
+    cx, cz, yaw, y,
   );
   const cy = Math.cos(yaw);
   const sy = Math.sin(yaw);
   // cabin amidships
-  w.box(cx - 0.1 * L * cy, NILE_WATER_Y + deck, cz - 0.1 * L * sy, L * 0.22, 1.15, B * 0.62, [0.66, 0.58, 0.42], yaw);
+  w.box(cx - 0.1 * L * cy, y + deck, cz - 0.1 * L * sy, L * 0.22, 1.15, B * 0.62, [0.66, 0.58, 0.42], yaw);
   // bipod mast + yard + furled sail roll
   const mx = cx + 0.12 * L * cy;
   const mz = cz + 0.12 * L * sy;
   const mh = L * 0.55;
-  w.box(mx, NILE_WATER_Y + deck, mz, 0.16, mh, 0.16, [0.42, 0.3, 0.18], yaw);
-  w.box(mx, NILE_WATER_Y + deck + mh * 0.88, mz, 0.14, 0.14, L * 0.42, [0.4, 0.29, 0.17], yaw + Math.PI / 2);
-  w.box(mx, NILE_WATER_Y + deck + mh * 0.88 - 0.24, mz, 0.3, 0.28, L * 0.4, [0.78, 0.72, 0.58], yaw + Math.PI / 2);
+  w.box(mx, y + deck, mz, 0.16, mh, 0.16, [0.42, 0.3, 0.18], yaw);
+  w.box(mx, y + deck + mh * 0.88, mz, 0.14, 0.14, L * 0.42, [0.4, 0.29, 0.17], yaw + Math.PI / 2);
+  w.box(mx, y + deck + mh * 0.88 - 0.24, mz, 0.3, 0.28, L * 0.4, [0.78, 0.72, 0.58], yaw + Math.PI / 2);
   // twin steering oars at the stern quarter
   for (const s of [-1, 1]) {
     w.box(
-      cx - 0.46 * L * cy - s * sy * B * 0.42, NILE_WATER_Y + deck - 0.6,
+      cx - 0.46 * L * cy - s * sy * B * 0.42, y + deck - 0.6,
       cz - 0.46 * L * sy + s * cy * B * 0.42,
       0.12, 2.4, 0.12, [0.4, 0.3, 0.18], yaw,
     );
   }
 }
 
-function skiff(w: W, rng: Rng, cx: number, cz: number, yaw: number): void {
+function skiff(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): void {
   const tone: V3 = [0.6 * rng.range(0.9, 1.1), 0.53 * rng.range(0.9, 1.05), 0.34];
   const L = rng.range(4.5, 7);
   loftHull(
     w,
     { L, B: L * 0.26, draft: 0.28, freeboard: 0.35, sweep: rng.range(0.7, 1.2), tone },
-    cx, cz, yaw,
+    cx, cz, yaw, y,
   );
 }
 
 export function buildHarbor(
   scene: Scene,
   seed: WorldSeed,
+  hf: Heightfield,
   gi: ProbeGI | null,
 ): number {
   const rng = seed.rng('harbor');
   const w = new W();
   let vessels = 0;
 
-  /* --- stone quay along the harbor's west rim ------------------------------ */
-  const quayX = 880;
-  w.box(quayX, NILE_WATER_Y - 2.5, -135, 14, 3.6, 300, [0.68, 0.62, 0.5]);
-  // mooring bollards
-  for (let i = 0; i < 9; i++) {
-    w.box(quayX + 5.4, NILE_WATER_Y + 1.1, -270 + i * 34, 0.4, 0.7, 0.4, [0.5, 0.45, 0.36]);
+  /** waterline for an afloat hull — but if the bed is too shallow for the
+   *  draft (bank margins, sandbars), seat the keel ON the ground instead.
+   *  Fixed-Y placement half-buried the beached skiffs and floated others. */
+  const floatY = (x: number, z: number, draft: number): number => {
+    const bed = hf.heightAtCpu(x, z);
+    return bed > NILE_WATER_Y - draft - 0.25 ? bed + draft * 0.85 : NILE_WATER_Y;
+  };
+
+  /** eastward probe for the REAL waterline: first x with `depth` m of water.
+   *  The harbor works used a fixed x=880 — after sand transport the actual
+   *  bank lies further east there, which left quay runs and moored boats
+   *  sitting on dry beach. */
+  const shoreX = (z: number, depth: number): number => {
+    let x = 860;
+    while (x < 1400 && hf.heightAtCpu(x + 8, z) > NILE_WATER_Y - depth) x += 8;
+    return x;
+  };
+
+  /* --- stone quay: ONE straight run on the west bank ------------------------ */
+  // seated at the most seaward shoreline point of its run, so the whole
+  // face stands in water (reads as a built mole; stepped per-z segments
+  // scattered into disconnected slabs along the curved bank)
+  {
+    const qz0 = -225;
+    const qz1 = -45;
+    let qx = 0;
+    for (let z = qz0; z <= qz1; z += 30) qx = Math.max(qx, shoreX(z, 1.6));
+    qx += 2;
+    w.box(qx, NILE_WATER_Y - 4.5, (qz0 + qz1) / 2, 14, 5.6, qz1 - qz0, [0.68, 0.62, 0.5]);
+    for (let i = 0; i < 6; i++) {
+      w.box(qx + 5.4, NILE_WATER_Y + 1.1, qz0 + 15 + i * 30, 0.4, 0.7, 0.4, [0.5, 0.45, 0.36]);
+    }
   }
 
-  /* --- three timber piers on piles ----------------------------------------- */
+  /* --- three timber piers on piles, rooted at the local shoreline ----------- */
   for (const pz of [-230, -130, -30]) {
+    const px0 = shoreX(pz, 1.2) - 10; // start on the beach, run out to depth
     const len = rng.range(46, 64);
     for (let x = 0; x < len; x += 4.2) {
       for (const s of [-1, 1]) {
-        w.box(quayX + 8 + x, NILE_WATER_Y - 2.2, pz + s * 1.7, 0.34, 3.4, 0.34, [0.38, 0.28, 0.17]);
+        const bed = hf.heightAtCpu(px0 + x, pz);
+        const py = Math.min(NILE_WATER_Y - 2.2, bed - 0.4);
+        w.box(px0 + x, py, pz + s * 1.7, 0.34, NILE_WATER_Y + 1.2 - py, 0.34, [0.38, 0.28, 0.17]);
       }
     }
-    w.box(quayX + 8 + len / 2, NILE_WATER_Y + 1.0, pz, len, 0.22, 4.6, [0.5, 0.38, 0.24]);
+    w.box(px0 + len / 2, NILE_WATER_Y + 1.0, pz, len, 0.22, 4.6, [0.5, 0.38, 0.24]);
     // dockside clutter: crates/jars on the deck
     const n = rng.int(5) + 2;
     for (let i = 0; i < n; i++) {
       w.box(
-        quayX + 10 + rng.float() * (len - 6), NILE_WATER_Y + 1.22, pz + rng.range(-1.4, 1.4),
+        px0 + 4 + rng.float() * (len - 8), NILE_WATER_Y + 1.22, pz + rng.range(-1.4, 1.4),
         rng.range(0.5, 1), rng.range(0.4, 0.9), rng.range(0.5, 1), [0.6, 0.47, 0.3],
       );
     }
-    // moored vessels flanking each pier
-    barge(w, rng, quayX + 12 + rng.float() * 24, pz - 7.5, rng.range(-0.12, 0.12));
-    traveler(w, rng, quayX + 14 + rng.float() * 24, pz + 7.5, Math.PI + rng.range(-0.12, 0.12));
-    vessels += 2;
+    // moored vessels flanking the pier's outer (deep) half
+    {
+      const bx = px0 + len - 6 - rng.float() * 18;
+      const tx = px0 + len - 8 - rng.float() * 18;
+      barge(w, rng, bx, pz - 7.5, rng.range(-0.12, 0.12), floatY(bx, pz - 7.5, 1.1));
+      traveler(w, rng, tx, pz + 7.5, Math.PI + rng.range(-0.12, 0.12), floatY(tx, pz + 7.5, 0.8));
+      vessels += 2;
+    }
   }
 
-  /* --- anchored in the basin ------------------------------------------------ */
+  /* --- anchored in the basin (rejection-sampled: no overlapping hulls) ------ */
+  const anchored: Array<[number, number]> = [];
   for (let i = 0; i < 6; i++) {
-    const x = rng.range(1050, 1240);
-    const z = rng.range(-230, -40);
+    let x = 0;
+    let z = 0;
+    for (let tries = 0; tries < 12; tries++) {
+      x = rng.range(1050, 1240);
+      z = rng.range(-230, -40);
+      if (anchored.every(([ax, az]) => Math.hypot(ax - x, az - z) > 26)) break;
+    }
+    anchored.push([x, z]);
     const yawB = rng.float() * Math.PI * 2;
-    if (i % 3 === 0) barge(w, rng, x, z, yawB);
-    else if (i % 3 === 1) traveler(w, rng, x, z, yawB);
-    else skiff(w, rng, x, z, yawB);
+    if (i % 3 === 0) barge(w, rng, x, z, yawB, floatY(x, z, 1.1));
+    else if (i % 3 === 1) traveler(w, rng, x, z, yawB, floatY(x, z, 0.8));
+    else skiff(w, rng, x, z, yawB, floatY(x, z, 0.28));
     vessels++;
   }
 
   /* --- on the river: traffic + beached skiffs ------------------------------- */
-  for (const [x, z] of [
+  for (const [x0, z] of [
     [1985, -650], [1930, 240], [2010, 820], [1950, 1400],
   ] as const) {
-    if (rng.chance(0.5)) traveler(w, rng, x, z, rng.range(-0.3, 0.3));
-    else barge(w, rng, x, z, rng.range(-0.3, 0.3) + Math.PI);
+    // snap to deep water: probe eastward for a spot with real depth so the
+    // meandering channel never leaves a hull sitting on a sandbar
+    let x = x0;
+    for (let p = 0; p < 8 && hf.heightAtCpu(x, z) > NILE_WATER_Y - 2.2; p++) x += 12;
+    if (rng.chance(0.5)) traveler(w, rng, x, z, rng.range(-0.3, 0.3), floatY(x, z, 0.8));
+    else barge(w, rng, x, z, rng.range(-0.3, 0.3) + Math.PI, floatY(x, z, 1.1));
     vessels++;
   }
   for (let i = 0; i < 5; i++) {
-    // beached on the west bank margin
+    // beached on the west bank margin — keel seated on the ground
     const z = rng.range(-500, 1200);
-    skiff(w, rng, 1830 + rng.range(-14, 6), z, rng.range(0.8, 2.2));
+    const x = 1830 + rng.range(-14, 6);
+    skiff(w, rng, x, z, rng.range(0.8, 2.2), hf.heightAtCpu(x, z) + 0.24);
     vessels++;
   }
 
