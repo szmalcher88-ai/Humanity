@@ -136,6 +136,7 @@ export function limestoneMaterial(
   base: [number, number, number],
   gi: ProbeGI | null,
   courseH = 0.55,
+  blockWm = 1.15, // joint spacing along the wall: 1.15 ashlar, ~0.45 mudbrick
 ): MeshPhysicalNodeMaterial {
   const m = new MeshPhysicalNodeMaterial();
   const tone = attribute('tone', 'vec3') as unknown as NV3;
@@ -149,7 +150,7 @@ export function limestoneMaterial(
     positionWorld.z,
     positionWorld.x,
   );
-  const blockW = float(1.15);
+  const blockW = float(blockWm);
   const jitter = hash(courseIdx.add(7.3)).mul(0.73);
   const blockF = fract(alongCoord.div(blockW).add(jitter));
   const blockIdx = tslFloor(alongCoord.div(blockW).add(jitter));

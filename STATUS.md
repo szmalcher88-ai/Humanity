@@ -188,7 +188,24 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    card/far-tuft LOD); water sun-glint verify at low sun + wet shoreline
    band; palm crown fullness (2 blade layers per frond); carpet visible
    under sparse-fade transition could use dithering.
-2. Phase 6 — STARTED 2026-07-22. DONE: **worker town generator**
+2. Phase 6 — worker town DETAIL PASS (v2, 2026-07-22): gallery blocks
+   got street porticos on wooden posts, a REAL doorway per gallery
+   (wall segments + lintels, ajar door leaves), per-gallery roof strips
+   w/ tone+height jitter (v1 monolithic roof read as a parking garage),
+   protruding beam ends, parapets, rear vents, jar rows; east town:
+   varied heights, doorway insets (dark slab 6 cm proud of the face),
+   roof stairs, parapets, rooftop jars, courtyard L-walls; bakeries:
+   soot caps + vats; NEW Royal Administrative Building w/ 6 beehive
+   silos (3 shrinking octagonal tiers = crossed boxes at 45°); animal
+   pens + woodpiles; Wall of the Crow gate reveals. Mudbrick material:
+   courses 0.30 m × bricks 0.45 m (limestoneMaterial gained a blockW
+   param; 1.15 ashlar grid read as blank concrete), base lifted to
+   [0.6,0.48,0.35] (shaded sides crushed to black at 0.55/0.44). Tone
+   language: 0.28 wood, 0.1 openings, ~0.74 silo plaster, 0.2 soot.
+   KNOWN ARTIFACT (pre-existing, queued): pale angular shards in the
+   sky at some angles = cloud impostor artifact (visible in fix-decks
+   too), NOT debris.
+   Phase 6 originally:
    (src/monuments/WorkerTown.ts — Wall of the Crow w/ great gate + lintel,
    4 gallery blocks w/ ~17 partitions each + roof slabs, eastern town
    jittered-grid rooms, bakery rows w/ hearths, enclosure; mudbrick =
