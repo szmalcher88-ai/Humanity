@@ -161,6 +161,27 @@ export function buildPalms(
     spots.push([x, z, y]);
   }
 
+  // --- PLANTED rows along the harbor approach canal --------------------------
+  // regular spacing reads as human planting (Zone B canal lines). The canal
+  // edges are found by scanning the height mirror at each x station for the
+  // wet span; skip stations inside the basin (span too wide) or the river.
+  for (let x = 1310; x < 1795; x += 13) {
+    let z0 = NaN;
+    let z1 = NaN;
+    for (let z = -370; z <= 130; z += 3) {
+      const wet = hf.heightAtCpu(x, z) < NILE_WATER_Y - 0.15;
+      if (wet && Number.isNaN(z0)) z0 = z;
+      if (wet) z1 = z;
+    }
+    if (Number.isNaN(z0) || z1 - z0 < 6 || z1 - z0 > 95) continue;
+    for (const ze of [z0 - 7, z1 + 7]) {
+      const zj = ze + rng.range(-1.2, 1.2);
+      const xj = x + rng.range(-1.2, 1.2);
+      const y = hf.heightAtCpu(xj, zj);
+      if (y > NILE_WATER_Y + 0.3 && y < -39) spots.push([xj, zj, y]);
+    }
+  }
+
   // --- per-variant instance slices -------------------------------------------
   // each variant mesh owns its own buffers: instanceIndex restarts at 0 per
   // InstancedMesh, so a shared buffer would render every variant at the

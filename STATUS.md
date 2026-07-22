@@ -173,13 +173,17 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
-1. **Phase 5 remainder**: reeds/papyrus at shorelines; sycamore/tamarisk
-   classes; canal lines w/ palm rows; wet shore band. DONE THIS SESSION:
-   quay + 3 piers on piles + bollards + dock clutter; ~21 lofted vessels
-   (barge w/ deck cargo / traveler w/ mast+furled sail+cabin+steering
-   oars / papyrus skiff — every hull individually seeded) moored,
-   anchored, on the river, beached (src/water/Vessels.ts).
-   Vessel bobbing → Phase 6 motion pass.
+1. **Phase 5 remainder — DONE 2026-07-22** (src/vegetation/Shore.ts):
+   papyrus clumps standing IN the shallows (bed W−0.4..W+0.12) + reed
+   clumps on the first dry half-meter, ~3.5k instanced clumps rejection-
+   sampled off the CPU height mirror (the shoreline finds itself);
+   sycamore (dense ellipsoid crown shell) + tamarisk (feathery scrub),
+   380 trees damp-plain/margin split; PLANTED palm rows along the harbor
+   approach canal (wet-span scan per x station, rows offset ±7 m); WET
+   SHORE BAND in TerrainMaterial (albedo ×~0.65 + roughness 0.38 within
+   0.6 m of the waterline, masked to plain/harbor/river — first version
+   at ×0.55/0.85 read as coal, softened). Counters: veg.reeds, veg.trees.
+   Earlier: quay/piers/vessels (Vessels.ts). Vessel bobbing → Phase 6.
 2. Phase-5 polish queue: tuft thin-blade aliasing beyond ~120 m (LAAS-style
    card/far-tuft LOD); water sun-glint verify at low sun + wet shoreline
    band; palm crown fullness (2 blade layers per frond); carpet visible

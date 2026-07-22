@@ -15,6 +15,7 @@ import { Clouds } from '../sky/Clouds';
 import { SunSky } from '../sky/SunSky';
 import { buildFields } from '../vegetation/Fields';
 import { buildPalms } from '../vegetation/Palms';
+import { buildShore } from '../vegetation/Shore';
 import { NileWater } from '../water/NileWater';
 import { buildHarbor } from '../water/Vessels';
 import { Heightfield } from '../world/Heightfield';
@@ -100,6 +101,11 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.stats.counters['veg.palms'] = palmCount;
   engine.stats.counters['veg.tufts'] = fields.count;
   engine.stats.counters['veg.parcels'] = fields.parcels;
+
+  ctx.progress(0.905, 'shorelines: papyrus, reeds, shade trees');
+  const shore = buildShore(scene, seed, hf, gi, engine.params.preset);
+  engine.stats.counters['veg.reeds'] = shore.clumps;
+  engine.stats.counters['veg.trees'] = shore.trees;
 
   // --- Nile + harbor water (flow, sky reflection, depth absorption) --------
   ctx.progress(0.91, 'water: the Nile');

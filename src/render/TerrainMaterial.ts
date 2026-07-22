@@ -29,7 +29,7 @@ import {
 } from 'three/tsl';
 import type { NF, NV2, NV3 } from '../gpu/TSLTypes';
 import { PERIOD_FBM, PERIOD_RID, PERIOD_VAL, PERIOD_WOR } from '../gpu/passes/NoiseBake';
-import { WIND_X, WIND_Z } from '../world/WorldConst';
+import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 /** micro-displacement tuning (consumed by TerrainTiles vertex stage) */
 export const DISP = {
@@ -175,6 +175,14 @@ export function buildTerrainShading(inp: TerrainShadingInputs): TerrainShading {
   col = mix(col, RIVERBED, river.mul(0.9));
   col = col.mul(macroK);
 
+  // WET SHORE BAND: capillary-damp ground in the first ~60 cm above the
+  // waterline, near water bodies only (plain / harbor / river) — darkens
+  // the albedo and drops roughness so shorelines read as damp, not chalky
+  const nearWater = clamp(plain.add(msk.y).add(river.mul(2)), 0, 1);
+  const wetK = smoothstep(NILE_WATER_Y + 0.6, NILE_WATER_Y + 0.06, positionWorld.y)
+    .mul(nearWater);
+  col = mix(col, col.mul(vec3(0.63, 0.65, 0.69)), wetK.mul(0.75));
+
   /* --- normal detail ---------------------------------------------------------- */
   // bedrock: ridged gradient; sand: ripple gradient rotated back to world
   const rockGrad = nB1.rg.mul(0.4);
@@ -205,6 +213,7 @@ export function buildTerrainShading(inp: TerrainShadingInputs): TerrainShading {
   const siltRough = mix(float(0.9), float(0.45), smoothstep(0.25, 0.85, moisture));
   rough = mix(rough, siltRough, plain);
   rough = mix(rough, float(0.4), river);
+  rough = mix(rough, float(0.38), wetK.mul(0.9));
 
   return {
     colorNode: clamp(col, 0, 1),
