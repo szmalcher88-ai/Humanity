@@ -9,6 +9,7 @@ import { Group, Mesh, type Material } from 'three';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
+import { buildWorkerTown } from '../monuments/WorkerTown';
 import { PostStack } from '../render/PostStack';
 import { setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
@@ -18,6 +19,7 @@ import { buildPalms } from '../vegetation/Palms';
 import { buildShore } from '../vegetation/Shore';
 import { NileWater } from '../water/NileWater';
 import { buildHarbor } from '../water/Vessels';
+import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
 import { TerrainTiles } from '../world/TerrainTiles';
 import { fpClear } from './Footprints';
@@ -64,6 +66,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const STRUCT_FAMILIES = [
     'pyramids', 'temenos', 'temple', 'causeway', 'boatpits', 'chapels',
     'mastabas-west', 'mastabas-east', 'pavement', 'vessels', 'harbor-works',
+    'worker-town',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -84,6 +87,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     sites = buildMonuments(structures, seed, gi);
     buildKhufuComplex(structures, seed, hf, gi);
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
+    engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
     engine.stats.counters['monuments.stones'] = sites.reduce(
       (a, s) => a + s.lod.stoneCount,
       0,
@@ -106,6 +110,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const shore = buildShore(scene, seed, hf, gi, engine.params.preset);
   engine.stats.counters['veg.reeds'] = shore.clumps;
   engine.stats.counters['veg.trees'] = shore.trees;
+
+  ctx.progress(0.908, 'works: stone debris fields');
+  engine.stats.counters['debris'] = buildDebris(scene, seed, hf, gi, engine.params.preset);
 
   // --- Nile + harbor water (flow, sky reflection, depth absorption) --------
   ctx.progress(0.91, 'water: the Nile');

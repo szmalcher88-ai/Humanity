@@ -63,7 +63,7 @@ import {
 /* merged-geometry writer                                               */
 /* ------------------------------------------------------------------ */
 
-class GeoWriter {
+export class GeoWriter {
   pos: number[] = [];
   col: number[] = [];
 
@@ -132,7 +132,7 @@ class GeoWriter {
  * shallow normal dip into each joint line. Reads as coursed masonry from
  * 3-40 m without any per-block geometry.
  */
-function limestoneMaterial(
+export function limestoneMaterial(
   base: [number, number, number],
   gi: ProbeGI | null,
   courseH = 0.55,

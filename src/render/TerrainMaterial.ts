@@ -78,7 +78,9 @@ const LIMESTONE_BAND = vec3(0.60, 0.52, 0.41);
 const SAND_LIGHT = vec3(0.80, 0.70, 0.52);
 const SAND_WARM = vec3(0.72, 0.60, 0.42);
 const GRAVEL = vec3(0.55, 0.48, 0.38);
-const QUARRY_FRESH = vec3(0.84, 0.80, 0.68);
+// fresh-cut faces are bright but NOT snow — 0.84 blew out to white under
+// the full-sun auto-exposure (debris close-ups read as a ski slope)
+const QUARRY_FRESH = vec3(0.73, 0.69, 0.58);
 const SILT = vec3(0.35, 0.28, 0.21);
 const SILT_WET = vec3(0.20, 0.16, 0.12);
 const VEG_WASH = vec3(0.31, 0.42, 0.19);

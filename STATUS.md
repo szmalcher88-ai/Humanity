@@ -188,8 +188,22 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    card/far-tuft LOD); water sun-glint verify at low sun + wet shoreline
    band; palm crown fullness (2 blade layers per frond); carpet visible
    under sparse-fade transition could use dithering.
-2. Phase 6: worker city generator, quarry dressing, debris, wind/particles/
-   smoke (port Wind/Particles/Froxels), THEN inhabited tests.
+2. Phase 6 — STARTED 2026-07-22. DONE: **worker town generator**
+   (src/monuments/WorkerTown.ts — Wall of the Crow w/ great gate + lintel,
+   4 gallery blocks w/ ~17 partitions each + roof slabs, eastern town
+   jittered-grid rooms, bakery rows w/ hearths, enclosure; mudbrick =
+   limestoneMaterial [0.55,0.44,0.31] courseH 0.32; town-local frame
+   yaw −0.14, whole town one editable placement 'worker-town'; per-block
+   footprints — aggregate fp y-bounds MUST come from sampled terrain, a
+   guessed −46..−40 false-positived the buried check). **Debris fields**
+   (src/world/Debris.ts — 84k instanced chips/rubble, 2 size classes,
+   anchor-weighted gaussian clusters at quarry faces/ramp/masons' yards/
+   town lanes, grounded, only big rubble casts shadows). GeoWriter +
+   limestoneMaterial now EXPORTED from KhufuComplex for reuse.
+   REMAINING: quarry dressing (drill lines/bench detail), motion pass
+   (vessel bobbing, wind sway), Wind/Particles/Froxels ports, smoke,
+   inhabited tests. Quarry/sand still reads near-white at midday —
+   DELTA color-script item (needs D-1 reference frames).
 3. **DELTA loop under the GI light** (escarpment definition, exposure/
    contrast, quarry benches, casing golden-hour hero) — needs /reference
    frames from the human (D-1); ask again, or run vs written criteria.
