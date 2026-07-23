@@ -173,6 +173,29 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
+### ROADMAP — next 10 iterations (agreed 2026-07-23)
+1. PERF I: depth prepass + per-variant bounding spheres & frustum culling
+   for instanced veg/debris; target 45+fps@1440p dev machine.
+2. PERF II: iGPU path to 30 fps (tile/instance budgets, half-res
+   particles, GI every 3rd frame) + auto-preset verification.
+3. WATER POLISH: low-sun glint (dawn frame's dead black water), wet-sand
+   sparkle, harbor wavelet scale; recapture dawn final frame.
+4. CLOUDS FIX: impostor shard artifact at oblique angles; cirrus layer;
+   cloud-shadow softness pass.
+5. NIGHT: stars/moon + torchlight in the town (SunSky night branch,
+   emissive windows, bookmark 10 "night harbor").
+6. FROXELS: port LAAS froxel volumetrics for work-site dust columns +
+   morning valley haze (needs Phase-2 carried item).
+7. INHABITED I: figures-at-distance massing (instanced worker gangs on
+   ramp/quarry/harbor paths — silhouette crowds, no close-ups).
+8. INHABITED II: oxen sledge trains on the haul roads + gang shelters,
+   scaffolding on G1-d or temple corner (construction tableau).
+9. DELTA LOOP with human reference frames (D-1): color-script calibration
+   (midday chalkiness, dawn warmth), casing golden-hour hero recapture.
+10. FINAL: walk-mode polish (eye-height collision on stairs/causeway),
+    full battery re-run, README + two-frame gallery, tag v1.0.
+
+
 1. **Phase 5 remainder — DONE 2026-07-22** (src/vegetation/Shore.ts):
    papyrus clumps standing IN the shallows (bed W−0.4..W+0.12) + reed
    clumps on the first dry half-meter, ~3.5k instanced clumps rejection-
