@@ -36,7 +36,8 @@ import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
-import { NILE_WATER_Y } from '../world/WorldConst';
+import { uWorldTime } from '../render/WorldClock';
+import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 const VARIANTS = 8;
 const TARGET = { low: 2400, high: 5400, ultra: 6500 } as const;
@@ -220,10 +221,18 @@ export function buildPalms(
     const rx = lp.x.mul(cy).sub(lp.z.mul(sy));
     const rz = lp.x.mul(sy).add(lp.z.mul(cy));
     // lean: shear with height (growth lean, not rigid tilt)
+    // + WIND SWAY (Phase-6 motion): downwind shear that grows quadratically
+    // with height (trunk base still, crown moves), per-instance phase/rate
+    const ph = A.x.mul(0.37).add(A.z.mul(0.53)); // position-hashed phase
+    const gust = sin(uWorldTime.mul(0.9).add(ph))
+      .mul(0.6)
+      .add(sin(uWorldTime.mul(2.3).add(ph.mul(1.7))).mul(0.4));
+    const hN = lp.y.mul(0.11); // ~1 at crown height
+    const sway = gust.mul(hN.mul(hN)).mul(0.22);
     const wpos = vec3(
-      A.x.add(rx).add(B.x.mul(lp.y)),
+      A.x.add(rx).add(B.x.mul(lp.y)).add(sway.mul(WIND_X)),
       A.y.add(lp.y),
-      A.z.add(rz).add(B.y.mul(lp.y)),
+      A.z.add(rz).add(B.y.mul(lp.y)).add(sway.mul(WIND_Z)),
     );
     mat.positionNode = wpos;
     const nl = normalLocal;

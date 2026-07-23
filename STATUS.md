@@ -217,8 +217,23 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    anchor-weighted gaussian clusters at quarry faces/ramp/masons' yards/
    town lanes, grounded, only big rubble casts shadows). GeoWriter +
    limestoneMaterial now EXPORTED from KhufuComplex for reuse.
-   REMAINING: quarry dressing (drill lines/bench detail), motion pass
-   (vessel bobbing, wind sway), Wind/Particles/Froxels ports, smoke,
+   MOTION PASS DONE (2026-07-23): shared world-time uniform
+   (src/render/WorldClock.ts, set in the water tick); vessel bobbing via
+   per-vertex bobA/bobB attributes stamped by bobScope() around each hull
+   build (heave + directional tilt about the hull center; beached/seated
+   hulls carry ZERO amplitude — they must not rock on land); vegetation
+   wind sway (palms 0.22 crown shear, papyrus 0.13 / reed 0.16 /
+   tamarisk 0.06 / sycamore 0.025) as height-squared downwind shear with
+   position-hashed gusty phase. VERIFIED by two-phase screenshots
+   (settle 24 vs 100): hull heave/tilt visible, palm crowns bend, trunk
+   bases still. LESSON: bobScope consumes rng draws BEFORE loftHull →
+   the whole harbor RE-LAID OUT (collision gate caught a barge inside
+   the quay mole + a "beached" skiff seated on the approach-canal bed
+   5 m under water). Fixes: moored hulls clamped seaward of the quay
+   edge + half-hull margin; beached skiffs resample z outside the
+   harbor/canal latitudes (−430..180).
+   REMAINING: quarry dressing (drill lines/bench detail), tuft sway,
+   Wind/Particles/Froxels ports, smoke, cloud-impostor shard artifact,
    inhabited tests. Quarry/sand still reads near-white at midday —
    DELTA color-script item (needs D-1 reference frames).
 3. **DELTA loop under the GI light** (escarpment definition, exposure/

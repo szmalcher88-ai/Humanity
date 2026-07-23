@@ -19,6 +19,7 @@ import { buildPalms } from '../vegetation/Palms';
 import { buildShore } from '../vegetation/Shore';
 import { NileWater } from '../water/NileWater';
 import { buildHarbor } from '../water/Vessels';
+import { setWorldTime } from '../render/WorldClock';
 import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
 import { TerrainTiles } from '../world/TerrainTiles';
@@ -118,7 +119,10 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   ctx.progress(0.91, 'water: the Nile');
   const water = new NileWater(hf, sunSky.atmosphere);
   for (const m of water.meshes) scene.add(m);
-  engine.onUpdate((_dt, worldTime) => water.tick(worldTime));
+  engine.onUpdate((_dt, worldTime) => {
+    water.tick(worldTime);
+    setWorldTime(worldTime); // vessel bobbing + vegetation wind sway
+  });
 
   ctx.progress(0.915, 'harbor: quay, piers, vessels');
   // (harbor is part of rebuildStructures above)

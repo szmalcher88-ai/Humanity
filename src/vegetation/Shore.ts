@@ -40,7 +40,8 @@ import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
-import { NILE_WATER_Y } from '../world/WorldConst';
+import { uWorldTime } from '../render/WorldClock';
+import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 const CLUMP_TARGET = { low: 2600, high: 7000, ultra: 8500 } as const;
 const TREE_TARGET = { low: 150, high: 380, ultra: 460 } as const;
@@ -251,6 +252,8 @@ interface ClassSpec {
   fit: (y: number) => boolean;
   scale: [number, number];
   giLift: number;
+  /** wind sway shear at ~2 m height (reeds flutter, trees barely move) */
+  sway: number;
 }
 
 function spawnClass(
@@ -294,10 +297,17 @@ function spawnClass(
     const lp = positionLocal.mul(scale);
     const rx = lp.x.mul(cy).sub(lp.z.mul(sy));
     const rz = lp.x.mul(sy).add(lp.z.mul(cy));
+    // wind sway (Phase-6 motion): height-squared downwind shear, gusty
+    const ph = A.x.mul(0.41).add(A.z.mul(0.59));
+    const gust = sin(uWorldTime.mul(1.1).add(ph))
+      .mul(0.55)
+      .add(sin(uWorldTime.mul(2.7).add(ph.mul(2.1))).mul(0.45));
+    const hh = lp.y.mul(0.5);
+    const sway = gust.mul(hh.mul(hh)).mul(spec.sway);
     const wpos = vec3(
-      A.x.add(rx).add(B.x.mul(lp.y)),
+      A.x.add(rx).add(B.x.mul(lp.y)).add(sway.mul(WIND_X)),
       A.y.add(lp.y),
-      A.z.add(rz).add(B.y.mul(lp.y)),
+      A.z.add(rz).add(B.y.mul(lp.y)).add(sway.mul(WIND_Z)),
     );
     mat.positionNode = wpos;
     const nl = normalLocal;
@@ -353,6 +363,7 @@ export function buildShore(
       fit: (y) => y > W - 0.4 && y < W + 0.12, // standing in the shallows
       scale: [0.75, 1.25],
       giLift: 1.2,
+      sway: 0.13,
     },
     {
       name: 'reed',
@@ -362,6 +373,7 @@ export function buildShore(
       fit: (y) => y > W + 0.02 && y < W + 0.6, // the first dry half-meter
       scale: [0.7, 1.3],
       giLift: 1.2,
+      sway: 0.16,
     },
   ];
 
@@ -427,6 +439,7 @@ export function buildShore(
     fit: () => true,
     scale: [0.8, 1.35],
     giLift: 1.6,
+    sway: 0.025,
   }, gi);
   trees += spawnClass(scene, rng.fork('tamarisk'), tamSpots, {
     name: 'tamarisk',
@@ -436,6 +449,7 @@ export function buildShore(
     fit: () => true,
     scale: [0.7, 1.3],
     giLift: 1.4,
+    sway: 0.06,
   }, gi);
 
   return { clumps, trees };

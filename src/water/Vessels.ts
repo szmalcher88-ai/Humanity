@@ -16,13 +16,14 @@
 
 import { BufferAttribute, BufferGeometry, Mesh, type Object3D } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
-import { attribute, float, vec3 } from 'three/tsl';
+import { attribute, float, positionLocal, sin, vec2, vec3 } from 'three/tsl';
+import { uWorldTime } from '../render/WorldClock';
 import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { fpReg } from '../debug/Footprints';
 import { giLightMap } from '../monuments/PyramidBuilder';
-import type { NV3 } from '../gpu/TSLTypes';
+import type { NV3, NV4 } from '../gpu/TSLTypes';
 import { NILE_WATER_Y } from '../world/WorldConst';
 
 type V3 = [number, number, number];
@@ -30,13 +31,37 @@ type V3 = [number, number, number];
 class W {
   pos: number[] = [];
   col: number[] = [];
+  bobA: number[] = []; // per-vertex: hull cx, cz, phase, heave amp
+  bobB: number[] = []; // per-vertex: tilt dir x, z, freq, tilt amp
+  private curA: [number, number, number, number] = [0, 0, 0, 0];
+  private curB: [number, number, number, number] = [0, 0, 1, 0];
+  /** everything written until endBob() rides THIS hull's motion */
+  beginBob(
+    cx: number, cz: number, phase: number, amp: number,
+    dx: number, dz: number, freq: number, tilt: number,
+  ): void {
+    this.curA = [cx, cz, phase, amp];
+    this.curB = [dx, dz, freq, tilt];
+  }
+  endBob(): void {
+    this.curA = [0, 0, 0, 0];
+    this.curB = [0, 0, 1, 0];
+  }
   quad(a: V3, b: V3, c: V3, d: V3, t: V3): void {
     this.pos.push(...a, ...b, ...c, ...a, ...c, ...d);
-    for (let i = 0; i < 6; i++) this.col.push(...t);
+    for (let i = 0; i < 6; i++) {
+      this.col.push(...t);
+      this.bobA.push(...this.curA);
+      this.bobB.push(...this.curB);
+    }
   }
   tri(a: V3, b: V3, c: V3, t: V3): void {
     this.pos.push(...a, ...b, ...c);
-    for (let i = 0; i < 3; i++) this.col.push(...t);
+    for (let i = 0; i < 3; i++) {
+      this.col.push(...t);
+      this.bobA.push(...this.curA);
+      this.bobB.push(...this.curB);
+    }
   }
   box(cx: number, y0: number, cz: number, lx: number, h: number, lz: number, t: V3, yaw = 0): void {
     const hx = lx / 2;
@@ -67,6 +92,8 @@ class W {
     const g = new BufferGeometry();
     g.setAttribute('position', new BufferAttribute(new Float32Array(this.pos), 3));
     g.setAttribute('tone', new BufferAttribute(new Float32Array(this.col), 3));
+    g.setAttribute('bobA', new BufferAttribute(new Float32Array(this.bobA), 4));
+    g.setAttribute('bobB', new BufferAttribute(new Float32Array(this.bobB), 4));
     g.computeVertexNormals();
     return g;
   }
@@ -142,7 +169,19 @@ function loftHull(
   return p.freeboard;
 }
 
+/** start hull motion scope: heave+tilt when actually afloat, dead still
+ *  when seated on the bank/bed */
+function bobScope(w: W, rng: Rng, cx: number, cz: number, y: number, amp: number, tilt: number): void {
+  const afloat = Math.abs(y - NILE_WATER_Y) < 0.01;
+  const dir = rng.float() * Math.PI * 2;
+  w.beginBob(
+    cx, cz, rng.float() * Math.PI * 2, afloat ? amp : 0,
+    Math.cos(dir), Math.sin(dir), rng.range(0.45, 0.75), afloat ? tilt : 0,
+  );
+}
+
 function barge(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): void {
+  bobScope(w, rng, cx, cz, y, 0.045, 0.004);
   const tone: V3 = [0.45 * rng.range(0.85, 1.1), 0.34 * rng.range(0.85, 1.1), 0.21];
   const L = rng.range(16, 24);
   const B = L * rng.range(0.3, 0.36);
@@ -161,9 +200,11 @@ function barge(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): 
       s, rng.range(0.5, 1.1), s * rng.range(0.7, 1.2), t, yaw,
     );
   }
+  w.endBob();
 }
 
 function traveler(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): void {
+  bobScope(w, rng, cx, cz, y, 0.06, 0.007);
   const tone: V3 = [0.5 * rng.range(0.85, 1.05), 0.36, 0.22];
   const L = rng.range(13, 19);
   const B = L * 0.24;
@@ -191,9 +232,11 @@ function traveler(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number
       0.12, 2.4, 0.12, [0.4, 0.3, 0.18], yaw,
     );
   }
+  w.endBob();
 }
 
 function skiff(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): void {
+  bobScope(w, rng, cx, cz, y, 0.1, 0.012);
   const tone: V3 = [0.6 * rng.range(0.9, 1.1), 0.53 * rng.range(0.9, 1.05), 0.34];
   const L = rng.range(4.5, 7);
   loftHull(
@@ -201,6 +244,7 @@ function skiff(w: W, rng: Rng, cx: number, cz: number, yaw: number, y: number): 
     { L, B: L * 0.26, draft: 0.2, freeboard: 0.5, sweep: rng.range(0.7, 1.2), tone },
     cx, cz, yaw, y,
   );
+  w.endBob();
 }
 
 export function buildHarbor(
@@ -236,12 +280,14 @@ export function buildHarbor(
   // seated at the most seaward shoreline point of its run, so the whole
   // face stands in water (reads as a built mole; stepped per-z segments
   // scattered into disconnected slabs along the curved bank)
+  let quayEdgeX = 0; // east face — moored hulls must stay seaward of it
   {
     const qz0 = -225;
     const qz1 = -45;
     let qx = 0;
     for (let z = qz0; z <= qz1; z += 30) qx = Math.max(qx, shoreX(z, 1.6));
     qx += 2;
+    quayEdgeX = qx + 7;
     w.box(qx, NILE_WATER_Y - 4.5, (qz0 + qz1) / 2, 14, 5.6, qz1 - qz0, [0.68, 0.62, 0.5]);
     for (let i = 0; i < 6; i++) {
       w.box(qx + 5.4, NILE_WATER_Y + 1.1, qz0 + 15 + i * 30, 0.4, 0.7, 0.4, [0.5, 0.45, 0.36]);
@@ -278,10 +324,11 @@ export function buildHarbor(
         rng.range(0.5, 1), rng.range(0.4, 0.9), rng.range(0.5, 1), [0.6, 0.47, 0.3],
       );
     }
-    // moored vessels flanking the pier's outer (deep) half
+    // moored vessels flanking the pier's outer (deep) half — never inside
+    // the quay mole (the bob-scope rng reshuffle parked a barge in it)
     {
-      const bx = px0 + len - 6 - rng.float() * 18;
-      const tx = px0 + len - 8 - rng.float() * 18;
+      const bx = Math.max(px0 + len - 6 - rng.float() * 18, quayEdgeX + 13.5); // + half barge length
+      const tx = Math.max(px0 + len - 8 - rng.float() * 18, quayEdgeX + 11);
       barge(w, rng, bx, pz - 7.5, rng.range(-0.12, 0.12), floatY(bx, pz - 7.5, 0.9));
       traveler(w, rng, tx, pz + 7.5, Math.PI + rng.range(-0.12, 0.12), floatY(tx, pz + 7.5, 0.6));
       vessels += 2;
@@ -321,8 +368,11 @@ export function buildHarbor(
   for (let i = 0; i < 5; i++) {
     // beached on the west bank — walk east across the floodplain to the
     // actual shoreline for THIS z (a fixed x landed skiffs on the river
-    // bottom where the channel meanders west; collision audit caught it)
-    const z = rng.range(-500, 1200);
+    // bottom where the channel meanders west; collision audit caught it).
+    // Keep clear of the harbor/approach-canal latitudes: the eastward walk
+    // there stops at the CANAL and seats the skiff on its bed
+    let z = rng.range(-500, 1200);
+    for (let g = 0; g < 8 && z > -430 && z < 180; g++) z = rng.range(-500, 1200);
     let sx = 1750;
     while (sx < 1980 && hf.heightAtCpu(sx + 4, z) > NILE_WATER_Y + 0.25) sx += 4;
     const x = sx - 5 + rng.range(-3, 2);
@@ -332,6 +382,17 @@ export function buildHarbor(
 
   const mat = new MeshPhysicalNodeMaterial();
   const tone = attribute('tone', 'vec3') as unknown as NV3;
+  // Phase-6 motion: heave + directional tilt per hull (attributes stamped
+  // by bobScope; quay/piers/beached hulls carry zero amplitude)
+  {
+    const A = attribute('bobA', 'vec4') as unknown as NV4;
+    const B = attribute('bobB', 'vec4') as unknown as NV4;
+    const t = uWorldTime;
+    const heave = sin(t.mul(B.z).add(A.z)).mul(A.w);
+    const roll = sin(t.mul(B.z.mul(0.63)).add(A.z.mul(1.7))).mul(B.w);
+    const lever = positionLocal.xz.sub(vec2(A.x, A.y)).dot(vec2(B.x, B.y));
+    mat.positionNode = positionLocal.add(vec3(0, heave.add(lever.mul(roll)), 0));
+  }
   mat.colorNode = vec3(1, 1, 1).mul(tone);
   mat.roughnessNode = float(0.72);
   mat.metalnessNode = float(0);
