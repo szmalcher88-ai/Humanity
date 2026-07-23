@@ -14,8 +14,10 @@ import {
   BufferAttribute,
   BufferGeometry,
   InstancedMesh,
+  Mesh,
   type Object3D,
 } from 'three';
+import { GeoWriter, limestoneMaterial } from '../monuments/KhufuComplex';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
   cos,
@@ -170,6 +172,44 @@ export function buildDebris(
     mesh.receiveShadow = true;
     scene.add(mesh);
     total += n;
+  }
+
+  /* --- quarry dressing: the work interrupted mid-stroke ---------------------
+   * abandoned blocks freed but never hauled, and rows of wedge sockets
+   * (lever/wedge cuttings) along the next extraction lines */
+  {
+    const w = new GeoWriter();
+    const t = rng.fork('dressing');
+    for (let i = 0; i < 34; i++) {
+      const th = t.float() * Math.PI * 2;
+      const r = Math.abs(t.gauss()) * 70;
+      const x = qx + Math.cos(th) * r;
+      const z = qz + Math.sin(th) * r * 0.8;
+      const y = hf.heightAtCpu(x, z);
+      if (y < -44) continue;
+      const L = t.range(1.2, 2.6);
+      w.box(x, y - 0.15, z, L, t.range(0.7, 1.25), L * t.range(0.55, 0.8),
+        t.range(0.88, 1.0), 0.01, t.float() * Math.PI);
+    }
+    for (let row = 0; row < 12; row++) {
+      const th = t.float() * Math.PI * 2;
+      const r = Math.abs(t.gauss()) * 60;
+      const x0 = qx + Math.cos(th) * r;
+      const z0 = qz + Math.sin(th) * r * 0.8;
+      const dir = t.float() * Math.PI;
+      const n = 6 + t.int(8);
+      for (let k = 0; k < n; k++) {
+        const x = x0 + Math.cos(dir) * k * 0.38;
+        const z = z0 + Math.sin(dir) * k * 0.38;
+        const y = hf.heightAtCpu(x, z);
+        if (y < -44) break;
+        w.box(x, y - 0.02, z, 0.22, 0.1, 0.16, 0.3, 0, dir);
+      }
+    }
+    const mesh = new Mesh(w.build(), limestoneMaterial([0.72, 0.68, 0.57], gi, 0.5));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
   }
   return total;
 }

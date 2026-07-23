@@ -22,7 +22,9 @@ import { buildHarbor } from '../water/Vessels';
 import { setWorldTime } from '../render/WorldClock';
 import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
+import { WorkParticles } from '../world/Particles';
 import { TerrainTiles } from '../world/TerrainTiles';
+import { attachBookmarks } from './Bookmarks';
 import { fpClear } from './Footprints';
 import { Inspector } from './Inspector';
 import type { WorldContext } from './Scenes';
@@ -115,6 +117,11 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   ctx.progress(0.908, 'works: stone debris fields');
   engine.stats.counters['debris'] = buildDebris(scene, seed, hf, gi, engine.params.preset);
 
+  ctx.progress(0.909, 'works: dust and hearth smoke');
+  const particles = new WorkParticles(scene, seed, hf, engine.params.preset);
+  engine.stats.counters['particles'] = particles.meshes.reduce((a, m) => a + m.count, 0);
+  engine.onUpdate(() => particles.tick(camera));
+
   // --- Nile + harbor water (flow, sky reflection, depth absorption) --------
   ctx.progress(0.91, 'water: the Nile');
   const water = new NileWater(hf, sunSky.atmosphere);
@@ -144,6 +151,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   };
   window.__akhet.editNudge = (id, dx, dz) => inspector.nudge(id, dx, dz);
   window.__akhet.editExport = () => inspector.exportPatch();
+
+  // Phase 7: bookmark keys 1-9 + F flythrough (?bm=N for tooling)
+  attachBookmarks(engine);
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');

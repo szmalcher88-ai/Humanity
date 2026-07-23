@@ -37,7 +37,8 @@ import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
-import { NILE_WATER_Y } from '../world/WorldConst';
+import { uWorldTime } from '../render/WorldClock';
+import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 /** tuft budget by quality preset (reduced preset: fewer instances and a
  *  shorter fade — never fewer systems; brief §6) */
@@ -239,7 +240,17 @@ export function buildFields(
   const lp = positionLocal.mul(scale);
   const rx = lp.x.mul(cy).sub(lp.z.mul(sy));
   const rz = lp.x.mul(sy).add(lp.z.mul(cy));
-  mat.positionNode = vec3(A.x.add(rx), A.y.add(lp.y), A.z.add(rz));
+  // wind sway (Phase-6 motion): blade-tip shear, gusty per-tuft phase
+  const ph = A.x.mul(0.43).add(A.z.mul(0.61));
+  const sway = sin(uWorldTime.mul(1.3).add(ph))
+    .add(sin(uWorldTime.mul(3.1).add(ph.mul(1.9))).mul(0.5))
+    .mul(lp.y.mul(lp.y))
+    .mul(0.16);
+  mat.positionNode = vec3(
+    A.x.add(rx).add(sway.mul(WIND_X)),
+    A.y.add(lp.y),
+    A.z.add(rz).add(sway.mul(WIND_Z)),
+  );
   const nl = normalLocal;
   const nWorld = vec3(
     nl.x.mul(cy).sub(nl.z.mul(sy)),

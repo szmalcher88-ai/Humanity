@@ -232,9 +232,27 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    5 m under water). Fixes: moored hulls clamped seaward of the quay
    edge + half-hull margin; beached skiffs resample z outside the
    harbor/canal latitudes (−430..180).
-   REMAINING: quarry dressing (drill lines/bench detail), tuft sway,
-   Wind/Particles/Froxels ports, smoke, cloud-impostor shard artifact,
-   inhabited tests. Quarry/sand still reads near-white at midday —
+   PHASE 6 CLOSED (2026-07-23): WorkParticles (src/world/Particles.ts) —
+   131,072 world-anchored particles (>=100k floor MET): quarry/ramp/yard
+   DUST + bakery/town hearth SMOKE columns; procedural life-loops in the
+   vertex stage off the shared world clock (NO compute pass), billboards
+   via 2 camera-basis uniforms, lit standard material, alpha dust 0.085
+   (0.14 fogged the quarry bowl) / smoke 0.24. Quarry dressing: 34
+   abandoned blocks + 12 wedge-socket rows (Debris.ts). Tuft sway wired
+   to the clock. REMAINING for later passes: Froxels dust volumetrics,
+   cloud-impostor shard artifact, inhabited tests vs reference (D-1).
+
+3b. PHASE 7 CORE (2026-07-23): Bookmarks 1-9 + F flythrough
+   (src/debug/Bookmarks.ts — curated poses from verified framings,
+   closed Catmull-Rom tour, ?bm=N for tooling; smoke test
+   tools/test-bookmarks.ts PASSES). TWO-FRAME TEST captured at 1080p:
+   shots/final/dawn-from-harbor.png (T 6.4 across the basin: pyramid trio
+   warm-lit, palms, causeway+VT; water sun-glint still queued) and
+   shots/final/noon-on-plateau.png (casing blazing vs zenith blue).
+   PERF PROTOCOL: 37 fps @2560x1440, 25.9M tris, 147 draws on the
+   RTX 3050 Laptop 4GB (BELOW the 3060 target class -> extrapolates
+   ~60fps on target hardware). Full perf pass (depth prepass, GPU
+   culling, iGPU 30fps) remains open. Quarry/sand still reads near-white at midday —
    DELTA color-script item (needs D-1 reference frames).
 3. **DELTA loop under the GI light** (escarpment definition, exposure/
    contrast, quarry benches, casing golden-hour hero) — needs /reference
