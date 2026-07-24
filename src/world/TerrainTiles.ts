@@ -38,10 +38,15 @@ import { gizaTerrain } from './GizaControl';
 import { FAR_RADIUS, TERRAIN_CX, TERRAIN_CZ, WORLD_HALF, WORLD_SIZE } from './WorldConst';
 
 const MAX_TILES = 2048;
+/** per-preset TILE BUDGET (PERF II): the CDLOD recursion is depth-first and
+ *  near-to-far, so a hard cap sheds the FARTHEST detail first — the reduced
+ *  preset trades far-field tessellation (already beyond the morph range) for
+ *  frame time instead of dropping near ground resolution */
+const TILE_BUDGET_BY_PRESET = { low: 256, high: MAX_TILES, ultra: MAX_TILES } as const;
 /** reduced preset halves the patch grid (¼ the terrain raster load) and
  *  splits later/coarser — terrain raster+fill is THE iGPU whale (98 ms
  *  of a 158 ms bare-desert frame, probe-igpu attribution) */
-const PATCH_SEGS_BY_PRESET = { low: 32, high: 64, ultra: 64 } as const;
+const PATCH_SEGS_BY_PRESET = { low: 24, high: 64, ultra: 64 } as const;
 const SPLIT_K_BY_PRESET = { low: 1.6, high: 2.1, ultra: 2.1 } as const;
 const MIN_TILE_BY_PRESET = { low: 96, high: 64, ultra: 64 } as const;
 const MIN_TILE_ROUGH_BY_PRESET = { low: 64, high: 32, ultra: 32 } as const;
@@ -55,6 +60,7 @@ export class TerrainTiles {
   private splitK = 2.1;
   private minTile = 64;
   private minTileRough = 32;
+  private tileBudget = MAX_TILES;
   private lastCamX = Infinity;
   private lastCamZ = Infinity;
   activeTiles = 0;
@@ -73,6 +79,7 @@ export class TerrainTiles {
     this.splitK = SPLIT_K;
     this.minTile = MIN_TILE_BY_PRESET[preset];
     this.minTileRough = MIN_TILE_ROUGH_BY_PRESET[preset];
+    this.tileBudget = TILE_BUDGET_BY_PRESET[preset];
     const gi = opts.gi ?? null;
     // reduced preset: even the terrain evaluates probe GI per-vertex —
     // 1-2 m quads near the camera make the interpolation error invisible
@@ -146,17 +153,31 @@ export class TerrainTiles {
     const f1 = texture(noiseA, wpos.div(DISP.sF1 * PERIOD_FBM), 0)
       .y.mul(2)
       .sub(1);
-    const f2 = texture(noiseA, wpos.div(DISP.sF2 * PERIOD_VAL).add(vec2(0.31, 0.77)), 0)
-      .x.mul(2)
-      .sub(1);
-    const r1 = texture(noiseB, wpos.div(DISP.sRid * PERIOD_RID), 0)
-      .z.mul(2)
-      .sub(1);
-    const disp = f1
-      .mul(DISP.wF1)
-      .add(f2.mul(DISP.wF2))
-      .add(r1.mul(rockK.mul(1 - DISP.ridBase).add(DISP.ridBase)).mul(DISP.wRid))
-      .mul(dispAmp);
+    // PERF II: three VERTEX texture fetches per patch vertex is the reduced
+    // preset's second whale (Intel UHD, ~440k terrain verts/frame). The low
+    // path keeps the octave that carries the silhouette (f1 + the ridge term
+    // folded into its weight) and drops the two detail fetches — the system
+    // stays alive (brief §6: smaller grids, never fewer systems), it just
+    // runs at one octave under a 0.7 render scale where the rest is invisible.
+    const disp = (
+      preset === 'low'
+        ? f1.mul(DISP.wF1 + DISP.wRid * 0.5)
+        : f1
+            .mul(DISP.wF1)
+            .add(
+              texture(noiseA, wpos.div(DISP.sF2 * PERIOD_VAL).add(vec2(0.31, 0.77)), 0)
+                .x.mul(2)
+                .sub(1)
+                .mul(DISP.wF2),
+            )
+            .add(
+              texture(noiseB, wpos.div(DISP.sRid * PERIOD_RID), 0)
+                .z.mul(2)
+                .sub(1)
+                .mul(rockK.mul(1 - DISP.ridBase).add(DISP.ridBase))
+                .mul(DISP.wRid),
+            )
+    ).mul(dispAmp);
     mat.positionNode = vec3(wpos.x, hSample.add(disp), wpos.y);
     mat.castShadowPositionNode = vec3(
       wpos0.x,
@@ -352,13 +373,22 @@ export class TerrainTiles {
       const range = this.heightRange(ox, oz, size);
       const errBoost = Math.min(1 + (range / size) * 0.8, 1.8);
       const minTile = range > size * 0.85 ? this.minTileRough : this.minTile;
-      if (size > minTile && dist < size * this.splitK * errBoost) {
+      // TILE BUDGET (PERF II): over budget we STOP SPLITTING — never stop
+      // emitting. Dropping a tile leaves a hole in the ground; emitting the
+      // parent just makes that patch coarser. Children are visited nearest
+      // first, so the budget is always spent on the near field and the
+      // coarsening lands where the morph range already hides it.
+      if (size > minTile && dist < size * this.splitK * errBoost && n < this.tileBudget) {
         const q = size / 4;
-        const h = size / 2;
-        recurse(ox - q, oz - q, h, lod + 1);
-        recurse(ox + q, oz - q, h, lod + 1);
-        recurse(ox - q, oz + q, h, lod + 1);
-        recurse(ox + q, oz + q, h, lod + 1);
+        const kids: [number, number, number][] = [
+          [ox - q, oz - q, 0],
+          [ox + q, oz - q, 0],
+          [ox - q, oz + q, 0],
+          [ox + q, oz + q, 0],
+        ];
+        for (const k of kids) k[2] = Math.hypot(cx - k[0], cz - k[1]);
+        kids.sort((a, b) => a[2] - b[2]);
+        for (const k of kids) recurse(k[0], k[1], size / 2, lod + 1);
       } else {
         emit(ox, oz, size, lod);
       }

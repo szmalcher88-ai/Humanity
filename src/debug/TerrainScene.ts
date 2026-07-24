@@ -10,6 +10,7 @@ import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildWorkerTown } from '../monuments/WorkerTown';
+import { Torches } from '../monuments/Torches';
 import { PostStack } from '../render/PostStack';
 import { installPositionInvariance } from '../render/DepthPrepass';
 import { clearCulling, cullingActive, updateInstanceCulling } from '../render/InstanceCull';
@@ -44,12 +45,13 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   await sunSky.init(renderer);
 
   ctx.progress(0.85, 'gi: irradiance probe field');
-  const gi = new ProbeGI(hf, sunSky.atmosphere);
+  const gi = new ProbeGI(hf, sunSky.atmosphere, engine.params.preset);
   await gi.init(renderer);
-  // reduced preset: probe refresh every 2nd frame (halves compute cost;
-  // the field is temporally EMA'd anyway)
+  // reduced preset: probe refresh every 3rd frame (PERF II — the gather was
+  // 6.3 ms of a 66 ms iGPU frame; the field is temporally EMA'd anyway, so a
+  // slower refresh only lengthens the converge tail after a ToD jump)
   let giFrame = 0;
-  const giEvery = engine.params.preset === 'low' ? 2 : 1;
+  const giEvery = engine.params.preset === 'low' ? 3 : 1;
   engine.onUpdate(() => {
     if (giFrame++ % giEvery === 0) gi.tick(renderer);
   });
@@ -132,6 +134,13 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.stats.counters['particles'] = particles.meshes.reduce((a, m) => a + m.count, 0);
   engine.onUpdate(() => particles.tick(camera));
 
+  // --- night: torches, hearths and lanterns (gated by night-ness) ---------
+  ctx.progress(0.9095, 'night: torches and hearth fires');
+  const torches = new Torches(scene, seed, hf, gi);
+  torches.setNight(sunSky.nightAmount);
+  gi.gain.value = 1 - sunSky.nightAmount * 0.98;
+  engine.stats.counters['torches'] = torches.count;
+
   // --- Nile + harbor water (flow, sky reflection, depth absorption) --------
   ctx.progress(0.91, 'water: the Nile');
   const water = new NileWater(hf, sunSky.atmosphere);
@@ -185,8 +194,12 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     sunSky.sun,
     camera,
     (wxz) => clouds.shadowAt(wxz),
+    // PERF II: the reduced preset's shadow pass measured 17.5 ms of a 70 ms
+    // iGPU frame — it is CASTER-BOUND (terrain patches + palms + every
+    // structure re-rasterized per cascade), so the fix is a shorter throw and
+    // a smaller map, not a cheaper filter
     lowQ
-      ? { maxFar: 2400, lightMargin: 900, cascades: 2, mapSize: 1024 }
+      ? { maxFar: 1100, lightMargin: 450, cascades: 1, mapSize: 1024 }
       : { maxFar: 3600, lightMargin: 900 },
   );
 
@@ -197,7 +210,11 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   // --- hooks ------------------------------------------------------------------
   engine.hooks.setTimeOfDay = (t): void => {
     engine.params.timeOfDay = t;
-    void sunSky.setTimeOfDay(t).then(() => clouds.refreshShadow(renderer));
+    void sunSky.setTimeOfDay(t).then(() => {
+      torches.setNight(sunSky.nightAmount);
+      gi.gain.value = 1 - sunSky.nightAmount * 0.98;
+      return clouds.refreshShadow(renderer);
+    });
     gi.invalidate(); // probes re-converge fast after the sun jump
     post.setTimeOfDay(t);
   };

@@ -1,6 +1,7 @@
 /**
  * Bookmarks + flythrough (Phase 7):
- *   1-9  — jump to a curated view (poses verified by harness shots)
+ *   1-9,0 — jump to a curated view (poses verified by harness shots); key 0
+ *          is bookmark 10, the night harbour, which also sets the hour
  *   F    — cinematic flythrough: closed Catmull-Rom loop through the
  *          bookmark positions with eased yaw/pitch, fly input disabled
  *   ?bm=N — boot straight into bookmark N (tooling/screenshots)
@@ -14,6 +15,8 @@ interface Mark {
   p: [number, number, number];
   yaw: number;
   pitch: number;
+  /** optional time-of-day: a night view is a POSE PLUS AN HOUR */
+  t?: number;
 }
 
 /** curated views (all verified as harness framings during Phases 3-6) */
@@ -27,6 +30,9 @@ export const MARKS: Mark[] = [
   { name: 'quarry', p: [0, 15, 560], yaw: -0.738, pitch: -0.2 },
   { name: 'queens & temple', p: [140, 30, -20], yaw: -2.678, pitch: -0.26 },
   { name: 'river shore', p: [1800, -42, 250], yaw: -2.6, pitch: -0.12 },
+  // 10 (key 0) — night harbour: moonlit basin, the town's fires on the far
+  // bank, the casing catching moonlight above the causeway
+  { name: 'night harbour', p: [1315, -36, -252], yaw: 2.31, pitch: -0.03, t: 21.4 },
 ];
 
 /** tour order: harbor → river → town → quarry → plateau → causeway → back */
@@ -48,16 +54,22 @@ export function attachBookmarks(engine: Engine): void {
     window.__akhet.setPose?.(pose);
   };
 
+  const jump = (m: Mark): void => {
+    if (m.t !== undefined) window.__akhet.setTimeOfDay?.(m.t);
+    setPose({ p: [...m.p], yaw: m.yaw, pitch: m.pitch });
+  };
+
   window.addEventListener('keydown', (e) => {
     if (e.code.startsWith('Digit')) {
-      const n = Number(e.code.slice(5));
+      const d = Number(e.code.slice(5));
+      const n = d === 0 ? 10 : d; // key 0 = bookmark 10 (night harbour)
       const m = MARKS[n - 1];
       if (m) {
         if (flying) {
           flying = false;
           window.__akhet.flyCamEnabled?.(true);
         }
-        setPose({ p: [...m.p], yaw: m.yaw, pitch: m.pitch });
+        jump(m);
       }
     } else if (e.code === 'KeyF' && !e.repeat) {
       flying = !flying;
@@ -69,13 +81,13 @@ export function attachBookmarks(engine: Engine): void {
   // ?bm=N boots straight into a bookmark (applied on the first frame,
   // after main has installed the camera rig)
   const bm = Number(new URLSearchParams(window.location.search).get('bm') ?? '0');
-  let bmPending = bm >= 1 && bm <= 9;
+  let bmPending = bm >= 1 && bm <= MARKS.length;
 
   engine.onUpdate((dt) => {
     if (bmPending) {
       const m = MARKS[bm - 1];
       if (m && window.__akhet.setPose) {
-        setPose({ p: [...m.p], yaw: m.yaw, pitch: m.pitch });
+        jump(m);
         bmPending = false;
       }
     }

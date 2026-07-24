@@ -55,6 +55,12 @@ const LAYER_BASE = 1.5;
 const LAYER_RATIO = 2.36;
 const TOTAL = PROBE_XZ * PROBE_XZ * PROBE_LAYERS;
 const PROBES_PER_FRAME = 3072;
+/** reduced preset slice (PERF II): the gather gets a fixed 3072 probes ×
+ *  16 dirs × 16 march steps per tick — 14.6 ms on the Intel UHD. A third of
+ *  the slice, ticked every 3rd frame, is a ~9× amortized cut; the world is
+ *  static apart from ToD, so the only cost is a longer converge tail
+ *  (invalidate() already boosts the blend rate after a sun jump). */
+const PROBES_PER_FRAME_LOW = 1024;
 const DIRS = 16;
 const MARCH_STEPS = 16;
 
@@ -77,13 +83,27 @@ export class ProbeGI {
   private publishK: Parameters<Renderer['compute']>[0] | null = null;
   private frameBase = uniform(0);
   private blend = uniform(0.22);
+  /**
+   * Global irradiance gain (PHASE 7 / night): the gather is a SUN-driven
+   * bounce integrator. With the sun 40° below the horizon the transmittance
+   * LUT still returns a (deep red, Rayleigh-stripped) value, so the field
+   * kept publishing a maroon bounce and painted the whole floodplain red in
+   * the first night frame. Nothing reaches the ground at that elevation:
+   * SunSky fades this to a small floor after dusk, and moonlight + the night
+   * hemisphere carry the ambient instead.
+   */
+  readonly gain = uniform(1);
   private rot = uniform(0);
   private boost = 0;
+
+  private readonly slice: number;
 
   constructor(
     private hf: Heightfield,
     private atmosphere: Atmosphere,
+    preset: 'low' | 'high' | 'ultra' = 'high',
   ) {
+    this.slice = preset === 'low' ? PROBES_PER_FRAME_LOW : PROBES_PER_FRAME;
     const mk = (): Storage3DTexture => {
       const t = new Storage3DTexture(PROBE_XZ, PROBE_XZ, PROBE_LAYERS);
       t.type = HalfFloatType;
@@ -224,7 +244,7 @@ export class ProbeGI {
 
     this.gatherK = Fn(() => {
       const i = instanceIndex;
-      If(i.greaterThanEqual(PROBES_PER_FRAME), () => {
+      If(i.greaterThanEqual(this.slice), () => {
         Return();
       });
       const pid = float(this.frameBase).add(float(i)).mod(TOTAL).toInt();
@@ -296,12 +316,12 @@ export class ProbeGI {
       prevR.assign(mix(prevR, vec4(c0R, c1R.x, c1R.y, c1R.z), blend));
       prevG.assign(mix(prevG, vec4(c0G, c1G.x, c1G.y, c1G.z), blend));
       prevB.assign(mix(prevB, vec4(c0B, c1B.x, c1B.y, c1B.z), blend));
-    })().compute(PROBES_PER_FRAME);
+    })().compute(this.slice);
     this.gatherK.setName('probeGather');
 
     this.publishK = Fn(() => {
       const i = instanceIndex;
-      If(i.greaterThanEqual(PROBES_PER_FRAME), () => {
+      If(i.greaterThanEqual(this.slice), () => {
         Return();
       });
       const pid = float(this.frameBase).add(float(i)).mod(TOTAL).toInt();
@@ -313,12 +333,12 @@ export class ProbeGI {
       textureStore(this.texR, xyz, this.shR.element(pid)).toWriteOnly();
       textureStore(this.texG, xyz, this.shG.element(pid)).toWriteOnly();
       textureStore(this.texB, xyz, this.shB.element(pid)).toWriteOnly();
-    })().compute(PROBES_PER_FRAME);
+    })().compute(this.slice);
     this.publishK.setName('probePublish');
 
     // warm the whole field once
     this.blend.value = 1;
-    const batches = Math.ceil(TOTAL / PROBES_PER_FRAME);
+    const batches = Math.ceil(TOTAL / this.slice);
     for (let n = 0; n < batches; n++) {
       const wait = n % 16 === 15 || n === batches - 1;
       if (wait) await renderer.computeAsync([this.gatherK, this.publishK]);
@@ -326,7 +346,7 @@ export class ProbeGI {
         renderer.compute(this.gatherK);
         renderer.compute(this.publishK);
       }
-      this.frameBase.value = (this.frameBase.value + PROBES_PER_FRAME) % TOTAL;
+      this.frameBase.value = (this.frameBase.value + this.slice) % TOTAL;
     }
     this.blend.value = 0.22;
   }
@@ -336,7 +356,7 @@ export class ProbeGI {
     if (!this.gatherK || !this.publishK) return;
     renderer.compute(this.gatherK);
     renderer.compute(this.publishK);
-    this.frameBase.value = (this.frameBase.value + PROBES_PER_FRAME) % TOTAL;
+    this.frameBase.value = (this.frameBase.value + this.slice) % TOTAL;
     this.rot.value = (this.rot.value + 1.61803) % 6.2831;
     if (this.boost > 0) {
       this.boost--;
@@ -373,6 +393,6 @@ export class ProbeGI {
       G.x.mul(a0).add(dot(G.yzw, n).mul(a1)),
       B.x.mul(a0).add(dot(B.yzw, n).mul(a1)),
     );
-    return max(e, vec3(0));
+    return max(e, vec3(0)).mul(float(this.gain));
   }
 }

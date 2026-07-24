@@ -50,7 +50,11 @@ async function boot(): Promise<void> {
   const onIGpu = (diag.vendor ?? '').toLowerCase().includes('intel');
   if (onIGpu && !new URLSearchParams(window.location.search).has('preset')) {
     params.preset = 'low';
-    if (params.dpr === null) params.dpr = 1;
+    // RENDER SCALE is the single biggest iGPU lever (PERF II): the Intel
+    // UHD is fill-bound, not geometry-bound — 43 ms of an 83 ms frame was
+    // the forward pass alone at 1600×900. 0.7 halves the shaded pixels and
+    // the canvas scales back up; TRAA hides most of the softness.
+    if (params.dpr === null) params.dpr = 0.62;
     // eslint-disable-next-line no-console
     console.warn(
       '[akhet] Running on the INTEGRATED GPU — reduced preset engaged. ' +

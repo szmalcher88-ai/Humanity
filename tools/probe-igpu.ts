@@ -39,9 +39,21 @@ async function measure(url: string, label: string): Promise<void> {
 
 const base = 'http://localhost:5173/?scene=world&T=9&freeze=1&hud=0';
 (async () => {
-  await measure(`${base}&cam=1700,60,300,1.1,-0.12`, 'fields+water+palms');
-  await measure(`${base}&cam=-400,30,600,1.57,-0.1`, 'bare desert west');
-  await measure(`${base}&cam=1700,60,300,1.1,0.9`, 'mostly sky');
+  const safe = async (u: string, l: string): Promise<void> => {
+    try {
+      await measure(u, l);
+    } catch (e) {
+      // the Intel adapter drops the device under sustained load — one lost
+      // framing must not kill the whole sweep
+      console.log(`[${l}] FAILED: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  await safe(`${base}&cam=1700,60,300,1.1,-0.12`, 'fields+water+palms');
+  await safe(`${base}&cam=-400,30,600,1.57,-0.1`, 'bare desert west');
+  await safe(`${base}&cam=1700,60,300,1.1,0.9`, 'mostly sky');
+  // particle/debris whale: the quarry bowl with its dust columns in frame
+  await safe(`${base}&bm=7`, 'quarry + dust plumes');
+  await safe(`${base}&bm=5`, 'town gate + hearth smoke');
 })().catch((e: unknown) => {
   console.error('FAILED:', e instanceof Error ? e.message : e);
   process.exit(1);

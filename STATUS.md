@@ -211,14 +211,87 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    with cheap shading never repays a second full vertex pass.
    NEW TOOL: `tools/diff.ts` (mean/p99/max + >2/>8/>24 pixel shares) — the
    regression metric for "identical output" claims.
-2. PERF II: iGPU path to 30 fps (tile/instance budgets, half-res
-   particles, GI every 3rd frame) + auto-preset verification.
-3. WATER POLISH: low-sun glint (dawn frame's dead black water), wet-sand
-   sparkle, harbor wavelet scale; recapture dawn final frame.
-4. CLOUDS FIX: impostor shard artifact at oblique angles; cirrus layer;
-   cloud-shadow softness pass.
-5. NIGHT: stars/moon + torchlight in the town (SunSky night branch,
-   emissive windows, bookmark 10 "night harbor").
+2. **PERF II — DONE 2026-07-24** (reduced/`low` preset, verified with
+   tools/probe-igpu.ts on the Intel UHD at 1600×900, the adapter Edge picks
+   by default). Levers, in order of what they actually bought:
+   RENDER SCALE 0.62 on the auto-iGPU path (the UHD is fill-bound; params.dpr
+   is still overridable) · TILE BUDGET 256 with the CDLOD recursion visiting
+   children NEAREST-FIRST and the budget gating the SPLIT, never the emit —
+   over budget a patch stays coarse instead of vanishing (dropping it punches
+   a hole in the ground); bare-desert tris 1.9M → 0.3M · PATCH_SEGS 24 ·
+   terrain micro-displacement down to ONE vertex noise fetch (3 vertex
+   texture fetches × ~440k verts was the second whale) · GI slice 3072 → 1024
+   probes AND every 3rd frame (~9× amortized; only cost is a longer converge
+   tail after a ToD jump) · shadows 1 cascade @1024, maxFar 1100 (the pass is
+   CASTER-bound, not filter-bound: 17.5 ms of a 70 ms frame at 2×768) ·
+   tufts 70k/fade 560, particles 22k.
+   NOTE on "half-res particles": particles here are ordinary world geometry
+   in the scene pass, not a screen-space effect — a particles-only half-res
+   pass needs its own depth pyramid plus a soft-particle depth fetch for
+   occlusion. The 0.62 render scale delivers the same fill-rate saving for
+   every transparent pixel at a fraction of the complexity, so that is what
+   shipped; a dedicated pass stays available if the quarry framing ever needs
+   it specifically.
+3. **WATER — DONE 2026-07-24.** ROOT CAUSE of the dead black dawn water was
+   an energy bookkeeping error, not a missing highlight: the sky reflection
+   was fed in as `colorNode` (ALBEDO), so it was multiplied AGAIN by the
+   scene lighting — invisible at noon, fatal at dawn where the sun term is
+   ~0.2 and the hemisphere is dimmed for GI. Reflected radiance is radiance:
+   it moved to `emissiveNode`. Added: an analytic Blinn GLINT lobe whose
+   width GROWS with distance (sub-pixel ripple variance is lost at range —
+   the GGX response to the DirectionalLight can only draw an aliased sliver,
+   never a sun road), tinted by `Atmosphere.sunRadiance()` (a white highlight
+   in a dawn frame is the tell) and broken up by a fast fine octave so the
+   road glitters; a turbidity floor (`body × sky dome`) so water facing away
+   from every light is never black; reflection direction now takes 0.75 of
+   the ripple while FRESNEL keeps the 0.35-flattened normal (flattening both
+   — the LAAS white-sheet fix — had made the river a perfect mirror);
+   harbor wavelet scale 0.42× the river's (a sheltered basin has no fetch).
+   Recaptured shots/final/dawn-from-harbor.png; shots/water/dawn-sunroad.png
+   is the sun-road proof looking east.
+4. **CLOUDS — DONE 2026-07-24.** The "pale angular shards" were `.fract()`
+   on the density lookups: fract is discontinuous at the wrap, the sampler
+   never interpolates ACROSS it, so every 420 m (detail), 3600 m (base) and
+   26 km (weather) the field jumped along a perfectly flat plane. Fixed with
+   RepeatWrapping + no fract, and the 32³ detail texture is now baked
+   PERIODIC (8 unit-shifted copies blended with trilinear corner weights).
+   Second shard source: near the horizon the slab chord ran to the 26 km cap,
+   so 32 steps meant 800 m per sample — the marched span is now capped at
+   tEnter+9 km (step ≤ ~280 m). NEW cirrus deck at 6.2 km: one ray-plane
+   sample (thin ice needs no march), anisotropic 5.5:1 domain along the wind,
+   large-scale patch mask (canon: OCCASIONAL cirrus), forward-scatter rim
+   near the sun, `?cirrus=N` to tune/ablate. Cloud shadows softened to a
+   5-tap cross ≈ the real ~11 m penumbra of a 1.3 km-high caster.
+5. **NIGHT — DONE 2026-07-24** (src/sky/NightSky.ts + src/monuments/
+   Torches.ts). Analytic stars (3 magnitude classes over a 3D CELL HASH —
+   an equirect grid clumps at the zenith), horizon-weighted scintillation,
+   O/B-to-K colour spread, a dust-mottled Milky Way band, and a moon disc
+   with a real terminator (disc-local offset → hemisphere normal → phase from
+   the sun direction, flattened by pow(0.45) for the regolith's opposition
+   surge) plus a tight aureole. MOONLIGHT RE-AIMS THE SUN'S DirectionalLight
+   instead of adding a second one — CSM, PCSS and contact shadows all keep
+   working at night for free, cast by the moon. Torches: emissive flame
+   tongues (standard material, black albedo + emissive — §9 bans unlit world
+   shading, and radiance belongs in emissive anyway) with per-flame hashed
+   flicker, over lit post/bowl geometry, plus ≤14 tight PointLights (range 26,
+   decay 2) so mudbrick actually catches the fire. Everything gated by
+   night-ness, so daylight frames pay nothing.
+   THREE BUGS THE FIRST NIGHT FRAME EXPOSED, all the same class — *the
+   transmittance LUT still returns a deep-red residual with the sun 40° below
+   the horizon*: (a) ProbeGI kept publishing a maroon bounce and painted the
+   whole floodplain red → new `ProbeGI.gain`, faded to 0.02 at night; (b) the
+   cumulus deck lit like embers at midnight → sun term gated by elevation,
+   with a small moon-lit term added; (c) pink cirrus over a midnight sky →
+   same gate. Also: anything that REFLECTS the sky needs the night terms or
+   it mirrors an empty black dome — `Atmosphere.skyFull()` now adds them, and
+   the water uses it. Night hemisphere ambient deliberately bypasses the
+   GI dim factor (probe GI is faded out after dusk, so something has to hold
+   the shadow floor up — the no-black-shadows law does not clock off at
+   sunset). Bookmark 10 (key `0`, `?bm=10`) = "night harbour"; bookmarks can
+   now carry a time of day, because a night view is a POSE PLUS AN HOUR.
+   KNOWN MINOR: a faint red rim survives on the far escarpment at night
+   (aerial-perspective residual at >6 km), and the harbour water sheet's
+   rectangular edge is visible from bm10's left margin.
 6. FROXELS: port LAAS froxel volumetrics for work-site dust columns +
    morning valley haze (needs Phase-2 carried item).
 7. INHABITED I: figures-at-distance massing (instanced worker gangs on

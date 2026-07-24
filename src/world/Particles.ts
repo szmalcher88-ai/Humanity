@@ -40,7 +40,7 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { WIND_X, WIND_Z } from './WorldConst';
 
-const BUDGET = { low: 40_000, high: 131_072, ultra: 160_000 } as const;
+const BUDGET = { low: 22_000, high: 131_072, ultra: 160_000 } as const;
 
 interface Src {
   x: number;

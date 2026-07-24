@@ -340,6 +340,19 @@ export class Atmosphere {
     }
   }
 
+  /**
+   * Night rig, attached by SunSky at construction. Anything that REFLECTS the
+   * sky (water, cirrus ambient) must see stars and moon too, or the world
+   * mirrors an empty black dome after dusk.
+   */
+  nightSky: { radiance(dir: NV3): NV3 } | null = null;
+
+  /** sky radiance INCLUDING the night terms — use this for reflections */
+  skyFull(dir: NV3): NV3 {
+    const s = this.skyColor(dir);
+    return this.nightSky ? s.add(this.nightSky.radiance(dir)) : s;
+  }
+
   /** sample the sky-view LUT for an arbitrary world direction */
   skyColor(dir: NV3): NV3 {
     const elev = asin(clamp(dir.y, -1, 1));
@@ -349,6 +362,17 @@ export class Atmosphere {
     const az = atan(dir.z, dir.x).sub(sunAz);
     const u = az.div(2 * Math.PI).add(0.5).fract();
     return texture(this.skyViewLUT, vec2(u, v)).rgb.mul(SUN_E);
+  }
+
+  /**
+   * Sun radiance reaching the ground: E × transmittance along the sun ray.
+   * Warm and heavily dimmed near the horizon — this is the colour any
+   * analytic sun term (water glint, wet-sand sparkle) must be tinted by, or
+   * it reads as a white noon highlight pasted onto a dawn frame.
+   */
+  sunRadiance(): NV3 {
+    const sunDirN = this.sunDir.normalize();
+    return this.sampleTransmittance(float(RG + 0.35), clamp(sunDirN.y, -1, 1)).mul(SUN_E);
   }
 
   /** full background: sky + transmittance-tinted, limb-darkened sun disc */

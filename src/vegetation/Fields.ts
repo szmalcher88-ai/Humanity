@@ -44,11 +44,11 @@ import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 /** tuft budget by quality preset (reduced preset: fewer instances and a
  *  shorter fade — never fewer systems; brief §6) */
-const TUFT_BUDGET = { low: 120_000, high: 750_000, ultra: 900_000 } as const;
+const TUFT_BUDGET = { low: 70_000, high: 750_000, ultra: 900_000 } as const;
 const BLADES_BY_PRESET = { low: 3, high: 5, ultra: 5 } as const;
 const FADE_NEAR = 700;
 const FADE_FAR = 1150;
-const FADE_FAR_LOW = 750;
+const FADE_FAR_LOW = 560;
 
 /** crossed-blade tuft, ~0.9 m tall, origin at the root */
 function tuftGeometry(BLADES: number): BufferGeometry {
