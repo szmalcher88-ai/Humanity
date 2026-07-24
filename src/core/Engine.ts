@@ -33,6 +33,7 @@ export class Engine {
   post: { render(): void; meter(renderer: WebGPURenderer): void } | null = null;
 
   private updateFns: UpdateFn[] = [];
+  private preRenderFns: UpdateFn[] = [];
   private lastT: number | null = null;
   private frameMsRing: number[] = [];
   private fpsEma = 0;
@@ -122,6 +123,18 @@ export class Engine {
     this.updateFns.push(fn);
   }
 
+  /**
+   * Runs after EVERY onUpdate, immediately before the frame is submitted —
+   * for work that must see the camera's final pose. updateFns fire in
+   * registration order and the camera movers (FlyCamera, flythrough) are
+   * installed after the scene, so anything registered by a subsystem would
+   * otherwise read a one-frame-stale pose (visible as instance-cull popping
+   * at the frustum edge during fast rotation).
+   */
+  onPreRender(fn: UpdateFn): void {
+    this.preRenderFns.push(fn);
+  }
+
   /** resolves after `frames` additional frames have been rendered */
   settle(frames = 8): Promise<void> {
     return new Promise((resolve) => {
@@ -145,6 +158,7 @@ export class Engine {
     // render+encode (backpressure shows as the gap to frameMs)
     const c0 = performance.now();
     for (const fn of this.updateFns) fn(dt, this.worldTime);
+    for (const fn of this.preRenderFns) fn(dt, this.worldTime);
     const c1 = performance.now();
 
     if (this.post) {

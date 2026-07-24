@@ -128,6 +128,11 @@ export class SunSky {
     await this.refreshIBL();
   }
 
+  /** current sun world direction (surface → sun), unit length */
+  get sunDir(): Vector3 {
+    return this.sunDirWorld;
+  }
+
   /** probe GI active: hemisphere becomes a small safety floor only */
   dimAmbientForGI(): void {
     this.ambientScale = 0.15;

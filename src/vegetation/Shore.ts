@@ -41,6 +41,7 @@ import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
+import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 const CLUMP_TARGET = { low: 2600, high: 7000, ultra: 8500 } as const;
@@ -262,6 +263,7 @@ function spawnClass(
   spots: [number, number, number][],
   spec: ClassSpec,
   gi: ProbeGI | null,
+  cull: boolean,
 ): number {
   const n = spots.length;
   if (n === 0) return 0;
@@ -283,6 +285,7 @@ function spawnClass(
       dataB[i * 4 + 2] = rng.range(0.82, 1.12);
       dataB[i * 4 + 3] = rng.range(spec.scale[0], spec.scale[1]);
     }
+    const cells = cull ? cellSortVec4(count, [data, dataB], 160, 45) : [];
     const bufA = instancedArray(data, 'vec4');
     const bufB = instancedArray(dataB, 'vec4');
 
@@ -329,7 +332,18 @@ function spawnClass(
     mesh.frustumCulled = false;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.name = `${spec.name}-${v}`;
     scene.add(mesh);
+    if (cull) {
+      // exact pads from the grown geometry × the largest instance scale
+      const bb = geoBounds(geo, spec.scale[1]);
+      attachCulling(mesh, cells, {
+        name: 'shore',
+        padXZ: bb.rad + 0.5,
+        padY: bb.top + 0.5,
+        casts: true,
+      });
+    }
     total += count;
   }
   return total;
@@ -350,6 +364,7 @@ export function buildShore(
   hf: Heightfield,
   gi: ProbeGI | null,
   preset: 'low' | 'high' | 'ultra' = 'high',
+  cull = true,
 ): ShoreCounts {
   const rng = seed.rng('shore');
   const W = NILE_WATER_Y;
@@ -408,7 +423,7 @@ export function buildShore(
     clumps += spawnClass(
       scene, rng.fork(`class-${c}`),
       clumpSpots[c] as [number, number, number][],
-      classes[c] as ClassSpec, gi,
+      classes[c] as ClassSpec, gi, cull,
     );
   }
 
@@ -440,7 +455,7 @@ export function buildShore(
     scale: [0.8, 1.35],
     giLift: 1.6,
     sway: 0.025,
-  }, gi);
+  }, gi, cull);
   trees += spawnClass(scene, rng.fork('tamarisk'), tamSpots, {
     name: 'tamarisk',
     grow: tamariskGeometry,
@@ -450,7 +465,7 @@ export function buildShore(
     scale: [0.7, 1.3],
     giLift: 1.4,
     sway: 0.06,
-  }, gi);
+  }, gi, cull);
 
   return { clumps, trees };
 }

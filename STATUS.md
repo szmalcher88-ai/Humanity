@@ -174,8 +174,43 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 ## Next actions (always keep current)
 
 ### ROADMAP — next 10 iterations (agreed 2026-07-23)
-1. PERF I: depth prepass + per-variant bounding spheres & frustum culling
-   for instanced veg/debris; target 45+fps@1440p dev machine.
+1. **PERF I — DONE 2026-07-24.** `src/render/InstanceCull.ts`: scatter
+   systems (palms/tufts/shore/debris/particles) are bucketed into spatial
+   CELLS at build time (buffers permuted so each cell is one contiguous
+   instance slice) and drawn with WebGPU **indirect draws** — one indirect
+   entry per cell, `firstInstance` = slice start; per frame the CPU tests a
+   few hundred cell AABBs and rewrites `geometry.indirectOffset` (an ARRAY of
+   byte offsets ⇒ one draw per visible cell, re-read at encode time,
+   WebGPUBackend.js:1664). The indirect BUFFER never changes: no per-frame
+   uploads, no compute pass. Needs `indirect-first-instance` (present on this
+   adapter; three requests every adapter-supported feature) — WGSL's
+   `@builtin(instance_index)` starts at `firstInstance`, so no shader change.
+   RESULT @2560×1440 RTX 3050: GPU **30.0 → 17.9 ms**, fps **25 → 52**,
+   tris 24.3M → 14.3M; bm1 27.4→17.2, bm3 25.7→13.7, bm7 (heaviest) 34.1→21.0.
+   Output identical to `?cull=0` within TRAA noise (tools/diff.ts: mean 0.035,
+   0.11% of px >8, all of it sub-pixel crown overlap at >1 km — the cell sort
+   changes rasterization order among coincident thin tris).
+   KEY DETAILS: (a) SHADOW CORRECTNESS — geometry is shared with the CSM
+   passes, so casters are tested with their AABB unioned with its own
+   sun-projected copy (`casts: true`), else groves behind the camera lose the
+   shadows they throw into view; (b) `mesh.count` is set to the visible
+   instance total so `info.render.triangles` stays truthful (unused by the
+   indirect path; 0 skips the draw); (c) `minPerCell` auto-coarsens the grid —
+   one drawIndirect costs ~3 µs of encoder time, so sparse systems double
+   their cell size until each cell earns its draw (first run: 821 draws =
+   +2.7 ms CPU submit; tuned to 137 draws); (d) new `engine.onPreRender()`
+   runs after ALL updateFns so culling sees the FINAL camera pose (updateFns
+   are registration-ordered and FlyCamera installs after the scene).
+   ALSO: small debris chips fade out 520→340 m (sub-pixel at 1440p — costs
+   nothing visually, kills sub-pixel sparkle TRAA had to fight).
+   DEPTH PREPASS built (`src/render/DepthPrepass.ts`, LAAS port, @invariant
+   WGSL patch) and verified visually identical — but **measured a LOSS** on
+   this content and therefore ships OPT-IN (`?prepass=1`): r.scene 9.5 on /
+   8.6 off from the river shore, 6.22 / 6.14 standing inside the crop belt,
+   CPU submit +2.7 ms from the doubled draw stream. Thin blade/frond geometry
+   with cheap shading never repays a second full vertex pass.
+   NEW TOOL: `tools/diff.ts` (mean/p99/max + >2/>8/>24 pixel shares) — the
+   regression metric for "identical output" claims.
 2. PERF II: iGPU path to 30 fps (tile/instance budgets, half-res
    particles, GI every 3rd frame) + auto-preset verification.
 3. WATER POLISH: low-sun glint (dawn frame's dead black water), wet-sand

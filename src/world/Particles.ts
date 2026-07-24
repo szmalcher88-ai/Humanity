@@ -37,6 +37,7 @@ import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from './Heightfield';
 import { QUARRY_KHUFU_CENTER, WORKER_TOWN_CENTER } from './CANON_DIMENSIONS';
 import { uWorldTime } from '../render/WorldClock';
+import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { WIND_X, WIND_Z } from './WorldConst';
 
 const BUDGET = { low: 40_000, high: 131_072, ultra: 160_000 } as const;
@@ -58,6 +59,7 @@ export class WorkParticles {
     seed: WorldSeed,
     hf: Heightfield,
     preset: 'low' | 'high' | 'ultra' = 'high',
+    private readonly cull = true,
   ) {
     const rng = seed.rng('particles');
     const total = BUDGET[preset];
@@ -136,6 +138,7 @@ export class WorkParticles {
       B[i * 4 + 2] = rng.range(o.rise[0], o.rise[1]);
       B[i * 4 + 3] = rng.range(o.size[0], o.size[1]);
     }
+    const cells = this.cull ? cellSortVec4(count, [A, B], 128, 700) : [];
     const bufA = instancedArray(A, 'vec4');
     const bufB = instancedArray(B, 'vec4');
 
@@ -181,6 +184,16 @@ export class WorkParticles {
     mesh.renderOrder = 5;
     scene.add(mesh);
     this.meshes.push(mesh);
+    if (this.cull) {
+      // pads cover the whole life loop: downwind travel (drift), lateral
+      // wander (spread) and the rise column — a plume must not vanish when
+      // only its top is on screen
+      attachCulling(mesh, cells, {
+        name: 'particles',
+        padXZ: o.drift[1] + o.spread * 2 + 2,
+        padY: o.rise[1] + o.size[1] * 3,
+      });
+    }
   }
 
   /** per-frame: billboard basis from the camera (2 uniform writes) */

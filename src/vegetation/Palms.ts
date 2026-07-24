@@ -13,6 +13,7 @@ import {
   BufferGeometry,
   InstancedMesh,
   Vector2,
+  type Mesh,
   type Scene,
 } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
@@ -37,6 +38,8 @@ import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
+import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
+import { depthPrepassTwin } from '../render/DepthPrepass';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 const VARIANTS = 8;
@@ -129,6 +132,7 @@ export function buildPalms(
   hf: Heightfield,
   gi: ProbeGI | null,
   preset: 'low' | 'high' | 'ultra' = 'high',
+  perf: { cull: boolean; prepass: boolean } = { cull: true, prepass: true },
 ): number {
   const rng = seed.rng('palms');
   const target = TARGET[preset];
@@ -206,6 +210,9 @@ export function buildPalms(
       dataB[i * 4 + 2] = rng.range(0.85, 1.12);
       dataB[i * 4 + 3] = rng.range(0.74, 1.22);
     }
+    // spatial cells for indirect-draw culling (PERF I) — permutes the buffers
+    // into contiguous per-cell slices before the GPU sees them
+    const cells = perf.cull ? cellSortVec4(count, [data, dataB], 192, 45) : [];
     const bufA = instancedArray(data, 'vec4');
     const bufB = instancedArray(dataB, 'vec4');
 
@@ -256,7 +263,25 @@ export function buildPalms(
     mesh.frustumCulled = false;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.name = `palm-${v}`;
     scene.add(mesh);
+    const twins: Mesh[] = [];
+    if (perf.prepass) {
+      // crowns are dense double-sided frond quads — high overdraw per pixel
+      const twin = depthPrepassTwin(mesh, { positionNode: wpos, side: 2 });
+      scene.add(twin);
+      twins.push(twin);
+    }
+    if (perf.cull) {
+      // casts: true — a grove behind the camera still throws shadows into view
+      const bb = geoBounds(geo, 1.22); // 1.22 = largest per-instance scale
+      attachCulling(
+        mesh,
+        cells,
+        { name: 'palms', padXZ: bb.rad + 1.5, padY: bb.top + 1.5, casts: true },
+        twins,
+      );
+    }
     total += count;
   }
   return total;

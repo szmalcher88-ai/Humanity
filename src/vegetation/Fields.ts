@@ -38,6 +38,8 @@ import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
+import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
+import { depthPrepassTwin } from '../render/DepthPrepass';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 /** tuft budget by quality preset (reduced preset: fewer instances and a
@@ -86,6 +88,7 @@ export function buildFields(
   hf: Heightfield,
   gi: ProbeGI | null,
   preset: 'low' | 'high' | 'ultra' = 'high',
+  perf: { cull: boolean; prepass: boolean } = { cull: true, prepass: true },
 ): ParcelInfo {
   const rng = seed.rng('fields');
   const TUFTS = TUFT_BUDGET[preset];
@@ -223,6 +226,13 @@ export function buildFields(
   carpet.receiveShadow = true;
   scene.add(carpet);
 
+  /* --- spatial cells for indirect-draw culling (PERF I) --------------------
+   * permutes the instance buffers so each cell is a contiguous slice; must
+   * happen BEFORE instancedArray() takes the arrays. 160 m cells: ~25 visible
+   * draws inside the 1150 m fade radius, fine enough that off-screen belt
+   * never rasterizes. */
+  const cells = perf.cull ? cellSortVec4(count, [data, dataB], 160, 1500) : [];
+
   const bufA = instancedArray(data, 'vec4');
   const bufB = instancedArray(dataB, 'vec4');
 
@@ -274,7 +284,25 @@ export function buildFields(
   mesh.frustumCulled = false;
   mesh.castShadow = false; // 0.5M casters would swamp the cascades; contact+AO carry it
   mesh.receiveShadow = true;
+  mesh.name = 'tufts';
   scene.add(mesh);
+
+  // depth prepass: 0.9 m stalks at grazing angles shade every pixel several
+  // times over — the twin makes the lit pass run once per visible pixel
+  const twins: Mesh[] = [];
+  if (perf.prepass) {
+    const twin = depthPrepassTwin(mesh, { positionNode: mat.positionNode, side: 2 });
+    scene.add(twin);
+    twins.push(twin);
+  }
+  if (perf.cull) {
+    attachCulling(
+      mesh,
+      cells,
+      { name: 'tufts', padXZ: 1.5, padY: 2.2, maxDist: fadeFar + 60 },
+      twins,
+    );
+  }
 
   return { count, parcels: parcels.length };
 }

@@ -26,6 +26,19 @@ export interface AkhetParams {
   freeze: boolean;
   /** device pixel ratio cap override */
   dpr: number | null;
+  /** instanced-scatter frustum culling (?cull=0 disables — perf A/B) */
+  cull: boolean;
+  /**
+   * vegetation depth prepass — OPT-IN (`?prepass=1`). Built and verified
+   * (output identical to within TRAA noise) but MEASURED A LOSS on this
+   * content: 2026-07-24 @1440p RTX 3050, r.scene 9.5 ms on / 8.6 ms off from
+   * the river shore, 6.22 / 6.14 ms standing inside the crop belt, and CPU
+   * submit +2.7 ms from the doubled draw stream. Blade/frond geometry is thin
+   * and the shading is not heavy enough to beat an extra full vertex pass —
+   * the win the technique is famous for needs fat overdraw over expensive
+   * pixels. Kept for the A/B and for future heavier materials.
+   */
+  prepass: boolean;
 }
 
 function num(v: string | null, fallback: number): number {
@@ -50,6 +63,8 @@ export function parseParams(search: string = window.location.search): AkhetParam
     shot: shotN >= 1 && shotN <= 9 ? Math.floor(shotN) : null,
     freeze: q.get('freeze') === '1',
     dpr: q.get('dpr') !== null ? num(q.get('dpr'), 1) : null,
+    cull: q.get('cull') !== '0',
+    prepass: q.get('prepass') === '1',
   };
 }
 

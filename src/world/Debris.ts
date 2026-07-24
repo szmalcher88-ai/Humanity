@@ -20,6 +20,7 @@ import {
 import { GeoWriter, limestoneMaterial } from '../monuments/KhufuComplex';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
+  cameraPosition,
   cos,
   float,
   instancedArray,
@@ -28,10 +29,12 @@ import {
   normalLocal,
   positionLocal,
   sin,
+  smoothstep,
   transformNormalToView,
   varying,
   vec3,
 } from 'three/tsl';
+import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
@@ -77,6 +80,7 @@ export function buildDebris(
   hf: Heightfield,
   gi: ProbeGI | null,
   preset: 'low' | 'high' | 'ultra' = 'high',
+  cull = true,
 ): number {
   const rng = seed.rng('debris');
   const target = TARGET[preset];
@@ -100,10 +104,13 @@ export function buildDebris(
   ];
   const wSum = anchors.reduce((a, b) => a + b.w, 0);
 
-  // two size classes: chips (many, small) and block rubble (few, larger)
+  // two size classes: chips (many, small) and block rubble (few, larger).
+  // `fade`: a 0.28 m chip is sub-pixel past ~400 m at 1440p — collapsing it
+  // there costs nothing visually, saves the vertex work, and stops the
+  // sub-pixel sparkle TRAA has to fight (PERF I).
   const classes = [
-    { share: 0.9, s0: 0.06, s1: 0.28, sink: 0.35 },
-    { share: 0.1, s0: 0.3, s1: 0.85, sink: 0.3 },
+    { share: 0.9, s0: 0.06, s1: 0.28, sink: 0.35, fade: [520, 340] },
+    { share: 0.1, s0: 0.3, s1: 0.85, sink: 0.3, fade: [1400, 1000] },
   ] as const;
 
   let total = 0;
@@ -140,6 +147,7 @@ export function buildDebris(
     const n = i;
     if (n === 0) continue;
 
+    const cells = cull ? cellSortVec4(n, [data, dataB], 128, 700) : [];
     const bufA = instancedArray(data, 'vec4');
     const bufB = instancedArray(dataB, 'vec4');
     const mat = new MeshPhysicalNodeMaterial();
@@ -148,7 +156,9 @@ export function buildDebris(
     const yaw = A.w;
     const cy = cos(yaw);
     const sy = sin(yaw);
-    const lp = positionLocal.mul(B.x).mul(vec3(1, B.z, 1));
+    const camD = A.xyz.sub(cameraPosition).length();
+    const fade = smoothstep(cls.fade[0], cls.fade[1], camD);
+    const lp = positionLocal.mul(B.x.mul(fade)).mul(vec3(1, B.z, 1));
     const rx = lp.x.mul(cy).sub(lp.z.mul(sy));
     const rz = lp.x.mul(sy).add(lp.z.mul(cy));
     mat.positionNode = vec3(A.x.add(rx), A.y.add(lp.y), A.z.add(rz));
@@ -170,7 +180,17 @@ export function buildDebris(
     mesh.frustumCulled = false;
     mesh.castShadow = cls.s0 > 0.2; // only the big rubble casts (perf)
     mesh.receiveShadow = true;
+    mesh.name = `debris-${cls.s0}`;
     scene.add(mesh);
+    if (cull) {
+      attachCulling(mesh, cells, {
+        name: 'debris',
+        padXZ: 1,
+        padY: 1.5,
+        maxDist: cls.fade[0] + 60,
+        casts: cls.s0 > 0.2,
+      });
+    }
     total += n;
   }
 

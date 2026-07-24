@@ -11,6 +11,8 @@ import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildWorkerTown } from '../monuments/WorkerTown';
 import { PostStack } from '../render/PostStack';
+import { installPositionInvariance } from '../render/DepthPrepass';
+import { clearCulling, cullingActive, updateInstanceCulling } from '../render/InstanceCull';
 import { setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
 import { SunSky } from '../sky/SunSky';
@@ -102,23 +104,31 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   rebuildStructures();
   engine.onUpdate(() => updateMonumentLods(sites, camera.position));
 
+  // PERF I: scatter systems draw indirectly, one draw per visible spatial
+  // cell; the depth prepass makes the lit pass run once per visible pixel
+  const perf = { cull: engine.params.cull, prepass: engine.params.prepass };
+  if (perf.prepass) installPositionInvariance(renderer);
+  clearCulling();
+
   ctx.progress(0.9, 'floodplain: palms and field parcels');
-  const palmCount = buildPalms(scene, seed, hf, gi, engine.params.preset);
-  const fields = buildFields(scene, seed, hf, gi, engine.params.preset);
+  const palmCount = buildPalms(scene, seed, hf, gi, engine.params.preset, perf);
+  const fields = buildFields(scene, seed, hf, gi, engine.params.preset, perf);
   engine.stats.counters['veg.palms'] = palmCount;
   engine.stats.counters['veg.tufts'] = fields.count;
   engine.stats.counters['veg.parcels'] = fields.parcels;
 
   ctx.progress(0.905, 'shorelines: papyrus, reeds, shade trees');
-  const shore = buildShore(scene, seed, hf, gi, engine.params.preset);
+  const shore = buildShore(scene, seed, hf, gi, engine.params.preset, perf.cull);
   engine.stats.counters['veg.reeds'] = shore.clumps;
   engine.stats.counters['veg.trees'] = shore.trees;
 
   ctx.progress(0.908, 'works: stone debris fields');
-  engine.stats.counters['debris'] = buildDebris(scene, seed, hf, gi, engine.params.preset);
+  engine.stats.counters['debris'] = buildDebris(
+    scene, seed, hf, gi, engine.params.preset, perf.cull,
+  );
 
   ctx.progress(0.909, 'works: dust and hearth smoke');
-  const particles = new WorkParticles(scene, seed, hf, engine.params.preset);
+  const particles = new WorkParticles(scene, seed, hf, engine.params.preset, perf.cull);
   engine.stats.counters['particles'] = particles.meshes.reduce((a, m) => a + m.count, 0);
   engine.onUpdate(() => particles.tick(camera));
 
@@ -154,6 +164,13 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
 
   // Phase 7: bookmark keys 1-9 + F flythrough (?bm=N for tooling)
   attachBookmarks(engine);
+
+  // PERF I: rebuild the indirect-draw offset lists from the FINAL camera pose
+  if (cullingActive()) {
+    engine.onPreRender(() => {
+      updateInstanceCulling(camera, sunSky.sunDir, engine.stats.counters);
+    });
+  }
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');
