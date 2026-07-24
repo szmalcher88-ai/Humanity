@@ -73,14 +73,25 @@ export interface TerrainShading {
 }
 
 /* palette (linear-ish sRGB values; graded in Phase 2's color script) */
-const LIMESTONE = vec3(0.71, 0.66, 0.55);
-const LIMESTONE_BAND = vec3(0.60, 0.52, 0.41);
-const SAND_LIGHT = vec3(0.80, 0.70, 0.52);
-const SAND_WARM = vec3(0.72, 0.60, 0.42);
-const GRAVEL = vec3(0.55, 0.48, 0.38);
+/* ALBEDO CALIBRATION (Phase 7 DELTA, 2026-07-25) — the "midday chalkiness".
+ * The first pass carried studio-bright values (sand 0.80, limestone 0.71) and
+ * the measurement made the failure exact: at T 12.4 the sunlit desert read
+ * luminance 194.9 against 198.1 for the Tura casing — a 1.6% separation, i.e.
+ * the Great Pyramid and the sand it stands on were the SAME TONE. Nothing in
+ * the grade can rescue that; it is an albedo error, and AgX's highlight
+ * desaturation then flattens the top end into paper.
+ * These are the physical figures: dry desert sand 0.35-0.45, weathered
+ * limestone 0.30-0.50, fresh-cut Tura 0.55-0.60. The casing stays the
+ * brightest surface on the plateau (canon Vol. V's "primary lighting
+ * reference object") — but now it EARNS it. */
+const LIMESTONE = vec3(0.48, 0.445, 0.375);
+const LIMESTONE_BAND = vec3(0.40, 0.345, 0.275);
+const SAND_LIGHT = vec3(0.53, 0.455, 0.34);
+const SAND_WARM = vec3(0.47, 0.385, 0.27);
+const GRAVEL = vec3(0.38, 0.33, 0.26);
 // fresh-cut faces are bright but NOT snow — 0.84 blew out to white under
 // the full-sun auto-exposure (debris close-ups read as a ski slope)
-const QUARRY_FRESH = vec3(0.73, 0.69, 0.58);
+const QUARRY_FRESH = vec3(0.57, 0.535, 0.45);
 const SILT = vec3(0.35, 0.28, 0.21);
 const SILT_WET = vec3(0.20, 0.16, 0.12);
 const VEG_WASH = vec3(0.31, 0.42, 0.19);

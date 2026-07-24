@@ -7,10 +7,12 @@
 
 import { Group, Mesh, type Material } from 'three';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
+import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildWorkerTown } from '../monuments/WorkerTown';
 import { Torches } from '../monuments/Torches';
+import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
 import { installPositionInvariance } from '../render/DepthPrepass';
 import { clearCulling, cullingActive, updateInstanceCulling } from '../render/InstanceCull';
@@ -134,6 +136,12 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.stats.counters['particles'] = particles.meshes.reduce((a, m) => a + m.count, 0);
   engine.onUpdate(() => particles.tick(camera));
 
+  ctx.progress(0.9092, 'inhabited: worker gangs, ox trains, scaffolding');
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull);
+  engine.stats.counters['workers'] = people.figures;
+  engine.stats.counters['oxen'] = people.oxen;
+  engine.stats.counters['sledges'] = people.sledges;
+
   // --- night: torches, hearths and lanterns (gated by night-ness) ---------
   ctx.progress(0.9095, 'night: torches and hearth fires');
   const torches = new Torches(scene, seed, hf, gi);
@@ -203,8 +211,21 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       : { maxFar: 3600, lightMargin: 900 },
   );
 
+  ctx.progress(0.95, 'volumetrics: dust columns and valley mist');
+  // froxels must exist before the post stack — PostStack folds them into the
+  // aerial node (local volumetrics UNDER the km-scale haze)
+  const froxels =
+    new URLSearchParams(window.location.search).get('froxels') === '0'
+      ? null
+      : new Froxels(hf, sunSky.atmosphere, clouds, engine.params.preset);
+  if (froxels) {
+    engine.onPreRender(() => froxels.update(renderer, camera, sunSky.sun));
+  }
+
   ctx.progress(0.96, 'post: pipeline');
-  const post = new PostStack(engine, sunSky.atmosphere, engine.params.timeOfDay, clouds);
+  const post = new PostStack(
+    engine, sunSky.atmosphere, engine.params.timeOfDay, clouds, froxels,
+  );
   engine.post = post;
 
   // --- hooks ------------------------------------------------------------------
