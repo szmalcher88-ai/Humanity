@@ -99,7 +99,18 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 - [ ] Phase 4 — Khufu complex + sacred axis + mastaba fields
 - [ ] Phase 5 — Nile, harbor, vessels, agriculture
 - [ ] Phase 6 — worker city, industry, quarry dressing, motion pass
-- [ ] Phase 7 — perf, bookmarks, flythrough, full battery, two-frame test
+- [x] **Phase 7 — CLOSED 2026-07-25 (v1.0).** Perf (indirect-draw instance
+      culling, iGPU preset), bookmarks 1-10 + flythrough, walk mode, night
+      rig, froxel volumetrics, inhabitants, albedo calibration, full
+      verification battery (`npm run battery`, 18 gates: 17 PASS + 1 advisory
+      WARN), README + gallery, two-frame test recaptured. Dev-machine perf
+      @2560×1440 on the RTX 3050 Laptop (BELOW the 3060 target class):
+      bm1 46 / bm3 66 / bm7 44 fps, GPU 18.3 ms. The single WARN is bm7 at
+      44 vs the 45 gate — advisory by construction on this GPU.
+      BATTERY BUG WORTH REMEMBERING: the first version measured the perf
+      sweep with the 1600×900 page still open, and two live WebGPU contexts
+      sharing one GPU reported 26-31 fps for framings that measure 44-66
+      standalone. A perf gate that measures the harness is worse than none.
 
 - [~] **Phase 2** — CORE BUILT 2026-07-11. Ported from LAAS (attributed):
       Atmosphere LUTs, SunSky (REWRITTEN: astronomical Giza equinox sun,
@@ -173,7 +184,34 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
-### ROADMAP — next 10 iterations (agreed 2026-07-23)
+### OPEN AFTER v1.0 (2026-07-25)
+
+1. **iGPU is still short of 30 fps on the two heaviest framings.** After PERF
+   II the Intel UHD @1600×900 runs the town gate at ~30 fps and bare desert at
+   ~24, but the quarry bowl and the dense floodplain sit at 10-17. The
+   remaining whale is the SHADOW pass (caster-bound: terrain patches +
+   structures re-rasterized per cascade) and the always-drawn merged complex
+   geometry. Next levers, in order: a caster allow-list on `low` (drop shore/
+   debris casters), a distance-gated stone LOD switch for the complex, and a
+   cheaper terrain shadow position node.
+2. **D-1 reference frames still outstanding.** The colour work to date is
+   calibrated against WRITTEN criteria plus physical reflectances (D-12). The
+   1-3 human photographs, when they arrive, should be run through
+   tools/levels.ts with matched framings — the instrument is ready and the
+   comparison is now a numbers exercise, not an argument.
+3. Known minor artifacts: a faint red rim survives on the far escarpment at
+   night (aerial-perspective residual >6 km); the harbour water sheet's
+   rectangular edge is visible from bookmark 10's left margin; crop tufts read
+   as isolated blades inside ~15 m (a card/far-tuft LOD is the queued fix, and
+   it also fixes the >120 m aliasing noted in Phase 5).
+4. The depth prepass ships OPT-IN because it measured a loss on this content
+   (see PERF I). Re-measure if materials get heavier (e.g. if veg ever gains
+   translucency/SSS) — the technique is built and verified, only the trade is
+   currently wrong.
+5. The scaffolding tableau at the mortuary temple's SE corner deserves its own
+   bookmark; it is small in every existing framing.
+
+### ROADMAP — 10 iterations (agreed 2026-07-23, ALL DONE 2026-07-25)
 1. **PERF I — DONE 2026-07-24.** `src/render/InstanceCull.ts`: scatter
    systems (palms/tufts/shore/debris/particles) are bucketed into spatial
    CELLS at build time (buffers permuted so each cell is one contiguous
@@ -292,16 +330,73 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
    KNOWN MINOR: a faint red rim survives on the far escarpment at night
    (aerial-perspective residual at >6 km), and the harbour water sheet's
    rectangular edge is visible from bm10's left margin.
-6. FROXELS: port LAAS froxel volumetrics for work-site dust columns +
-   morning valley haze (needs Phase-2 carried item).
-7. INHABITED I: figures-at-distance massing (instanced worker gangs on
-   ramp/quarry/harbor paths — silhouette crowds, no close-ups).
-8. INHABITED II: oxen sledge trains on the haul roads + gang shelters,
-   scaffolding on G1-d or temple corner (construction tableau).
-9. DELTA LOOP with human reference frames (D-1): color-script calibration
-   (midday chalkiness, dawn warmth), casing golden-hour hero recapture.
-10. FINAL: walk-mode polish (eye-height collision on stairs/causeway),
-    full battery re-run, README + two-frame gallery, tag v1.0.
+6. **FROXELS — DONE 2026-07-25** (src/gpu/passes/Froxels.ts, LAAS port
+   re-aimed at Giza). Camera-frustum froxel grid (144×81×48 high / 96×54×32
+   low), exponential slices 2→520 m, jittered per-slice sample, closed-form
+   per-slice integral, composited BEFORE the aerial term in PostStack's
+   existing `VolumetricsLike` seam. LAAS's canopy shafts + hydrology fog
+   became: (a) WORK-SITE DUST — analytic gaussian columns on the SAME anchors
+   WorkParticles emits from (the column and the sprite plume have to agree or
+   the plume floats in clear air), gated to working hours and hanging above
+   the workings rather than at eye level; (b) VALLEY MIST — a 9 m scale-height
+   layer gated to the wet floodplain AND to low sun, so it reads as a layer
+   you look ACROSS and noon stays clear (the aerial term owns daytime haze;
+   stacking fog on it just washes the frame). Sun visibility = 5-probe terrain
+   horizon march × cloud shadow map. Cost on the 3050: 0.12 ms scatter +
+   0.08 ms integrate. TUNING LOG: dust 1.35 buried the quarry bowl in white,
+   0.5 still fogged eye level, 0.28 ships. `?froxels=0`, `?fog=N`, `?dust=N`.
+7-8. **INHABITED I+II — DONE 2026-07-25** (src/monuments/Inhabitants.ts).
+   ~900 instanced figures (~70 tris, 1.65 m — Old Kingdom male mean) with a
+   real WALKING GAIT in the vertex stage: a `limb` attribute per vertex, hip
+   (0.82) and shoulder (1.34) pivots, per-instance phase and cadence, knee-bob
+   at 2× cadence. They PING-PONG along their file — a triangle wave with an
+   eased 180° yaw flip at each end — so a haul road carries traffic both ways
+   and NOTHING TELEPORTS (a wrapping loop pops however small the figure).
+   Placement is on the real work lines in files and gangs, never an even
+   scatter: haul road, ramp head, quarry benches, masons' yards, causeway,
+   quay, gallery street, bakery yard, Wall of the Crow gate; `still` fraction
+   per line decides who walks and who works in place. Plus 5 ox sledge trains
+   (yoked pairs, runners, deck, dressed block, yoke beam and traces), reed-mat
+   gang shelters, and a construction tableau on the mortuary temple's SE
+   corner: rubble ramp, timber falsework with ledgers and a plank deck, and a
+   shaduf-style lever crane with counterweight.
+   BUG: the first `bone()` built its cross-section basis by hand and got it
+   wrong — every limb splayed like a tripod, invisible past ~80 m and glaring
+   inside 40 m. Fixed with a proper d×up / d×a orthonormal basis.
+9. **DELTA — DONE 2026-07-25** (run against WRITTEN criteria; human reference
+   frames D-1 still outstanding). The finding is the shape of this whole
+   build: "midday reads chalky" measured out as sunlit desert luminance
+   **194.9** vs Tura casing **198.1** — a **1.6%** separation, i.e. the Great
+   Pyramid and the sand it stands on were THE SAME TONE. Not a grading
+   problem: an albedo error (sand 0.80 where dry desert sand is 0.35-0.45),
+   which AgX's highlight desaturation then flattened into paper. Terrain
+   albedos moved to physical values (sand 0.53/0.47, limestone 0.48/0.40,
+   gravel 0.38, fresh quarry 0.57); the casing stays the brightest surface on
+   the plateau but now EARNS it. Same measurement after: **149.9 vs 198.5**
+   (24%), sand saturation 0.113 → 0.166. Both final frames recaptured.
+   NEW INSTRUMENT: tools/levels.ts (clipping shares, percentiles, patch means
+   + saturation) — the thing the colour argument is settled with.
+10. **FINAL — DONE 2026-07-25.** WALK MODE (`G`, `?walk=1`,
+   src/core/WalkRig.ts): eye at 1.55 m, horizontal input flattened so pitch
+   cannot lift the walker, critically-damped 90 ms vertical follow. The
+   walkable surface comes from the FOOTPRINT REGISTRY — it already carries a
+   logical OBB with a world-Y span for every structure because the collision
+   audit needs one, which makes it exactly a walkable-surface database; the
+   causeway, quay, temple platforms and mastaba tops are walkable for free and
+   stay correct when the Inspector moves something. Step limit 1.25 m (taller
+   is a wall to go around, not up); a >2.5 m horizontal jump is treated as a
+   TELEPORT and snaps instead of sliding (bookmarks/setPose used to sink the
+   eye into the causeway for a third of a second — caught by the battery).
+   BATTERY (tools/battery.ts, `npm run battery`): audits + smoke tests +
+   content floors from brief §2 + walk-mode eye-height gate + no-black-shadows
+   gate + the midday separation gate + a 1440p perf sweep.
+   REGRESSION THE BATTERY CAUGHT: the 14 torch PointLights cost **22 fps** at
+   1440p in DAYLIGHT frames (52 → 20-25) — a PointLight at intensity 0 still
+   enters every lit material's per-fragment light loop. They are now ADDED and
+   REMOVED from the scene at dusk, not dimmed: one shader rebuild at the
+   transition in exchange for the daytime frame back. This is the single most
+   valuable thing the battery has done so far.
+   README.md written with the gallery.
 
 
 1. **Phase 5 remainder — DONE 2026-07-22** (src/vegetation/Shore.ts):

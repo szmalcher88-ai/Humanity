@@ -128,8 +128,7 @@ export class Torches {
         const l = new PointLight(0xffb066, 0, 26, 2);
         l.position.set(sp.x, gy + sp.h + 0.35, sp.z);
         l.castShadow = false;
-        this.group.add(l);
-        this.lights.push(l);
+        this.lights.push(l); // added to the scene only after dusk — see setNight
       }
     }
 
@@ -175,9 +174,29 @@ export class Torches {
     scene.add(this.group);
   }
 
-  /** night-ness gate: 0 by day (lights off, flames dull), 1 after dusk */
+  /**
+   * Night-ness gate: 0 by day (lights out of the scene, flames dull), 1 after
+   * dusk.
+   *
+   * The lights are ADDED and REMOVED, not just dimmed. A PointLight sitting in
+   * the scene at intensity 0 still enters every lit material's per-fragment
+   * light loop: 14 of them cost 22 fps at 1440p in the daylight frames of the
+   * first battery run (52 → 20-25 fps). Toggling membership makes three
+   * rebuild the lighting graph once at dusk, which is a one-off hitch in
+   * exchange for the daytime frame back.
+   */
   setNight(k: number): void {
     this.uNight.value = k;
+    const on = k > 0.02;
+    if (on !== this.lightsIn) {
+      for (const l of this.lights) {
+        if (on) this.group.add(l);
+        else this.group.remove(l);
+      }
+      this.lightsIn = on;
+    }
     for (const l of this.lights) l.intensity = 26 * k;
   }
+
+  private lightsIn = false;
 }

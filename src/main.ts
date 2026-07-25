@@ -92,6 +92,13 @@ async function boot(): Promise<void> {
   hooks.getPose = (): ReturnType<FlyCamera['getPose']> => fly.getPose();
   hooks.settle = (frames?: number): Promise<void> => engine.settle(frames ?? 8);
   hooks.flyCamEnabled = (on): void => fly.setEnabled(on);
+  hooks.setWalk = (on): void => {
+    if (fly.walk.active !== on) fly.walk.toggle(engine.camera);
+  };
+  hooks.surfaceProbe = (x, z, feetY): number => fly.walk.surfaceAt(x, z, feetY);
+  if (new URLSearchParams(window.location.search).get('walk') === '1') {
+    fly.walk.toggle(engine.camera);
+  }
   if (!hooks.setTimeOfDay) {
     // scenes with a sky wire their own; fallback stores the value only
     hooks.setTimeOfDay = (t): void => {

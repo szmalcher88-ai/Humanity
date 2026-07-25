@@ -72,3 +72,40 @@ The brief says "three.js (current)". LAAS's THREE-NOTES.md verifies the TSL/
 WebGPU API surface against 0.184.0 exactly; that verification outweighs a
 minor version bump. Revisit only for a blocking bug.
 **Confidence:** n/a (engineering).
+
+## D-9 — Pyramidion
+**Chosen (Phase 3):** the apex is finished with the same casing course logic,
+without a distinct pyramidion block. No pyramidion survives for G1 and the
+sources disagree on whether it was gilded, hard stone, or plain Tura; putting
+a gold cap on the hero silhouette would be the single most visible unsourced
+claim in the build.
+**Alternatives:** granite/basalt pyramidion; electrum-sheathed cap.
+**Confidence:** C (absence of evidence, not evidence of absence).
+
+## D-10 — Moon ephemeris
+**Chosen (Phase 7 night rig):** the moon's position is NOT computed from an
+ephemeris. Its hour angle is offset from the sun's by a fixed 137° with a +12°
+declination — a waxing gibbous standing high in the south-east at dusk — and
+its disc is drawn ~2.2× oversize (the same convention already used for the sun
+disc; at true 0.26° it reads as a lens artefact in a 55° frame).
+**Why:** the canonical day is an equinox (D-2) and no canon source fixes a
+lunar date, so any specific phase is a choice. This one lights the plateau's
+east faces and puts the moon where a night frame wants it.
+**Confidence:** n/a (art direction, declared).
+**Code:** `src/sky/NightSky.ts`.
+
+## D-11 — Moonlight intensity
+**Chosen (Phase 7):** moonlight is rendered at ~1.6% of noon sun, not the
+physical ~1/400,000. At the true ratio the auto-exposure (gain capped at 4×,
+deliberately, so a shadowed interior stays a dark frame) can only deliver mud.
+The colour script's night keyframe assumes a readable moonlit blue silhouette.
+**Confidence:** n/a (cinematic convention, declared).
+
+## D-12 — Terrain albedo calibration
+**Chosen (Phase 7 DELTA):** terrain albedos are set to PHYSICAL reflectances
+(dry desert sand 0.35-0.45, weathered limestone 0.30-0.50, fresh-cut Tura
+0.55-0.60) rather than to the brighter studio values used through Phases 1-6.
+**Why:** measured, the old values put sunlit sand at luminance 194.9 against
+the casing's 198.1 — the monument and its ground were the same tone.
+**Confidence:** B (published reflectance ranges for the materials).
+**Code:** `src/render/TerrainMaterial.ts`.
