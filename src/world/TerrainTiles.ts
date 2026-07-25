@@ -11,6 +11,7 @@
  */
 
 import { InstancedMesh, PlaneGeometry, RingGeometry, Mesh, type PerspectiveCamera } from 'three';
+import { isReduced } from '../core/Params';
 import { IrradianceNode, MeshPhysicalNodeMaterial, type StorageBufferNode } from 'three/webgpu';
 import {
   cameraPosition,
@@ -42,14 +43,14 @@ const MAX_TILES = 2048;
  *  near-to-far, so a hard cap sheds the FARTHEST detail first — the reduced
  *  preset trades far-field tessellation (already beyond the morph range) for
  *  frame time instead of dropping near ground resolution */
-const TILE_BUDGET_BY_PRESET = { low: 256, high: MAX_TILES, ultra: MAX_TILES } as const;
+const TILE_BUDGET_BY_PRESET = { safe: 112, low: 256, high: MAX_TILES, ultra: MAX_TILES } as const;
 /** reduced preset halves the patch grid (¼ the terrain raster load) and
  *  splits later/coarser — terrain raster+fill is THE iGPU whale (98 ms
  *  of a 158 ms bare-desert frame, probe-igpu attribution) */
-const PATCH_SEGS_BY_PRESET = { low: 24, high: 64, ultra: 64 } as const;
-const SPLIT_K_BY_PRESET = { low: 1.6, high: 2.1, ultra: 2.1 } as const;
-const MIN_TILE_BY_PRESET = { low: 96, high: 64, ultra: 64 } as const;
-const MIN_TILE_ROUGH_BY_PRESET = { low: 64, high: 32, ultra: 32 } as const;
+const PATCH_SEGS_BY_PRESET = { safe: 16, low: 24, high: 64, ultra: 64 } as const;
+const SPLIT_K_BY_PRESET = { safe: 1.35, low: 1.6, high: 2.1, ultra: 2.1 } as const;
+const MIN_TILE_BY_PRESET = { safe: 160, low: 96, high: 64, ultra: 64 } as const;
+const MIN_TILE_ROUGH_BY_PRESET = { safe: 96, low: 64, high: 32, ultra: 32 } as const;
 
 export class TerrainTiles {
   readonly mesh: InstancedMesh;
@@ -69,7 +70,7 @@ export class TerrainTiles {
   constructor(
     hf: Heightfield,
     debugView: string | null = null,
-    opts: { gi?: ProbeGI; preset?: 'low' | 'high' | 'ultra' } = {},
+    opts: { gi?: ProbeGI; preset?: 'safe' | 'low' | 'high' | 'ultra' } = {},
   ) {
     this.hf = hf;
     this.buildRangePyramid();
@@ -84,7 +85,7 @@ export class TerrainTiles {
     // reduced preset: even the terrain evaluates probe GI per-vertex —
     // 1-2 m quads near the camera make the interpolation error invisible
     // and it strips the per-fragment texture3D×3 + bilinear (iGPU whale)
-    const giVertex = opts.preset === 'low';
+    const giVertex = isReduced(preset);
     const giPatch = (
       m: MeshPhysicalNodeMaterial,
       normal: NV3,

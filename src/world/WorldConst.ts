@@ -76,8 +76,13 @@ export interface QualityConfig {
   sandIters: number;
 }
 
-export function qualityConfig(preset: 'low' | 'high' | 'ultra'): QualityConfig {
+export function qualityConfig(preset: 'safe' | 'low' | 'high' | 'ultra'): QualityConfig {
   switch (preset) {
+    // SAFE: quarter-area bakes. The 4096² synthesis is 16.7M invocations of
+    // the full terrain function; at 1024² it is 1M — the difference between a
+    // job a weak adapter can chew and one that hangs its driver.
+    case 'safe':
+      return { heightRes: 1024, simRes: 512, sandIters: 40 };
     case 'low':
       return { heightRes: 2048, simRes: 1024, sandIters: 90 };
     case 'ultra':

@@ -61,7 +61,7 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER, WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
 
-const FIGURE_BUDGET = { low: 320, high: 900, ultra: 1200 } as const;
+const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
 const FIG_FADE = [760, 560] as const;
 
@@ -248,7 +248,7 @@ export function buildInhabitants(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
-  preset: 'low' | 'high' | 'ultra' = 'high',
+  preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   cull = true,
 ): InhabitantCounts {
   const rng = seed.rng('inhabitants');

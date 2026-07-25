@@ -42,7 +42,7 @@ import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { QUARRY_KHUFU_CENTER, WORKER_TOWN_CENTER } from './CANON_DIMENSIONS';
 
-const TARGET = { low: 24_000, high: 84_000, ultra: 110_000 } as const;
+const TARGET = { safe: 8_000, low: 24_000, high: 84_000, ultra: 110_000 } as const;
 
 /** irregular chip: a squashed, sheared octahedron (8 tris, no two alike
  *  after per-instance scale/yaw) */
@@ -79,7 +79,7 @@ export function buildDebris(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
-  preset: 'low' | 'high' | 'ultra' = 'high',
+  preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   cull = true,
 ): number {
   const rng = seed.rng('debris');

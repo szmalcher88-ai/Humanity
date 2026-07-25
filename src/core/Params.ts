@@ -5,7 +5,15 @@
  * the historical layout never changes with seed.
  */
 
-export type QualityPreset = 'low' | 'high' | 'ultra';
+/**
+ * `safe` is below `low`: the configuration for an adapter that cannot survive
+ * the reduced preset either. It exists because a real session on an Intel UHD
+ * hung the display driver (DXGI_ERROR_DEVICE_HUNG) at `low` — smaller bakes,
+ * fewer instances, no froxels, one small shadow cascade, half render scale.
+ * Engaged by the adapter benchmark, by `?preset=safe`, and AUTOMATICALLY on
+ * the load after a device loss.
+ */
+export type QualityPreset = 'safe' | 'low' | 'high' | 'ultra';
 
 export interface AkhetParams {
   /** micro-variation seed (block jitter, scatter, per-instance individuality) */
@@ -51,7 +59,9 @@ export function parseParams(search: string = window.location.search): AkhetParam
   const q = new URLSearchParams(search);
   const presetRaw = q.get('preset') ?? 'high';
   const preset: QualityPreset =
-    presetRaw === 'low' || presetRaw === 'ultra' ? presetRaw : 'high';
+    presetRaw === 'low' || presetRaw === 'ultra' || presetRaw === 'safe'
+      ? presetRaw
+      : 'high';
   const shotN = num(q.get('shot'), 0);
   return {
     seed: Math.floor(num(q.get('seed'), 1)) >>> 0,
@@ -66,6 +76,11 @@ export function parseParams(search: string = window.location.search): AkhetParam
     cull: q.get('cull') !== '0',
     prepass: q.get('prepass') === '1',
   };
+}
+
+/** the reduced-quality family: everything gated for `low` also applies to `safe` */
+export function isReduced(p: QualityPreset): boolean {
+  return p === 'low' || p === 'safe';
 }
 
 /** Parse a `cam` string into pose components; returns null when malformed. */

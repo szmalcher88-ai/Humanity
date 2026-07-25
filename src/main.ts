@@ -7,6 +7,7 @@
 
 import {
   DISCRETE_GPU_STEPS,
+  SAFE_FLAG,
   describeDiagnostics,
   failLoud,
   installGlobalErrorHooks,
@@ -36,6 +37,22 @@ async function boot(): Promise<void> {
     if (bootMsg) bootMsg.textContent = msg;
   };
 
+  /* --- did the last session lose the device? ------------------------------
+   * A driver reset is not a one-off: the same scene on the same adapter will
+   * do it again. Come up in safe mode instead of repeating the failure, and
+   * say why — the flag is cleared as soon as a session survives to `ready`. */
+  let recovering = false;
+  try {
+    if (window.localStorage.getItem(SAFE_FLAG) !== null) {
+      recovering = true;
+      if (!new URLSearchParams(window.location.search).has('preset')) {
+        params.preset = 'safe'; // render scale follows the preset (Engine)
+      }
+    }
+  } catch {
+    /* storage disabled */
+  }
+
   progress(0.05, 'probing WebGPU');
   const diag = await probeWebGPU();
   hooks.diag = diag;
@@ -57,12 +74,10 @@ async function boot(): Promise<void> {
   // grids and instance counts — never fewer systems) and cap DPR at 1.
   const onIGpu = (diag.vendor ?? '').toLowerCase().includes('intel');
   if (onIGpu && !new URLSearchParams(window.location.search).has('preset')) {
+    // RENDER SCALE is the single biggest iGPU lever (PERF II): the Intel UHD
+    // is fill-bound, not geometry-bound — 43 ms of an 83 ms frame was the
+    // forward pass alone at 1600×900. Engine derives it from the preset.
     params.preset = 'low';
-    // RENDER SCALE is the single biggest iGPU lever (PERF II): the Intel
-    // UHD is fill-bound, not geometry-bound — 43 ms of an 83 ms frame was
-    // the forward pass alone at 1600×900. 0.7 halves the shaded pixels and
-    // the canvas scales back up; TRAA hides most of the softness.
-    if (params.dpr === null) params.dpr = 0.62;
     // eslint-disable-next-line no-console
     console.warn('[akhet] Running on the INTEGRATED GPU — reduced preset engaged.');
     // ON SCREEN, not just in the console: the console warning meant the app
@@ -87,16 +102,16 @@ async function boot(): Promise<void> {
    * not say "intel" but performs like one used to get the full preset, take
    * hundreds of ms per frame, and hang the display driver
    * (DXGI_ERROR_DEVICE_HUNG) a few seconds after launch — a black screen with
-   * no explanation. Time a fixed workload instead and believe the number.
+   * no explanation.
    *
-   * This runs even when ?preset= is explicit. The failure mode here is not a
-   * bad frame rate, it is a SYSTEM-LEVEL display driver reset: the monitor
-   * blanks and every GPU application on the machine is affected. Reproduced
-   * on the Intel UHD with ?preset=high — and the runtime guard below could not
-   * save it, because by the time twelve 350 ms frames have gone by the driver
-   * is already past the watchdog. So a request that is known to hang the
-   * driver is downgraded, loudly, and ?force=1 is there for anyone who means
-   * it. */
+   * The benchmark returns a CAP and we take the more conservative of cap and
+   * current. It has to be a cap: the first version proposed a preset instead,
+   * so once the vendor check had already set `low`, a measurement saying "this
+   * adapter needs safe" could not lower it any further — the iGPU measured
+   * 22 ns and still ran `low`.
+   *
+   * It runs even when ?preset= is explicit, because the failure is not a bad
+   * frame rate, it is a SYSTEM-WIDE display driver reset. ?force=1 opts out. */
   {
     const q = new URLSearchParams(window.location.search);
     progress(0.15, 'measuring adapter speed');
@@ -105,32 +120,34 @@ async function boot(): Promise<void> {
     // eslint-disable-next-line no-console
     console.log(
       `[akhet] adapter bench: ${bench.ns.toFixed(1)} ns/invocation ` +
-        `(${bench.ms.toFixed(1)} ms large probe) → preset ${bench.preset}`,
+        `(${bench.ms.toFixed(1)} ms large probe) → cap ${bench.cap}`,
     );
-    const wantsMore = params.preset !== 'low';
-    if (bench.preset === 'low' && wantsMore && q.get('force') !== '1') {
+    const RANK: Record<string, number> = { safe: 0, low: 1, high: 2, ultra: 3 };
+    // an INTEGRATED adapter that is measurably slow goes straight to safe:
+    // `low` is the configuration that hung a real user's display driver
+    const cap = onIGpu && bench.cap !== 'high' ? 'safe' : bench.cap;
+    const capped = (RANK[cap] ?? 2) < (RANK[params.preset] ?? 2);
+    if (capped && q.get('force') !== '1') {
       const asked = q.has('preset');
-      params.preset = 'low';
-      if (params.dpr === null) params.dpr = 0.62;
-      if (!onIGpu || asked) {
-        showNotice(
-          asked
-            ? '⚠ preset=high refused on this adapter'
-            : '⚠ Slow GPU detected — reduced preset engaged',
-          [
-            `This adapter costs ${bench.ns.toFixed(0)} ns per GPU invocation on a`,
-            `throughput probe; the full preset needs under ${SLOW_NS} ns.`,
-            '',
-            'At the full preset this adapter produces frames slow enough for',
-            "Windows to reset the display driver — the monitor blanks and every",
-            'GPU app on the machine is affected. Reduced preset engaged instead.',
-            '',
-            ...(onIGpu ? DISCRETE_GPU_STEPS : []),
-            '',
-            'Run it anyway with ?force=1 (it will most likely hang the driver).',
-          ],
-        );
-      }
+      const from = params.preset;
+      params.preset = cap;
+      showNotice(
+        asked
+          ? `⚠ preset=${from} refused on this adapter`
+          : `⚠ Slow GPU — ${cap} preset engaged`,
+        [
+          `This adapter costs ${bench.ns.toFixed(0)} ns per GPU invocation on a`,
+          `throughput probe; the full preset needs under ${SLOW_NS} ns.`,
+          '',
+          'At a preset it cannot carry, this adapter produces frames slow',
+          'enough for Windows to reset the display driver — the monitor blanks',
+          `and every GPU app is affected. Running "${cap}" instead.`,
+          '',
+          ...(onIGpu ? DISCRETE_GPU_STEPS : []),
+          '',
+          'Run it anyway with ?force=1 (it will most likely hang the driver).',
+        ],
+      );
     }
   }
 
@@ -186,6 +203,23 @@ async function boot(): Promise<void> {
   }
   progress(1, 'ready');
   hooks.ready = true;
+  // survived a full boot: clear the recovery flag so quality comes back on the
+  // next load (a one-off driver hiccup must not pin the app to safe mode)
+  try {
+    window.localStorage.removeItem(SAFE_FLAG);
+  } catch {
+    /* storage disabled */
+  }
+  if (recovering) {
+    showNotice('Recovered in safe mode', [
+      'The previous session lost the GPU device, so this one started in SAFE',
+      'mode: smaller terrain bakes, fewer instances, no volumetrics, one small',
+      'shadow cascade, half render scale.',
+      '',
+      'Quality returns on the next reload. If the crash repeats, keep',
+      '?preset=safe in the URL, or move the browser to the discrete GPU.',
+    ]);
+  }
   // eslint-disable-next-line no-console
   console.log('[akhet] ready', JSON.stringify({ scene: params.scene, seed: params.seed }));
 }

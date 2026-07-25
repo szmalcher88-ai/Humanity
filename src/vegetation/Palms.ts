@@ -43,7 +43,7 @@ import { depthPrepassTwin } from '../render/DepthPrepass';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 const VARIANTS = 8;
-const TARGET = { low: 2400, high: 5400, ultra: 6500 } as const;
+const TARGET = { safe: 900, low: 2400, high: 5400, ultra: 6500 } as const;
 
 /** one palm variant: trunk + frond crown, grown from a seed */
 function palmGeometry(rng: Rng): BufferGeometry {
@@ -131,7 +131,7 @@ export function buildPalms(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
-  preset: 'low' | 'high' | 'ultra' = 'high',
+  preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   perf: { cull: boolean; prepass: boolean } = { cull: true, prepass: true },
 ): number {
   const rng = seed.rng('palms');

@@ -44,8 +44,8 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
-const CLUMP_TARGET = { low: 2600, high: 7000, ultra: 8500 } as const;
-const TREE_TARGET = { low: 150, high: 380, ultra: 460 } as const;
+const CLUMP_TARGET = { safe: 900, low: 2600, high: 7000, ultra: 8500 } as const;
+const TREE_TARGET = { safe: 60, low: 150, high: 380, ultra: 460 } as const;
 const VARIANTS = 4;
 
 type Tone = [number, number, number];
@@ -363,7 +363,7 @@ export function buildShore(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
-  preset: 'low' | 'high' | 'ultra' = 'high',
+  preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   cull = true,
 ): ShoreCounts {
   const rng = seed.rng('shore');

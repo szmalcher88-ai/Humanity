@@ -98,7 +98,7 @@ gangs walking it in both directions and a reed-mat sunshade where they rest.
 | `E` | Placement inspector |
 | `P` | Print the camera pose string |
 
-Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=low|high|ultra` ·
+Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
 `?cam=x,y,z,yaw,pitch` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1`
 
@@ -181,10 +181,15 @@ reduced preset, and says so in an on-screen notice. To get the discrete GPU:
 * Or launch the browser once with `--force_high_performance_gpu`.
 
 AKHET does not trust the vendor string for this. At boot it times a fixed GPU
-workload at two sizes and takes the slope — measured **0.8–1.4 ns per
-invocation on an RTX 3050 Laptop against 6.9–13.0 ns on an Intel UHD** — and
-picks the preset from that number (`src/core/GpuBench.ts`). The gate runs even
+workload at two sizes and takes the slope — measured **0.4–1.4 ns per
+invocation on an RTX 3050 Laptop against 5.2–22 ns on an Intel UHD** — and
+caps the preset from that number (`src/core/GpuBench.ts`). The cap applies even
 when `?preset=` is explicit, and `?force=1` overrides it.
+
+There are four quality tiers. **`safe`** sits below `low` and exists because a
+real session hung the display driver at `low`: 1024² terrain bakes, one 512²
+shadow cascade, no volumetrics, half render scale — 13.2 fps where `low`
+managed 8.4 on the same adapter, and it still reads as the world.
 
 **If the screen goes black shortly after launch** — and the monitor itself
 blanks for a moment — that is a **Windows TDR**: the display driver reset
@@ -193,7 +198,7 @@ reproducible with `npx tsx tools/probe-igpu-boot.ts --preset high --force` on a
 slow adapter. Three things now stand between you and it: the preset gate above,
 a runtime guard that cuts render scale if frames pass 250 ms, and a
 `device.lost` handler that explains what happened instead of leaving a black
-canvas. If it still happens, the adapter is the reason — move the browser to
+canvas — and records it, so the next load comes up in safe mode by itself. If it still happens, the adapter is the reason — move the browser to
 the discrete GPU as above.
 
 ## Truth, and where it stops

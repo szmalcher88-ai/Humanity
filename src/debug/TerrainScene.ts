@@ -6,6 +6,7 @@
  */
 
 import { Group, Mesh, type Material } from 'three';
+import { isReduced } from '../core/Params';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
@@ -53,7 +54,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   // 6.3 ms of a 66 ms iGPU frame; the field is temporally EMA'd anyway, so a
   // slower refresh only lengthens the converge tail after a ToD jump)
   let giFrame = 0;
-  const giEvery = engine.params.preset === 'low' ? 3 : 1;
+  const giEvery =
+    engine.params.preset === 'safe' ? 6 : engine.params.preset === 'low' ? 3 : 1;
   engine.onUpdate(() => {
     if (giFrame++ % giEvery === 0) gi.tick(renderer);
   });
@@ -191,13 +193,13 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
 
   // --- rest of the lighting stack ---------------------------------------------
   ctx.progress(0.92, 'sky: cloud noise');
-  const clouds = new Clouds(sunSky.atmosphere);
+  const clouds = new Clouds(sunSky.atmosphere, engine.params.preset);
   await clouds.init(renderer);
   await clouds.refreshShadow(renderer);
   engine.onUpdate((dt) => clouds.tick(renderer, dt));
 
   ctx.progress(0.94, 'shadows: CSM + PCSS');
-  const lowQ = engine.params.preset === 'low';
+  const lowQ = isReduced(engine.params.preset);
   setupSunShadows(
     sunSky.sun,
     camera,
@@ -206,16 +208,22 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     // iGPU frame — it is CASTER-BOUND (terrain patches + palms + every
     // structure re-rasterized per cascade), so the fix is a shorter throw and
     // a smaller map, not a cheaper filter
-    lowQ
-      ? { maxFar: 1100, lightMargin: 450, cascades: 1, mapSize: 1024 }
-      : { maxFar: 3600, lightMargin: 900 },
+    engine.params.preset === 'safe'
+      ? { maxFar: 700, lightMargin: 320, cascades: 1, mapSize: 512 }
+      : lowQ
+        ? { maxFar: 1100, lightMargin: 450, cascades: 1, mapSize: 1024 }
+        : { maxFar: 3600, lightMargin: 900 },
   );
 
   ctx.progress(0.95, 'volumetrics: dust columns and valley mist');
   // froxels must exist before the post stack — PostStack folds them into the
   // aerial node (local volumetrics UNDER the km-scale haze)
+  // SAFE drops froxels entirely: it is the one system whose absence costs
+  // atmosphere but no geometry, and on an adapter that hangs its driver the
+  // priority is a frame that finishes
   const froxels =
-    new URLSearchParams(window.location.search).get('froxels') === '0'
+    new URLSearchParams(window.location.search).get('froxels') === '0' ||
+    engine.params.preset === 'safe'
       ? null
       : new Froxels(hf, sunSky.atmosphere, clouds, engine.params.preset);
   if (froxels) {

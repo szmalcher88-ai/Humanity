@@ -100,7 +100,13 @@ export class Engine {
       // just holds its last frame and the app "goes black" with no diagnosis
       installDeviceLostHandler(device, hooks.diag?.vendor);
     }
-    const dprCap = params.dpr ?? Math.min(window.devicePixelRatio, 1.5);
+    /* RENDER SCALE follows the PRESET, not the code path that chose it.
+     * `?preset=safe` used to keep the full device pixel ratio because the
+     * default was set only where the preset was auto-selected — safe then
+     * rendered 2.6× the pixels of low and measured no faster, which defeats
+     * the point of a mode whose job is to not hang the driver. */
+    const presetDpr = params.preset === 'safe' ? 0.5 : params.preset === 'low' ? 0.62 : null;
+    const dprCap = params.dpr ?? presetDpr ?? Math.min(window.devicePixelRatio, 1.5);
     renderer.setPixelRatio(dprCap);
     renderer.setSize(window.innerWidth, window.innerHeight);
     // Temporary Phase-0 output transform; replaced by the post stack (Phase 2).

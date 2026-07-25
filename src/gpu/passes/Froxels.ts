@@ -68,6 +68,7 @@ const NEAR = 2;
 const FAR = 520;
 
 const GRID = {
+  safe: [64, 36, 24],
   low: [96, 54, 32],
   high: [144, 81, 48],
   ultra: [160, 90, 64],
@@ -98,7 +99,7 @@ export class Froxels {
     hf: Heightfield,
     atm: Atmosphere,
     clouds: Clouds | null,
-    preset: 'low' | 'high' | 'ultra' = 'high',
+    preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   ) {
     const [FX, FY, FZ] = GRID[preset];
     this.fx = FX;

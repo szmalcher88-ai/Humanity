@@ -19,6 +19,7 @@ import type { Renderer } from 'three/webgpu';
 import { Fn, If, Return, float, instanceIndex, instancedArray, vec2 } from 'three/tsl';
 import { fbm2 } from '../gpu/noise/NoiseTSL';
 import { gpuSync } from '../gpu/Banded';
+import type { QualityPreset } from './Params';
 
 /** two probe sizes — the DIFFERENCE between them is the measurement */
 const N_SMALL = 1 << 18; // 262,144
@@ -40,8 +41,8 @@ export interface BenchResult {
   ns: number;
   /** raw ms for the large probe, for the log line */
   ms: number;
-  /** the preset this adapter can actually carry */
-  preset: 'low' | 'high';
+  /** the HIGHEST preset this adapter can carry — a cap, not a choice */
+  cap: QualityPreset;
 }
 
 /**
@@ -80,5 +81,12 @@ export async function benchmarkAdapter(renderer: Renderer): Promise<BenchResult>
   const tSmall = await time(N_SMALL);
   const tLarge = await time(N_LARGE);
   const ns = Math.max(0, ((tLarge - tSmall) * 1e6) / (N_LARGE - N_SMALL));
-  return { ns, ms: tLarge, preset: ns > SLOW_NS ? 'low' : 'high' };
+  // a cap, not a choice: an adapter this far past the threshold is the class
+  // that hung a driver at `low` in a real session, so it gets `safe`
+  // 1.5×, not 2.2×: the measurement varies run to run (this Intel UHD reads
+  // 6.8-22 ns) and the gap to a discrete GPU is 5-30×, so any threshold in
+  // between works — and the failure being guarded against is a display driver
+  // reset, so the conservative end of the range is the right end.
+  const cap: QualityPreset = ns > SLOW_NS * 1.5 ? 'safe' : ns > SLOW_NS ? 'low' : 'high';
+  return { ns, ms: tLarge, cap };
 }

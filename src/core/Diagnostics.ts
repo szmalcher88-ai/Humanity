@@ -145,9 +145,27 @@ export function showNotice(title: string, lines: string[]): void {
  * Windows, after a driver reset (TDR), reads to the user as the MONITOR going
  * black and never coming back.
  */
+export const SAFE_FLAG = 'akhet.deviceLost';
+
+/** URL for the current page with the safe preset forced on */
+export function safeModeUrl(): string {
+  const u = new URL(window.location.href);
+  u.searchParams.set('preset', 'safe');
+  u.searchParams.delete('force');
+  return u.toString();
+}
+
 export function installDeviceLostHandler(device: GPUDevice, vendor?: string): void {
   void device.lost.then((info: GPUDeviceLostInfo) => {
     if (info.reason === 'destroyed') return; // ordinary teardown
+    // remember it: the NEXT load starts in safe mode by itself. A user whose
+    // driver just reset should not have to read an overlay and edit a URL to
+    // get a working session — the app already knows what happened.
+    try {
+      window.localStorage.setItem(SAFE_FLAG, String(Date.now()));
+    } catch {
+      /* private mode / storage disabled — the overlay button still works */
+    }
     const onIntel = (vendor ?? '').toLowerCase().includes('intel');
     failLoud('WebGPU device lost', [
       `reason: ${info.reason || 'unknown'} — ${info.message || 'no message'}`,
@@ -157,26 +175,34 @@ export function installDeviceLostHandler(device: GPUDevice, vendor?: string): vo
       'the display driver restarted (the monitor blanks for a moment) and',
       'every WebGPU resource went with it.',
       '',
+      'RELOADING NOW WILL START IN SAFE MODE (smaller bakes, fewer',
+      'instances, no volumetrics, half render scale) — that is the button',
+      'below, and it is also what happens automatically on the next load.',
+      '',
       ...(onIntel
         ? [
             `This session was running on the INTEGRATED GPU (${vendor ?? '?'}),`,
-            'which is where this almost always happens. Move the browser to',
-            'the discrete GPU and reload:',
+            'which is where this almost always happens. For full quality, move',
+            'the browser to the discrete GPU:',
             '',
             ...DISCRETE_GPU_STEPS,
           ]
         : [
-            'Reload to try again. If it repeats, run with ?preset=low, and',
-            'check for a pending graphics-driver update.',
+            'If it repeats even in safe mode, check for a pending graphics-',
+            'driver update.',
           ]),
-    ]);
+    ], { label: 'Reload in safe mode', href: safeModeUrl() });
   });
 }
 
 let failShown = false;
 
 /** Render an unmissable full-screen failure overlay and record it on hooks. */
-export function failLoud(title: string, details: string[]): void {
+export function failLoud(
+  title: string,
+  details: string[],
+  action?: { label: string; href: string },
+): void {
   if (window.__akhet) window.__akhet.error = `${title}\n${details.join('\n')}`;
   // eslint-disable-next-line no-console
   console.error('[AKHET FATAL]', title, details);
@@ -201,6 +227,21 @@ export function failLoud(title: string, details: string[]): void {
   body.style.cssText = 'font-size:13px;color:#e0b0b0';
   body.textContent = details.join('\n');
   el.appendChild(body);
+  if (action) {
+    // a fatal overlay that only explains is half a fix — give the user the
+    // working configuration in one click
+    const btn = document.createElement('button');
+    btn.textContent = action.label;
+    btn.style.cssText = [
+      'margin-top:22px', 'background:#4a1f1f', 'color:#ffd7d7',
+      'border:1px solid #a05252', 'border-radius:5px', 'padding:9px 18px',
+      'font:inherit', 'font-size:14px', 'cursor:pointer',
+    ].join(';');
+    btn.addEventListener('click', () => {
+      window.location.href = action.href;
+    });
+    el.appendChild(btn);
+  }
   document.body.appendChild(el);
 }
 

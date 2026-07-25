@@ -11,6 +11,7 @@
  */
 
 import { AgXToneMapping, Matrix4, NoToneMapping, Vector2, Vector3 } from 'three';
+import { isReduced } from '../core/Params';
 import type { Renderer, StorageBufferNode } from 'three/webgpu';
 import { RenderPipeline } from 'three/webgpu';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
@@ -185,7 +186,7 @@ export class PostStack {
           // terrain vistas (Phase-2 finding) — 8 samples, 1.6 m radius
           // reduced preset: 4 samples — iGPU pays ~2× per sample here
           {
-            samples: engine.params.preset === 'low' ? 4 : 8,
+            samples: isReduced(engine.params.preset) ? 4 : 8,
             radius: 1.6,
             distanceFallOff: 0.6,
           },
@@ -234,7 +235,7 @@ export class PostStack {
       // (TAA absorbs the upsample; ray count is the iGPU whale)
       const halfPass = new HalfResMrtNode(
         halfEntries,
-        engine.params.preset === 'low' ? 0.35 : 0.5,
+        engine.params.preset === 'safe' ? 0.28 : engine.params.preset === 'low' ? 0.35 : 0.5,
       );
       if (halfAo) {
         // the AO noise tiling must read the pass's true half-res dims

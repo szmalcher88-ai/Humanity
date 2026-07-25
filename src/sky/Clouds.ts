@@ -44,7 +44,10 @@ import { SUN_E } from './Atmosphere';
 
 const BASE_RES = 96;
 const DETAIL_RES = 32;
-const SHADOW_RES = 768;
+/** the shadow bake is the only LARGE runtime compute: SHADOW_RES² texels ×
+ *  20 vertical steps, re-run every few seconds. On a driver-hanging adapter
+ *  that is exactly the kind of job to shrink. */
+const SHADOW_RES_BY_PRESET = { safe: 320, low: 512, high: 768, ultra: 768 } as const;
 const WEATHER_RES = 512;
 /** weather field world span (m) — tiles beyond this, far past the playable area */
 const WEATHER_WORLD = 26000;
@@ -82,12 +85,21 @@ export class Clouds {
    */
   private readonly uTime = uniform(0);
   private readonly uDriftBase = uniform(new Vector2());
+  private readonly shadowRes: number;
+  private readonly marchSteps: number;
+  private readonly bakePeriod: number;
   private timeAcc = 0;
   private lastBakeT = -1e9;
   private readonly DRIFT_V = 22; // m/s at the cloud layer
 
-  constructor(atmosphere: Atmosphere) {
+  constructor(
+    atmosphere: Atmosphere,
+    preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
+  ) {
     this.atmosphere = atmosphere;
+    this.shadowRes = SHADOW_RES_BY_PRESET[preset];
+    this.marchSteps = preset === 'safe' ? 18 : 32;
+    this.bakePeriod = preset === 'safe' ? 6 : 2.5;
     // tuning overrides: ?cov=0.6&cdens=1.2
     const q = new URLSearchParams(window.location.search);
     const covQ = Number(q.get('cov') ?? NaN);
@@ -116,7 +128,7 @@ export class Clouds {
       t.wrapT = RepeatWrapping;
       t.wrapR = RepeatWrapping;
     }
-    this.shadowMap = new StorageTexture(SHADOW_RES, SHADOW_RES);
+    this.shadowMap = new StorageTexture(this.shadowRes, this.shadowRes);
     this.shadowMap.type = HalfFloatType;
     this.shadowMap.generateMipmaps = false;
     this.weatherMap = new StorageTexture(WEATHER_RES, WEATHER_RES);
@@ -208,7 +220,7 @@ export class Clouds {
     await renderer.computeAsync(weatherK);
 
     // --- cloud shadow map kernel (re-run on sun/ToD change) -------------------
-    const S = SHADOW_RES;
+    const S = this.shadowRes;
     const shadowK = Fn(() => {
       const i = instanceIndex;
       If(i.greaterThanEqual(S * S), () => {
@@ -254,7 +266,7 @@ export class Clouds {
   tick(renderer: Renderer, dt: number): void {
     this.timeAcc += dt;
     this.uTime.value = this.timeAcc;
-    if (this.timeAcc - this.lastBakeT > 2.5 && this.shadowKernel) {
+    if (this.timeAcc - this.lastBakeT > this.bakePeriod && this.shadowKernel) {
       this.uDriftBase.value
         .set(windU.dir.value.x, windU.dir.value.y)
         .multiplyScalar(this.timeAcc * this.DRIFT_V);
@@ -321,7 +333,7 @@ export class Clouds {
      * an 8.3 m/texel map gave a hard-edged stencil sliding over the plateau.
      * A 5-tap cross at ±2.5 texels costs 4 extra fetches on an already
      * texture-cheap path and lands close to that real penumbra. */
-    const r = 2.5 / SHADOW_RES;
+    const r = 2.5 / this.shadowRes;
     const c = clamp(uv, 0, 1);
     const t = texture(this.shadowMap, c)
       .x.mul(0.36)
@@ -355,7 +367,7 @@ export class Clouds {
 
     const valid = tExit.greaterThan(tEnter).and(dir.y.abs().greaterThan(1e-4));
 
-    const STEPS = 32;
+    const STEPS = this.marchSteps;
     const seg = tExit.sub(tEnter).div(STEPS);
     const trans = float(1).toVar();
     const light = vec3(0).toVar();

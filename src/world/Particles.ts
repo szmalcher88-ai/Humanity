@@ -40,7 +40,7 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { WIND_X, WIND_Z } from './WorldConst';
 
-const BUDGET = { low: 22_000, high: 131_072, ultra: 160_000 } as const;
+const BUDGET = { safe: 6_000, low: 22_000, high: 131_072, ultra: 160_000 } as const;
 
 interface Src {
   x: number;
@@ -58,7 +58,7 @@ export class WorkParticles {
     scene: Object3D,
     seed: WorldSeed,
     hf: Heightfield,
-    preset: 'low' | 'high' | 'ultra' = 'high',
+    preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
     private readonly cull = true,
   ) {
     const rng = seed.rng('particles');

@@ -254,6 +254,50 @@ south), and the lever crane's mast stood INSIDE the mortuary temple at z 24.4
 now works the corner — scaffolding with nobody on it reads as abandoned, not
 mid-job.
 
+### v1.0.2 — SAFE PRESET (2026-07-25)
+
+The v1.0.1 fixes were not enough: the user's session hung the driver **at the
+already-reduced `low` preset** on the Intel UHD, with the new overlay
+correctly naming `DXGI_ERROR_DEVICE_HUNG` and the integrated adapter. So `low`
+is not the floor — there needed to be one below it.
+
+**`safe` preset** (`?preset=safe`, and the type is now
+`'safe' | 'low' | 'high' | 'ultra'` so every budget table had to declare its
+value — the compiler found all fifteen sites): heightfield 1024²/sim 512
+(the 4096² synthesis is 16.7M invocations of the full terrain function; at
+1024² it is 1M), tiles 112 @16 segs, tufts 22k/fade 380, palms 900, debris 8k,
+particles 6k, figures 140, GI slice 512 every 6th frame, ONE 512² cascade at
+700 m, cloud shadow map 320² re-baked every 6 s with an 18-step march, froxels
+OFF, render scale 0.5. Measured on the Intel UHD: **13.2 fps vs 8.4 at `low`**,
+boot 7.7 s vs 9.6 s, and it still reads as the world (shots/perf/safe-look.png).
+
+THREE BUGS FOUND WHILE BUILDING IT, each invisible without measurement:
+1. **The benchmark proposed a preset instead of a CAP.** The vendor check had
+   already set `low`, so a measurement saying "this adapter needs safe" could
+   not lower it — the iGPU measured 22 ns and still ran `low`. Now the bench
+   returns a cap and the more conservative of {cap, current} wins.
+2. **Render scale was set where the preset was CHOSEN, not by the preset.**
+   `?preset=safe` therefore kept full DPR and rendered 2.6× the pixels of
+   `low`, measuring no faster — a safe mode that is not safe. The default now
+   lives in `Engine.create` keyed on the preset.
+3. The safe threshold is **1.5× SLOW_NS, not 2.2×**: the Intel reading varies
+   5.2-22 ns run to run and would have landed on `low` on a slow-measuring
+   run. The gap to the discrete GPU is 5-30×, so anywhere in between works,
+   and the failure being guarded is a display driver reset — take the
+   conservative end. An INTEGRATED adapter that measures slow at all now goes
+   straight to `safe`.
+
+**RECOVERY**: a device loss is recorded in localStorage, so the NEXT load comes
+up in safe mode by itself and says so; the flag clears once a session survives
+to `ready`, so a one-off hiccup does not pin the app. The fatal overlay also
+carries a "Reload in safe mode" button — an overlay that only explains is half
+a fix.
+
+VERIFIED on the Intel UHD: auto (no preset) → `5.2 ns → cap safe`, PASS at
+13.2 fps; `?preset=high` → refused, downgraded, PASS; `?preset=high&force=1`
+→ still hangs, which is the documented meaning of `force`. RTX 3050 measures
+0.4-1.4 ns and keeps the full preset.
+
 ### OPEN AFTER v1.0 (2026-07-25)
 
 1. **iGPU is still short of 30 fps on the two heaviest framings.** After PERF

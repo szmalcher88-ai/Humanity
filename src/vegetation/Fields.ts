@@ -44,11 +44,12 @@ import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 /** tuft budget by quality preset (reduced preset: fewer instances and a
  *  shorter fade — never fewer systems; brief §6) */
-const TUFT_BUDGET = { low: 70_000, high: 750_000, ultra: 900_000 } as const;
-const BLADES_BY_PRESET = { low: 3, high: 5, ultra: 5 } as const;
+const TUFT_BUDGET = { safe: 22_000, low: 70_000, high: 750_000, ultra: 900_000 } as const;
+const BLADES_BY_PRESET = { safe: 2, low: 3, high: 5, ultra: 5 } as const;
 const FADE_NEAR = 700;
 const FADE_FAR = 1150;
 const FADE_FAR_LOW = 560;
+const FADE_FAR_SAFE = 380;
 
 /** crossed-blade tuft, ~0.9 m tall, origin at the root */
 function tuftGeometry(BLADES: number): BufferGeometry {
@@ -87,12 +88,13 @@ export function buildFields(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
-  preset: 'low' | 'high' | 'ultra' = 'high',
+  preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   perf: { cull: boolean; prepass: boolean } = { cull: true, prepass: true },
 ): ParcelInfo {
   const rng = seed.rng('fields');
   const TUFTS = TUFT_BUDGET[preset];
-  const fadeFar = preset === 'low' ? FADE_FAR_LOW : FADE_FAR;
+  const fadeFar =
+    preset === 'safe' ? FADE_FAR_SAFE : preset === 'low' ? FADE_FAR_LOW : FADE_FAR;
 
   /* --- parcel plan: strips along the river on both banks ------------------ */
   interface Parcel {

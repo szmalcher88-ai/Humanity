@@ -101,9 +101,10 @@ export class ProbeGI {
   constructor(
     private hf: Heightfield,
     private atmosphere: Atmosphere,
-    preset: 'low' | 'high' | 'ultra' = 'high',
+    preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   ) {
-    this.slice = preset === 'low' ? PROBES_PER_FRAME_LOW : PROBES_PER_FRAME;
+    this.slice =
+      preset === 'safe' ? 512 : preset === 'low' ? PROBES_PER_FRAME_LOW : PROBES_PER_FRAME;
     const mk = (): Storage3DTexture => {
       const t = new Storage3DTexture(PROBE_XZ, PROBE_XZ, PROBE_LAYERS);
       t.type = HalfFloatType;
