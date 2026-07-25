@@ -191,7 +191,10 @@ export async function runSandTransport(
   const stepAB = mkStep(sandA, sandB);
   const stepBA = mkStep(sandB, sandA);
   const pairs = Math.ceil(iters / 2);
-  const BATCH = 8;
+  // 8 pairs = 16 dispatches of 4.2M in ONE submit; Windows' TDR watchdog
+  // times the SUBMIT, not the dispatch, so that was a second way to reset
+  // the display driver mid-boot on a slow adapter
+  const BATCH = 2;
   for (let it = 0; it < pairs; it += BATCH) {
     const chunk: ComputeNode[] = [];
     for (let j = it; j < Math.min(it + BATCH, pairs); j++) {

@@ -107,7 +107,12 @@ export class Heightfield {
     const gp = makeGizaParams(seed);
 
     progress(0.05, `terrain: baking ${cfg.heightRes}² plateau`);
-    const synth = await runHeightSynthesis(renderer, cfg.heightRes, gp, false);
+    // banded (gpu/Banded.ts): report the bands so the bar MOVES through the
+    // longest pass on a slow adapter — a frozen bar is indistinguishable from
+    // a hung app, which is exactly what the TDR black-screen looked like
+    const synth = await runHeightSynthesis(renderer, cfg.heightRes, gp, false, (f) =>
+      progress(0.05 + f * 0.06, `terrain: baking ${cfg.heightRes}² plateau (${Math.round(f * 100)}%)`),
+    );
 
     const heightTex = new StorageTexture(cfg.heightRes, cfg.heightRes);
     heightTex.type = FloatType;
@@ -133,7 +138,9 @@ export class Heightfield {
 
     // --- sand transport at sim res, composed back to full res ---------------
     progress(0.2, `terrain: baking ${cfg.simRes}² sand grid`);
-    const synthSim = await runHeightSynthesis(renderer, cfg.simRes, gp, true);
+    const synthSim = await runHeightSynthesis(renderer, cfg.simRes, gp, true, (f) =>
+      progress(0.2 + f * 0.04, `terrain: baking ${cfg.simRes}² sand grid (${Math.round(f * 100)}%)`),
+    );
     await runQuarryCarve(renderer, synthSim.height, synthSim.quarryDepth, cfg.simRes);
 
     progress(0.25, `terrain: sand transport (${cfg.sandIters} iterations)`);

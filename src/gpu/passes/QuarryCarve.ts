@@ -20,12 +20,12 @@ import {
   abs,
   clamp,
   float,
-  instanceIndex,
   min,
   smoothstep,
   vec2,
 } from 'three/tsl';
 import { valueNoise2 } from '../noise/NoiseTSL';
+import { BAND, bandIndex, bandOffset, runBanded } from '../Banded';
 import { TERRAIN_CX, TERRAIN_CZ, WORLD_SIZE } from '../../world/WorldConst';
 import type { FloatBuffer } from './HeightSynthesis';
 
@@ -41,8 +41,9 @@ export async function runQuarryCarve(
   res: number,
 ): Promise<void> {
   const N = res * res;
+  const uOff = bandOffset();
   const kernel = Fn(() => {
-    const i = instanceIndex;
+    const i = bandIndex(uOff);
     If(i.greaterThanEqual(N), () => {
       Return();
     });
@@ -82,7 +83,7 @@ export async function runQuarryCarve(
 
     const h = height.element(i);
     height.element(i).assign(h.sub(clamp(dTerr, 0, 14)).sub(trench));
-  })().compute(N);
+  })().compute(Math.min(N, BAND));
   kernel.setName('quarryCarve');
-  await renderer.computeAsync(kernel);
+  await runBanded(renderer, kernel, uOff, N);
 }

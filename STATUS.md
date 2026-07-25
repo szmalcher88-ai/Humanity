@@ -184,6 +184,76 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
+### v1.0.1 — BLACK SCREEN AFTER LAUNCH (fixed 2026-07-25)
+
+User report: "a few seconds after launch the monitor goes black, and it wants
+the RTX 3050 instead of the Intel graphics."
+
+REPRODUCED, then diagnosed — `tools/probe-igpu-boot.ts --preset high` on the
+Intel UHD dies with **`DXGI_ERROR_DEVICE_HUNG (0x887A0006)`**: boot completes,
+then the device hangs WHILE RENDERING. That is Windows **TDR** (Timeout
+Detection & Recovery): a GPU job past the ~2 s watchdog resets the display
+driver, the monitor blanks, the WebGPU device dies, and the page is left
+holding its last frame — which is why it reads as "black and never comes back"
+rather than "crashed".
+
+ROOT CAUSE — **the preset was chosen from `adapter.info.vendor` containing
+"intel"**. Any slow adapter that does not say "intel" (masked, empty, or
+differently-named vendor string), or any explicit `?preset=high`, ran the FULL
+preset and hung the driver. The heavy boot dispatches were a contributing risk
+but NOT the trigger: the hang happens after `ready`.
+
+FIXES, in order of how much they matter:
+1. **`src/core/GpuBench.ts` — pick the preset by what the GPU can DO.** Time a
+   fixed compute workload and believe the number. Two traps on the way:
+   (a) `renderer.computeAsync()` in three 0.184 does NOT wait for the GPU — it
+   submits and returns (Renderer.js:2800), and `waitForGPU()` was removed. The
+   first probe timed CPU submit and called an Intel UHD a **0.3 ms** adapter.
+   `gpuSync()` (`queue.onSubmittedWorkDone()`) is the real fence.
+   (b) a SINGLE timing still cannot discriminate: fence + submit latency is a
+   fixed few ms everywhere, so the probe read 3.0 ms on the RTX 3050 and 6.4 ms
+   on the UHD — 2× for adapters an order of magnitude apart. Timing the same
+   kernel at TWO sizes and taking the SLOPE cancels the constant: measured
+   **0.8-1.4 ns/invocation on the RTX 3050 vs 6.9-13.0 ns on the Intel UHD**.
+   Threshold 3 ns. The gate runs even when `?preset=` is explicit, because the
+   failure is a SYSTEM-WIDE display reset, not a bad frame rate; `?force=1`
+   opts back in.
+2. **Runtime TDR guard** (`Engine.guardFrameTime`): if frames run past 250 ms,
+   cut the render scale (×0.6, floor 0.4, three times). First version waited
+   for 12 slow frames — at 350 ms each that is four seconds, long past the
+   point where the driver has already decided to reset, and the run still
+   died. Four frames survives.
+3. **`device.lost` is handled** (`installDeviceLostHandler`). A lost device
+   used to stop the frame loop in total silence; it now raises the fatal
+   overlay naming TDR and what to change.
+4. `src/gpu/Banded.ts` — banded compute for the big boot dispatches
+   (HeightSynthesis 16.7M at 4096², QuarryCarve, NoiseBake; SandTransport's
+   BATCH 8 → 2, since the watchdog times the SUBMIT, not the dispatch).
+   Defensive rather than curative — the hang was in rendering — and verified
+   output-identical: `?band=33554432` (one dispatch = old behaviour) vs
+   `?band=262144` differ by mean **0.014**, 0.003% of pixels >2 (TRAA noise).
+   NOTE this only became a real serialization once `gpuSync` existed.
+5. The iGPU fallback is an ON-SCREEN notice now, not a console warning nobody
+   reads, with the exact Windows/NVIDIA/command-line steps. Chrome IGNORES
+   `powerPreference: 'high-performance'` on Windows (crbug 369219127) — no
+   page-side switch exists, so saying so plainly IS the fix.
+6. The boot bar advances through the long passes (band progress): a frozen bar
+   and a hung app look identical.
+
+VERIFIED: `probe-igpu-boot --preset high` now reports `13.0 ns → preset low`
+and **PASSES** (boot 7.7 s, 6.8 fps, no device loss) where it previously hung
+the driver; the RTX 3050 measures 1.4 ns and keeps the full preset.
+
+ALSO 2026-07-25: **bookmark 11 (key `-`) — "temple scaffolding"**, the
+construction tableau at the mortuary temple's unfinished SE corner (T 16.2, so
+the falsework throws its own shadow across the court). Two placement bugs found
+while framing it: the first camera stood INSIDE queen's pyramid G1-a (the whole
+sector east of the corner is G1-a's footprint — the clear approach is from the
+south), and the lever crane's mast stood INSIDE the mortuary temple at z 24.4
+(temple spans z ±26); the crane moved west of the falsework. A 26-strong gang
+now works the corner — scaffolding with nobody on it reads as abandoned, not
+mid-job.
+
 ### OPEN AFTER v1.0 (2026-07-25)
 
 1. **iGPU is still short of 30 fps on the two heaviest framings.** After PERF

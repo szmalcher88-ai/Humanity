@@ -5,10 +5,11 @@
  */
 
 import type { Renderer, StorageBufferNode } from 'three/webgpu';
-import { Fn, If, Return, float, instanceIndex, instancedArray, vec2, vec4 } from 'three/tsl';
+import { Fn, If, Return, float, instancedArray, vec2, vec4 } from 'three/tsl';
 import type { GizaParams } from '../../world/GizaControl';
 import { gizaTerrain } from '../../world/GizaControl';
 import { TERRAIN_CX, TERRAIN_CZ, WORLD_SIZE } from '../../world/WorldConst';
+import { BAND, bandIndex, bandOffset, runBanded } from '../Banded';
 
 export type FloatBuffer = StorageBufferNode<'float'>;
 export type Vec4Buffer = StorageBufferNode<'vec4'>;
@@ -37,6 +38,7 @@ export async function runHeightSynthesis(
   res: number,
   gp: GizaParams,
   withMasks: boolean,
+  onProgress?: (f: number) => void,
 ): Promise<SynthesisResult> {
   const height = instancedArray(res * res, 'float');
   const hardness = instancedArray(res * res, 'float');
@@ -45,8 +47,13 @@ export async function runHeightSynthesis(
   const masksA = instancedArray(maskN, 'vec4');
   const masksB = instancedArray(maskN, 'vec4');
 
+  // BANDED (see gpu/Banded.ts): at 4096² this is 16.7M invocations each
+  // evaluating the whole authored terrain function. As one dispatch it ran
+  // past the Windows TDR watchdog on a slow adapter, the display driver reset,
+  // and the app went black mid-boot. Same work, same output, short jobs.
+  const uOff = bandOffset();
   const kernel = Fn(() => {
-    const i = instanceIndex;
+    const i = bandIndex(uOff);
     If(i.greaterThanEqual(res * res), () => {
       Return();
     });
@@ -66,9 +73,10 @@ export async function runHeightSynthesis(
       masksB.element(i).assign(vec4(g.quarry, g.bedrockExposure, g.moisture, 0));
     }
   });
-  const node = kernel().compute(res * res);
+  const total = res * res;
+  const node = kernel().compute(Math.min(total, BAND));
   node.setName(`heightSynthesis_${res}`);
 
-  await renderer.computeAsync(node);
+  await runBanded(renderer, node, uOff, total, BAND, onProgress);
   return { height, hardness, quarryDepth, masksA, masksB, res };
 }

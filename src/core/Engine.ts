@@ -7,7 +7,7 @@
 
 import { ACESFilmicToneMapping, PerspectiveCamera, Scene } from 'three';
 import { TimestampQuery, WebGPURenderer } from 'three/webgpu';
-import { buildRequiredLimits } from './Diagnostics';
+import { buildRequiredLimits, installDeviceLostHandler } from './Diagnostics';
 import { GpuProfiler } from './GpuProfiler';
 import type { EngineStats, AkhetHooks } from './Hooks';
 import type { AkhetParams } from './Params';
@@ -36,6 +36,8 @@ export class Engine {
   private preRenderFns: UpdateFn[] = [];
   private lastT: number | null = null;
   private frameMsRing: number[] = [];
+  private slowRun = 0;
+  private dprCuts = 0;
   private fpsEma = 0;
   private frameCounter = 0;
   private settleWaiters: { frames: number; resolve: () => void }[] = [];
@@ -94,6 +96,9 @@ export class Engine {
           console.error('[akhet] WebGPU uncaptured error:', e.error.message);
         }
       };
+      // a lost device otherwise stops the frame loop in silence — the canvas
+      // just holds its last frame and the app "goes black" with no diagnosis
+      installDeviceLostHandler(device, hooks.diag?.vendor);
     }
     const dprCap = params.dpr ?? Math.min(window.devicePixelRatio, 1.5);
     renderer.setPixelRatio(dprCap);
@@ -180,6 +185,36 @@ export class Engine {
     }
   }
 
+  /**
+   * TDR guard. Windows resets the display driver if one GPU job runs past
+   * ~2 s — the monitor blanks, the device is lost, and the app goes black.
+   * Reproduced here as DXGI_ERROR_DEVICE_HUNG by forcing the full preset onto
+   * an Intel UHD. The preset gate (core/GpuBench) keeps that from happening by
+   * accident, but an explicit `?preset=high` is the user's call and still has
+   * to be survivable — so if frames get catastrophically slow, drop the render
+   * scale before any single frame can get near the watchdog. Pixel ratio is
+   * the one lever that works mid-flight: no rebuild, no reallocation of the
+   * world, immediate effect on every full-res pass.
+   */
+  private guardFrameTime(ms: number): void {
+    if (this.dprCuts >= 3) return;
+    this.slowRun = ms > 250 ? this.slowRun + 1 : 0;
+    // four frames, not twelve: at 350 ms a frame, twelve is four seconds —
+    // long past the point where the driver has already decided to reset
+    if (this.slowRun < 4) return;
+    this.slowRun = 0;
+    this.dprCuts++;
+    const next = Math.max(0.4, this.renderer.getPixelRatio() * 0.6);
+    this.renderer.setPixelRatio(next);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.stats.counters['perf.dprCuts'] = this.dprCuts;
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[akhet] frames averaging ${ms.toFixed(0)} ms — render scale cut to ` +
+        `${next.toFixed(2)} to stay clear of the Windows GPU watchdog.`,
+    );
+  }
+
   private collectStats(rawDt: number): void {
     const s = this.stats;
     const ms = rawDt * 1000;
@@ -196,6 +231,7 @@ export class Engine {
     s.drawCalls = this.renderer.info.render.drawCalls;
     s.triangles = this.renderer.info.render.triangles;
     s.frame = this.frameCounter++;
+    this.guardFrameTime(ms);
 
     // resolve EVERY frame: the 2048-query pool only resets its write index on
     // resolve — a slower cadence overflows it and kills per-pass attribution

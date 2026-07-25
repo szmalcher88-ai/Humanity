@@ -1,7 +1,8 @@
 /**
  * Bookmarks + flythrough (Phase 7):
- *   1-9,0 — jump to a curated view (poses verified by harness shots); key 0
- *          is bookmark 10, the night harbour, which also sets the hour
+ *   1-9,0,- — jump to a curated view (poses verified by harness shots); key 0
+ *          is bookmark 10 (night harbour) and `-` is 11 (temple scaffolding).
+ *          Both also set the hour: a night view is a POSE PLUS AN HOUR.
  *   F    — cinematic flythrough: closed Catmull-Rom loop through the
  *          bookmark positions with eased yaw/pitch, fly input disabled
  *   ?bm=N — boot straight into bookmark N (tooling/screenshots)
@@ -33,6 +34,10 @@ export const MARKS: Mark[] = [
   // 10 (key 0) — night harbour: moonlit basin, the town's fires on the far
   // bank, the casing catching moonlight above the causeway
   { name: 'night harbour', p: [1315, -36, -252], yaw: 2.31, pitch: -0.03, t: 21.4 },
+  // 11 (key -) — the construction tableau: timber falsework, lever crane and
+  // rubble ramp on the mortuary temple's unfinished SE corner. Late afternoon,
+  // when the scaffolding throws its own shadow across the court.
+  { name: 'temple scaffolding', p: [146, 7, 68], yaw: -0.19, pitch: 0.02, t: 16.2 },
 ];
 
 /** tour order: harbor → river → town → quarry → plateau → causeway → back */
@@ -71,6 +76,9 @@ export function attachBookmarks(engine: Engine): void {
         }
         jump(m);
       }
+    } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+      const m = MARKS[10]; // bookmark 11 — temple scaffolding
+      if (m) jump(m);
     } else if (e.code === 'KeyF' && !e.repeat) {
       flying = !flying;
       window.__akhet.flyCamEnabled?.(!flying);

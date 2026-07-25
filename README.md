@@ -92,7 +92,7 @@ gangs walking it in both directions and a reed-mat sunshade where they rest.
 | `W A S D` `Q E` | Fly (mouse look after clicking the canvas) |
 | `Shift` | Sprint |
 | `G` | **Walk mode** — eye height 1.55 m, pinned to terrain *and* structures |
-| `1`–`9`, `0` | Bookmarks (`0` = night harbour, which also sets the hour) |
+| `1`–`9`, `0`, `-` | Bookmarks (`0` = night harbour, `-` = temple scaffolding; both also set the hour) |
 | `F` | Cinematic flythrough |
 | `[` `]` | Step time of day |
 | `E` | Placement inspector |
@@ -100,7 +100,7 @@ gangs walking it in both directions and a reed-mat sunshade where they rest.
 
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=low|high|ultra` ·
 `?cam=x,y,z,yaw,pitch` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
-`?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1`
+`?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1`
 
 ---
 
@@ -113,7 +113,8 @@ npm run battery                 # the full gate: audits, floors, walk mode, tone
 npx tsx tools/shoot.ts --scene world --T 12.4 --bm 3 --out shots/x.png
 npx tsx tools/levels.ts --in shots/x.png --box "casing:620,450,760,560"
 npx tsx tools/diff.ts --a a.png --b b.png --out d.png
-npx tsx tools/probe-igpu.ts     # the integrated-GPU path
+npx tsx tools/probe-igpu.ts      # the integrated-GPU perf sweep
+npx tsx tools/probe-igpu-boot.ts # TDR/device-loss gate on a slow adapter
 ```
 
 * `tools/audit.ts` — canon/spec consistency, course count, sun cardinality, a
@@ -164,6 +165,36 @@ trades render scale, tile budget, GI cadence and cascade count rather than
 dropping whole systems.
 
 ---
+
+## Running on the right GPU
+
+On a laptop with switchable graphics, Chrome will hand the page the **Intel
+iGPU** by default and there is nothing the page can do about it —
+`powerPreference: 'high-performance'` is ignored on Windows
+([crbug 369219127](https://crbug.com/369219127)). AKHET detects it, drops to the
+reduced preset, and says so in an on-screen notice. To get the discrete GPU:
+
+* **Windows** → Settings → System → Display → Graphics → browse for your
+  browser → Options → **High performance** → Save, then restart the browser.
+* **NVIDIA Control Panel** → Manage 3D settings → Program Settings → add the
+  browser → *High-performance NVIDIA processor*.
+* Or launch the browser once with `--force_high_performance_gpu`.
+
+AKHET does not trust the vendor string for this. At boot it times a fixed GPU
+workload at two sizes and takes the slope — measured **0.8–1.4 ns per
+invocation on an RTX 3050 Laptop against 6.9–13.0 ns on an Intel UHD** — and
+picks the preset from that number (`src/core/GpuBench.ts`). The gate runs even
+when `?preset=` is explicit, and `?force=1` overrides it.
+
+**If the screen goes black shortly after launch** — and the monitor itself
+blanks for a moment — that is a **Windows TDR**: the display driver reset
+because a GPU job ran past the ~2 s watchdog (`DXGI_ERROR_DEVICE_HUNG`). It is
+reproducible with `npx tsx tools/probe-igpu-boot.ts --preset high --force` on a
+slow adapter. Three things now stand between you and it: the preset gate above,
+a runtime guard that cuts render scale if frames pass 250 ms, and a
+`device.lost` handler that explains what happened instead of leaving a black
+canvas. If it still happens, the adapter is the reason — move the browser to
+the discrete GPU as above.
 
 ## Truth, and where it stops
 

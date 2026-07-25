@@ -5,8 +5,16 @@
  * window.__akhet.error so the harness never waits on a silent black frame.
  */
 
-import { describeDiagnostics, failLoud, installGlobalErrorHooks, probeWebGPU } from './core/Diagnostics';
+import {
+  DISCRETE_GPU_STEPS,
+  describeDiagnostics,
+  failLoud,
+  installGlobalErrorHooks,
+  probeWebGPU,
+  showNotice,
+} from './core/Diagnostics';
 import { Engine } from './core/Engine';
+import { SLOW_NS, benchmarkAdapter } from './core/GpuBench';
 import { FlyCamera } from './core/FlyCamera';
 import { initHooks } from './core/Hooks';
 import { parseCamString, parseParams } from './core/Params';
@@ -56,15 +64,76 @@ async function boot(): Promise<void> {
     // the canvas scales back up; TRAA hides most of the softness.
     if (params.dpr === null) params.dpr = 0.62;
     // eslint-disable-next-line no-console
-    console.warn(
-      '[akhet] Running on the INTEGRATED GPU — reduced preset engaged. ' +
-        'For full quality: Windows Settings > System > Display > Graphics > ' +
-        'add your browser > High performance.',
-    );
+    console.warn('[akhet] Running on the INTEGRATED GPU — reduced preset engaged.');
+    // ON SCREEN, not just in the console: the console warning meant the app
+    // silently ran on the wrong adapter at a fraction of the frame rate, and
+    // the user had no way to know why it looked and ran the way it did.
+    showNotice(`⚠ Running on the integrated GPU (${diag.vendor ?? '?'})`, [
+      'Reduced preset engaged. Chrome ignores a page request for the',
+      'discrete GPU on Windows (crbug 369219127), so this has to be set',
+      'outside the browser:',
+      '',
+      ...DISCRETE_GPU_STEPS,
+      '',
+      'Force full quality on this adapter anyway: add ?preset=high to the URL.',
+    ]);
   }
 
   progress(0.12, 'creating renderer');
   const engine = await Engine.create(params, hooks);
+
+  /* --- adapter speed gate ---------------------------------------------------
+   * The vendor-string check above is a HINT, not a gate: an adapter that does
+   * not say "intel" but performs like one used to get the full preset, take
+   * hundreds of ms per frame, and hang the display driver
+   * (DXGI_ERROR_DEVICE_HUNG) a few seconds after launch — a black screen with
+   * no explanation. Time a fixed workload instead and believe the number.
+   *
+   * This runs even when ?preset= is explicit. The failure mode here is not a
+   * bad frame rate, it is a SYSTEM-LEVEL display driver reset: the monitor
+   * blanks and every GPU application on the machine is affected. Reproduced
+   * on the Intel UHD with ?preset=high — and the runtime guard below could not
+   * save it, because by the time twelve 350 ms frames have gone by the driver
+   * is already past the watchdog. So a request that is known to hang the
+   * driver is downgraded, loudly, and ?force=1 is there for anyone who means
+   * it. */
+  {
+    const q = new URLSearchParams(window.location.search);
+    progress(0.15, 'measuring adapter speed');
+    const bench = await benchmarkAdapter(engine.renderer);
+    hooks.benchMs = bench.ns;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[akhet] adapter bench: ${bench.ns.toFixed(1)} ns/invocation ` +
+        `(${bench.ms.toFixed(1)} ms large probe) → preset ${bench.preset}`,
+    );
+    const wantsMore = params.preset !== 'low';
+    if (bench.preset === 'low' && wantsMore && q.get('force') !== '1') {
+      const asked = q.has('preset');
+      params.preset = 'low';
+      if (params.dpr === null) params.dpr = 0.62;
+      if (!onIGpu || asked) {
+        showNotice(
+          asked
+            ? '⚠ preset=high refused on this adapter'
+            : '⚠ Slow GPU detected — reduced preset engaged',
+          [
+            `This adapter costs ${bench.ns.toFixed(0)} ns per GPU invocation on a`,
+            `throughput probe; the full preset needs under ${SLOW_NS} ns.`,
+            '',
+            'At the full preset this adapter produces frames slow enough for',
+            "Windows to reset the display driver — the monitor blanks and every",
+            'GPU app on the machine is affected. Reduced preset engaged instead.',
+            '',
+            ...(onIGpu ? DISCRETE_GPU_STEPS : []),
+            '',
+            'Run it anyway with ?force=1 (it will most likely hang the driver).',
+          ],
+        );
+      }
+    }
+  }
+
   const seed = new WorldSeed(params.seed);
 
   progress(0.2, `building scene '${params.scene}'`);

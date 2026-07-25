@@ -60,6 +60,10 @@ async function main(): Promise<void> {
   for (const [label, script] of [
     ['bookmark poses', 'tools/test-bookmarks.ts'],
     ['inspector round-trip', 'tools/test-inspector.ts'],
+    // the black-screen regression: boots on the SLOW adapter and asserts the
+    // device survives. Catches both a preset gate that stops firing and any
+    // new GPU job long enough to trip the Windows watchdog.
+    ...(quick ? [] : [['slow-adapter device survival', 'tools/probe-igpu-boot.ts'] as const]),
   ] as const) {
     try {
       execFileSync('npx', ['tsx', script], { encoding: 'utf8', shell: true });

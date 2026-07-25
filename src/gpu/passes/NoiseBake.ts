@@ -26,7 +26,6 @@ import {
   Return,
   float,
   floor,
-  instanceIndex,
   textureStore,
   uvec2,
   vec2,
@@ -34,6 +33,7 @@ import {
 } from 'three/tsl';
 import type { NF, NV2 } from '../TSLTypes';
 import { fbm2, hash22, ridged2, valueNoise2 } from '../noise/NoiseTSL';
+import { BAND, bandIndex, bandOffset, runBanded } from '../Banded';
 
 export const NOISE_TEX_RES = 1024;
 export const PERIOD_VAL = 256;
@@ -81,8 +81,10 @@ export async function bakeNoiseTextures(renderer: Renderer): Promise<NoiseTextur
   const eFbm = (PERIOD_FBM / R) * 0.5;
   const eRid = (PERIOD_RID / R) * 0.5;
 
+  const uOff = bandOffset();
+
   const kernel = Fn(() => {
-    const i = instanceIndex;
+    const i = bandIndex(uOff);
     If(i.greaterThanEqual(R * R), () => {
       Return();
     });
@@ -108,8 +110,8 @@ export async function bakeNoiseTextures(renderer: Renderer): Promise<NoiseTextur
     const xy = uvec2(x.toUint(), y.toUint());
     textureStore(texA, xy, vec4(v, f, fdx, fdz)).toWriteOnly();
     textureStore(texB, xy, vec4(rdx, rdz, rid, wor)).toWriteOnly();
-  })().compute(R * R);
+  })().compute(Math.min(R * R, BAND));
   kernel.setName('noiseBake');
-  await renderer.computeAsync(kernel);
+  await runBanded(renderer, kernel, uOff, R * R);
   return { texA, texB };
 }

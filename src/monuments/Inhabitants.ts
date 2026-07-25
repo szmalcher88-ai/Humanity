@@ -221,6 +221,9 @@ function workLines(): Gang[] {
     { x0: qx - 40, z0: qz + 60, x1: qx + 50, z1: qz + 75, n: 60, spread: 20, carry: 0.2, still: 0.7 },
     // masons' yards outside the SE temenos
     { x0: 160, z0: 200, x1: 270, z1: 130, n: 70, spread: 16, carry: 0.2, still: 0.72 },
+    // the temple's unfinished SE corner — the gang working the falsework and
+    // the ramp. Scaffolding with nobody on it reads as abandoned, not mid-job.
+    { x0: 150, z0: 33, x1: 176, z1: 41, n: 26, spread: 5, carry: 0.35, still: 0.62 },
     // the causeway: a file of porters climbing to the plateau
     { x0: vx - 40, z0: vz - 6, x1: 200, z1: -32, n: 90, spread: 3.2, carry: 0.6, still: 0.04 },
     // the quay: unloading, and the road up from the harbour
@@ -533,9 +536,11 @@ export function buildInhabitants(
     for (let i = 0; i < 7; i++) {
       wood.box(bx - 2.2 + i * 1.6, gy + 6.1, bz - 0.9, 1.5, 0.09, 4.4, 0.34, 0, 0);
     }
-    // a shaduf-style lever crane: mast, pivoted beam, counterweight, load
-    const mx = bx + 5.4;
-    const mz = bz - 5.6;
+    // a shaduf-style lever crane: mast, pivoted beam, counterweight, load.
+    // WEST of the falsework and SOUTH of z=26: the first placement put the
+    // mast at z 24.4, i.e. standing inside the mortuary temple.
+    const mx = bx - 6.5;
+    const mz = bz + 2;
     const my = hf.heightAtCpu(mx, mz);
     wood.box(mx, my, mz, 0.26, 5.4, 0.26, 0.28, 0.02, 0.3);
     wood.box(mx, my + 5.2, mz, 7.6, 0.18, 0.18, 0.3, 0, 0.3);

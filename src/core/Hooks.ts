@@ -64,6 +64,8 @@ export interface AkhetHooks {
   settle: ((frames?: number) => Promise<void>) | null;
   /** enable/disable fly-camera input (flythrough takes the wheel) */
   flyCamEnabled: ((on: boolean) => void) | null;
+  /** adapter throughput, ns per invocation (preset gate — core/GpuBench) */
+  benchMs: number | null;
   /** walk mode: pin the camera to eye height on the surface (Phase 7) */
   setWalk: ((on: boolean) => void) | null;
   /** surface height under (x,z) INCLUDING structures — walk-mode verification */
@@ -98,6 +100,7 @@ export function initHooks(): AkhetHooks {
     setTimeOfDay: null,
     settle: null,
     flyCamEnabled: null,
+    benchMs: null,
     setWalk: null,
     surfaceProbe: null,
     collisionAudit: null,
