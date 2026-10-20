@@ -146,7 +146,7 @@ measurement reads **149.9 vs 198.5**.
 
 | before | after |
 | --- | --- |
-| ![before](shots/delta/noon-before.png) | ![after](shots/delta/noon-after.png) |
+| ![before](docs/gallery/chalk-before.jpg) | ![after](docs/gallery/chalk-after.jpg) |
 
 ---
 
