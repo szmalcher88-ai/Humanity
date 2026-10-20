@@ -221,6 +221,64 @@ M1 — THE TOWN WAS UNDERGROUND (done):
 4. ALSO FOUND: README gallery images live in `shots/`, which is gitignored
    — every image is broken on GitHub. To fix with tracked docs/gallery.
 
+M2 — SURFACES, SKY, BANKS (done):
+1. ZIPPER ARRISES: every course's end stone poked its top corners ~0.4 m
+   past the arris (stones are laid out at course MID-height width, the face
+   narrows with height) — all four pyramid edges read as stitched. Mitred
+   in the vertex stage: each vertex's along-face coordinate is clamped to
+   the face half-width at that vertex's own height.
+2. Casing roughness 0.42 → 0.62 (honed Tura, not polished — edge-on faces
+   mirrored the zenith; the queens read as blue steel), far shell matched;
+   TURA albedo nudged to cream; "batch mottling" (quarry-batch tone, 5-15 m)
+   baked ONCE on the CPU into a 256² texture over the footprint — near
+   stones take it per instance, the far shell samples the same texture, so
+   the LOD switch cannot pop. The FIRST version evaluated 3D Perlin per
+   vertex of 63k stones in every shadow cascade: bm3 lost a quarter of its
+   frame rate. Measure before you mottle.
+3. HEAT SHIMMER was white noise: hash12(screenUV·k) moved every pixel up to
+   ~4 px independently, so every noon edge dissolved into dither. Now smooth
+   noise, gated to rays that truly skim the ground (|dir.y| < 0.1, was
+   0.25 — the lower half of a pyramid 400 m out shimmered), and evaluated
+   only where the gate is live.
+4. CLOUD SHARDS, the real cause: the 96³ base noise tiles every 3.6 km via
+   RepeatWrapping but was baked from NON-periodic MaterialX noise, so every
+   tile edge was a flat plane where density jumped; the weather map the same
+   at 26 km. New `gpu/noise/PeriodicNoise.ts` (lattice indices mod period —
+   exact wrap, no contrast loss like the shifted-copies blend); base bake
+   now banded (885k × 3 Worley searches).
+5. Basalt court (exposed by the sand sweep, read as water): rough 0.86,
+   spec 0.25, running-bond slab grid on horizontal faces
+   (`limestoneMaterial` opts.paveW).
+6. Nile banks were a ruled line (210 m meander is straight in any one
+   framing): 13-40 m bank irregularity; the bank stays steep.
+PERF NOTE: the battery's 1440p numbers drift with GPU thermal state — the
+baseline battery said bm3 82, but `main` re-measured with the same protocol
+in this session gives 50/73/47, identical to the branch. Compare A/B in one
+sitting (scratch perf script = the battery sweep alone), never across runs.
+
+M3 — THE HARBOR DISTRICT + PEOPLE (done):
+1. `monuments/HarborDistrict.ts` (canon Vol. IV District 5): the ~1.1 ×
+   0.5 km works zone around the basin was bare silt. Now: three storage
+   magazine ranges + a beehive-silo granary on the north shore, a stone yard
+   by the quay (dressed casing blocks, Aswan granite beams with lifting
+   bosses, sledge + levers), three cargo slipways into the basin, a boatyard
+   on the south shore (hulls on stocks held by moulds — Khufu-boat logic,
+   sewn plank hulls; timber stacks, saw frame, shades) and four wells. Every
+   piece is placed only where its whole footprint is dry and registers a
+   footprint (family `harbor-district`); audit clean. No shaduf, pulley or
+   wheel (Old Kingdom).
+2. BUG — the harbor had NO PEOPLE: Inhabitants dropped figures at
+   `y < -44` "not in the water", but the floodplain is −44.5, so every
+   figure on the plain was silently discarded; and the two harbor lines lay
+   IN the basin anyway. Water test is now NILE_WATER_Y + 0.3, walkers keep
+   both ends of their beat dry, harbor lines re-routed + 5 new district
+   lines. Workers 776 → 879.
+3. Field carpets: sowing rows (0.85 m, faded by 140 m before they can
+   moiré), stand-density patches and a maturity drift — a parcel no longer
+   reads as one green plane at 50-300 m.
+4. bm1 "harbor panorama" re-framed (the old pose looked at bare silt with
+   neither the harbor nor the pyramids in frame).
+
 ### v1.0.1 — BLACK SCREEN AFTER LAUNCH (fixed 2026-07-25)
 
 User report: "a few seconds after launch the monitor goes black, and it wants

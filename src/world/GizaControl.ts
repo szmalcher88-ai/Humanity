@@ -324,7 +324,14 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
   const meander = full
     ? mx_noise_float(p.div(210).add(vec2(o.plain[0] - 61, o.plain[1] + 43))).mul(34)
     : float(0);
-  const nileDist = nile.dist.add(meander);
+  // (v1.1) bank irregularity: the 210 m meander is straight over any one
+  // framing, so the waterline read as a ruled line (bm9). Slumps, scour
+  // bays and silt spits at 13-40 m scale break it; the bank stays steep.
+  const bankJit = full
+    ? mx_noise_float(p.div(38).add(vec2(o.plain[0] + 17, o.plain[1] - 9))).mul(7)
+        .add(mx_noise_float(p.div(13).add(vec2(o.plain[1] - 5, o.plain[0] + 3))).mul(2.2))
+    : float(0);
+  const nileDist = nile.dist.add(meander).add(bankJit);
   const riverMask = smoothstep(NILE_HALF_WIDTH + 5, NILE_HALF_WIDTH - 30, nileDist);
   const bedY = float(NILE_BED_Y).sub(riverMask.mul(1.5));
   h = mix(h, bedY, riverMask.pow(0.9));

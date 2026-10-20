@@ -60,6 +60,7 @@ import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER, WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
+import { NILE_WATER_Y } from '../world/WorldConst';
 
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
@@ -226,9 +227,20 @@ function workLines(): Gang[] {
     { x0: 150, z0: 33, x1: 176, z1: 41, n: 26, spread: 5, carry: 0.35, still: 0.62 },
     // the causeway: a file of porters climbing to the plateau
     { x0: vx - 40, z0: vz - 6, x1: 200, z1: -32, n: 90, spread: 3.2, carry: 0.6, still: 0.04 },
-    // the quay: unloading, and the road up from the harbour
-    { x0: 1235, z0: -215, x1: 1250, z1: -70, n: 70, spread: 7, carry: 0.55, still: 0.35 },
-    { x0: 1230, z0: -140, x1: vx + 30, z1: vz - 20, n: 55, spread: 5, carry: 0.5, still: 0.06 },
+    // the quay: unloading, and the road up from the harbour.
+    // (v1.1) both lines used to lie IN the basin — one along its east edge,
+    // one straight across it — and the water test dropped every figure:
+    // the busiest place on the site was empty. Now on the west shore behind
+    // the stone quay, and round the north shore past the magazines.
+    { x0: 872, z0: -232, x1: 884, z1: -46, n: 70, spread: 7, carry: 0.55, still: 0.35 },
+    { x0: 1215, z0: -332, x1: 905, z1: -318, n: 55, spread: 5, carry: 0.5, still: 0.08 },
+    { x0: 905, z0: -318, x1: vx + 40, z1: vz - 40, n: 35, spread: 5, carry: 0.5, still: 0.06 },
+    // harbor district (v1.1): stone yard, slipway heads, boatyard
+    { x0: 893, z0: -292, x1: 940, z1: -262, n: 34, spread: 12, carry: 0.2, still: 0.72 },
+    { x0: 1036, z0: -312, x1: 1046, z1: -290, n: 16, spread: 5, carry: 0.5, still: 0.4 },
+    { x0: 1157, z0: -302, x1: 1153, z1: -282, n: 16, spread: 5, carry: 0.5, still: 0.4 },
+    { x0: 992, z0: 58, x1: 1116, z1: 74, n: 44, spread: 10, carry: 0.25, still: 0.75 },
+    { x0: 1035, z0: 90, x1: 1085, z1: 96, n: 14, spread: 4, carry: 0.6, still: 0.2 },
     // town: the gallery street and the bakery yard
     { x0: tx - 110, z0: tz - 96, x1: tx + 60, z1: tz - 92, n: 90, spread: 6, carry: 0.25, still: 0.3 },
     { x0: tx - 95, z0: tz + 34, x1: tx + 10, z1: tz + 40, n: 60, spread: 9, carry: 0.2, still: 0.6 },
@@ -282,13 +294,23 @@ export function buildInhabitants(
       const x = g.x0 + ux * len * t + px * off;
       const z = g.z0 + uz * len * t + pz * off;
       const y = hf.heightAtCpu(x, z);
-      if (!Number.isFinite(y) || y < -44) continue; // not in the water
+      // not in the water. (v1.1: this was `y < -44` — but the whole
+      // floodplain lies at −44.5, so every figure on the plain, the harbour
+      // included, was silently dropped)
+      if (!Number.isFinite(y) || y < NILE_WATER_Y + 0.3) continue;
       const still = rng.chance(g.still);
+      let half = still ? 0 : rng.range(9, 26);
+      // a walker's beat must stay on dry ground at both ends
+      if (half > 0) {
+        const wet = (s: number): boolean =>
+          hf.heightAtCpu(x + ux * half * s, z + uz * half * s) < NILE_WATER_Y + 0.3;
+        if (wet(1) || wet(-1)) half = 0;
+      }
       figs.push({
         x, z,
         dx: ux, dz: uz,
         // a walker beats up and down a short stretch of its own file
-        half: still ? 0 : rng.range(9, 26),
+        half,
         phase: rng.float(),
         yaw: Math.atan2(ux, uz) + (still ? rng.range(-3, 3) : 0),
         h: rng.range(0.94, 1.06),

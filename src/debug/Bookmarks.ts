@@ -22,7 +22,10 @@ interface Mark {
 
 /** curated views (all verified as harness framings during Phases 3-6) */
 export const MARKS: Mark[] = [
-  { name: 'harbor panorama', p: [1150, -38, -420], yaw: Math.PI, pitch: -0.33 },
+  // (v1.1) re-framed: the old pose looked down at bare silt with neither the
+  // harbor nor the pyramids in frame. Now raised over the north fields:
+  // magazines, basin, valley temple and causeway, the pyramids beyond.
+  { name: 'harbor panorama', p: [1240, -20, -430], yaw: 1.85, pitch: -0.07 },
   { name: 'dawn from the harbor', p: [1160, -41, -80], yaw: 1.64, pitch: 0.1 },
   { name: 'noon court', p: [265, 7, 265], yaw: 0.785, pitch: 0.2 },
   { name: 'causeway descent', p: [620, 0, -190], yaw: 2.25, pitch: -0.06 },

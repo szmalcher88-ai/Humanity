@@ -12,6 +12,7 @@ import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildWorkerTown } from '../monuments/WorkerTown';
+import { buildHarborDistrict } from '../monuments/HarborDistrict';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
@@ -77,7 +78,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const STRUCT_FAMILIES = [
     'pyramids', 'temenos', 'temple', 'causeway', 'boatpits', 'chapels',
     'mastabas-west', 'mastabas-east', 'pavement', 'vessels', 'harbor-works',
-    'worker-town',
+    'worker-town', 'harbor-district',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -99,6 +100,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     buildKhufuComplex(structures, seed, hf, gi);
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
+    engine.stats.counters['harbor.district'] = buildHarborDistrict(structures, seed, hf, gi);
     engine.stats.counters['monuments.stones'] = sites.reduce(
       (a, s) => a + s.lod.stoneCount,
       0,

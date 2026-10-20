@@ -28,6 +28,7 @@ import {
   float,
   fract,
   hash,
+  mix,
   floor as tslFloor,
   normalWorld,
   positionWorld,
@@ -140,6 +141,10 @@ export function limestoneMaterial(
   gi: ProbeGI | null,
   courseH = 0.55,
   blockWm = 1.15, // joint spacing along the wall: 1.15 ashlar, ~0.45 mudbrick
+  /** (v1.1) surface finish + paving: `paveW` lays a running-bond slab grid
+   *  on HORIZONTAL faces (floors were one flat colour — the basalt court
+   *  read as a sheet of water once the sand came off it) */
+  opts: { rough?: number; spec?: number; paveW?: number } = {},
 ): MeshPhysicalNodeMaterial {
   const m = new MeshPhysicalNodeMaterial();
   const tone = attribute('tone', 'vec3') as unknown as NV3;
@@ -169,10 +174,28 @@ export function limestoneMaterial(
     .mul(0.1)
     .add(0.95) as unknown as NF;
 
-  m.colorNode = vec3(...base)
+  let col: NV3 = vec3(...base)
     .mul(tone)
     .mul(blockTone)
     .mul(jointK.oneMinus().mul(0.22).mul(upright).oneMinus());
+  let paveJ: NF = float(1);
+  if (opts.paveW !== undefined) {
+    const pw = opts.paveW;
+    const flat = smoothstep(0.75, 0.92, normalWorld.y.abs());
+    const rowIdx = tslFloor(positionWorld.z.div(pw));
+    const rowF = fract(positionWorld.z.div(pw));
+    const slabU = positionWorld.x.div(pw * 1.35).add(hash(rowIdx.add(3.1)));
+    const slabF = fract(slabU);
+    const slabIdx = tslFloor(slabU);
+    paveJ = smoothstep(0.0, 0.03, rowF)
+      .mul(smoothstep(1.0, 0.97, rowF))
+      .mul(smoothstep(0.0, 0.025, slabF))
+      .mul(smoothstep(1.0, 0.975, slabF));
+    const slabTone = hash(slabIdx.mul(17.3).add(rowIdx.mul(71.9))).mul(0.24).add(0.88);
+    col = col.mul(mix(float(1), slabTone.mul(paveJ.oneMinus().mul(0.45).oneMinus()), flat));
+    paveJ = mix(float(1), paveJ, flat);
+  }
+  m.colorNode = col;
   // normal dip toward the joints (cheap meso bevel)
   const dipY = horizJ.oneMinus().mul(courseF.sub(0.5).sign()).mul(0.35);
   const dipA = vertJ.oneMinus().mul(blockF.sub(0.5).sign()).mul(0.3);
@@ -183,9 +206,13 @@ export function limestoneMaterial(
   ).mul(upright);
   const nDetail = normalWorld.add(dipVec).normalize();
   m.normalNode = transformNormalToView(nDetail);
-  m.roughnessNode = clamp(float(0.62).add(jointK.oneMinus().mul(0.2)), 0, 1);
+  m.roughnessNode = clamp(
+    float(opts.rough ?? 0.62).add(jointK.oneMinus().mul(0.2)).add(paveJ.oneMinus().mul(0.15)),
+    0,
+    1,
+  );
   m.metalnessNode = float(0);
-  m.specularIntensity = 0.4;
+  m.specularIntensity = opts.spec ?? 0.4;
   giLightMap(m, gi, normalWorld as unknown as NV3, 1.5);
   void vec2;
   return m;
@@ -623,7 +650,12 @@ export function buildKhufuComplex(
   // upright gate zeroes the joint effect on their tops anyway)
   const turaMesh = new Mesh(tura.build(), limestoneMaterial([0.85, 0.825, 0.77], gi, 0.5));
   const localMesh = new Mesh(local.build(), limestoneMaterial([0.74, 0.68, 0.57], gi, 0.55));
-  const basaltMesh = new Mesh(basalt.build(), limestoneMaterial([0.16, 0.16, 0.17], gi, 0.5));
+  // honed basalt paving (~1.3 m slabs): rough, low specular — at 0.62 a
+  // near-black albedo was all sky reflection and the court read as water
+  const basaltMesh = new Mesh(
+    basalt.build(),
+    limestoneMaterial([0.19, 0.185, 0.18], gi, 0.5, 1.15, { rough: 0.86, spec: 0.25, paveW: 1.3 }),
+  );
   for (const m of [turaMesh, localMesh, basaltMesh]) {
     m.castShadow = true;
     m.receiveShadow = true;

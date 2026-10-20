@@ -22,7 +22,6 @@ import {
   float,
   instanceIndex,
   mix,
-  mx_fractal_noise_float,
   mx_worley_noise_float,
   pow,
   smoothstep,
@@ -37,6 +36,8 @@ import {
   vec4,
 } from 'three/tsl';
 import type { NF, NI, NV2, NV3 } from '../gpu/TSLTypes';
+import { BAND, bandIndex, bandOffset, runBanded } from '../gpu/Banded';
+import { fbmP, worleyP } from '../gpu/noise/PeriodicNoise';
 import { windU } from '../render/Wind';
 import { WORLD_SIZE } from '../world/WorldConst';
 import type { Atmosphere } from './Atmosphere';
@@ -141,10 +142,17 @@ export class Clouds {
   }
 
   async init(renderer: Renderer): Promise<void> {
-    // --- base: perlin-worley remap (tileable enough via domain fract) --------
+    // --- base: perlin-worley remap, PERIODIC (v1.1) ----------------------------
+    // The 96³ texture tiles every 3.6 km through RepeatWrapping, but it was
+    // baked from non-periodic MaterialX noise: every tile edge was a flat
+    // plane where the density jumped, and cumulus masses cut along those
+    // planes read as the "pale straight-edged shards". The lattice-periodic
+    // value/Worley noise (gpu/noise/PeriodicNoise) wraps exactly. Banded:
+    // 885k invocations of 3 × 27-cell Worley searches is a real job on an iGPU.
     const N = BASE_RES;
+    const baseOff = bandOffset();
     const baseK = Fn(() => {
-      const i = instanceIndex;
+      const i = bandIndex(baseOff);
       If(i.greaterThanEqual(N * N * N), () => {
         Return();
       });
@@ -152,18 +160,20 @@ export class Clouds {
       const y = i.div(N).mod(N);
       const z = i.div(N * N);
       const p = vec3(float(x), float(y), float(z)).add(0.5).div(N);
-      const pw = p.mul(4);
-      const perlin = mx_fractal_noise_float(pw.mul(2), 4, 2.0, 0.55, 1).mul(0.5).add(0.5);
-      const w0 = float(1).sub(clamp(mx_worley_noise_float(pw, 1), 0, 1));
-      const w1 = float(1).sub(clamp(mx_worley_noise_float(pw.mul(2.03).add(19.7), 1), 0, 1));
-      const w2 = float(1).sub(clamp(mx_worley_noise_float(pw.mul(4.01).add(47.3), 1), 0, 1));
+      // value-noise fBm spreads wider than Perlin's: 0.35 (not 0.5) keeps
+      // the remap's coverage where the Perlin bake had it
+      const perlin = fbmP(p, 8, 4, 0.55).mul(0.35).add(0.5);
+      const w0 = float(1).sub(clamp(worleyP(p.mul(4), 4), 0, 1));
+      const w1 = float(1).sub(clamp(worleyP(p.mul(8), 8), 0, 1));
+      const w2 = float(1).sub(clamp(worleyP(p.mul(16), 16), 0, 1));
       const wfbm = w0.mul(0.625).add(w1.mul(0.25)).add(w2.mul(0.125));
       // remap perlin by worley (Schneider-style perlin-worley)
       const pwv = clamp(perlin.sub(wfbm.oneMinus()).div(wfbm.max(1e-3)), 0, 1);
       textureStore(this.baseNoise, uvec3(x.toUint(), y.toUint(), z.toUint()), vec4(pwv, 0, 0, 1)).toWriteOnly();
-    })().compute(N * N * N);
-    baseK.setName('cloudBaseNoise');
-    await renderer.computeAsync(baseK);
+    });
+    const baseNode = baseK().compute(Math.min(N * N * N, BAND));
+    baseNode.setName('cloudBaseNoise');
+    await runBanded(renderer, baseNode, baseOff, N * N * N, BAND);
 
     const M = DETAIL_RES;
     const detailK = Fn(() => {
@@ -210,10 +220,9 @@ export class Clouds {
       const x = i.mod(W);
       const y = i.div(W);
       const uv01 = vec2(float(x).add(0.5), float(y).add(0.5)).div(W);
-      // periodic domain via worley/fractal over a wrapped circle would cost
-      // more than it buys at this span; sample fbm directly (seam is 26 km out)
-      const wUv = uv01.sub(0.5).mul(WEATHER_WORLD / 5200);
-      const v = mx_fractal_noise_float(wUv, 3, 2.2, 0.5, 1).mul(0.5).add(0.5);
+      // PERIODIC (v1.1): the map wraps every 26 km, and "the seam is 26 km
+      // out" stopped being true the moment the drift moved it overhead
+      const v = fbmP(vec3(uv01.x, uv01.y, 0), 5, 3, 0.5).mul(0.35).add(0.5);
       textureStore(this.weatherMap, uvec2(x.toUint(), y.toUint()), vec4(v, 0, 0, 1)).toWriteOnly();
     })().compute(W * W);
     weatherK.setName('cloudWeather');

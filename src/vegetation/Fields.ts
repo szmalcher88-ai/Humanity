@@ -24,8 +24,10 @@ import {
   instancedArray,
   instanceIndex,
   mix,
+  fract,
   normalLocal,
   positionLocal,
+  positionWorld,
   sin,
   smoothstep,
   transformNormalToView,
@@ -40,6 +42,7 @@ import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { depthPrepassTwin } from '../render/DepthPrepass';
+import { fbm2, valueNoise2 } from '../gpu/noise/NoiseTSL';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 
 /** tuft budget by quality preset (reduced preset: fewer instances and a
@@ -217,7 +220,26 @@ export function buildFields(
   carpetGeo.computeVertexNormals();
   const carpetMat = new MeshPhysicalNodeMaterial();
   const ctone = attribute('tone', 'vec3') as unknown as NV3;
-  carpetMat.colorNode = ctone;
+  /* (v1.1) a parcel read as one flat green plane from 50-300 m — exactly the
+   * banned "fields as green planes" look, because the tufts thin out with
+   * distance and the carpet is what carries the read there. Now it carries
+   * what a sown field actually shows from that range:
+   *  - SOWING ROWS along x (the tufts are planted on 0.85 m rows): dark soil
+   *    lines between rows, faded out by 140 m before they can moiré
+   *  - stand density patches (2-10 m): thin, lodged and lush areas
+   *  - maturity drift across the parcel: greener by the ditches, gold inside */
+  const wxz = positionWorld.xz;
+  const carpetD = positionWorld.sub(cameraPosition).length();
+  const rowF = fract(wxz.y.div(0.85));
+  const rowLine = smoothstep(0.0, 0.18, rowF).mul(smoothstep(1.0, 0.82, rowF));
+  const rowK = smoothstep(140, 45, carpetD).mul(0.3);
+  const rows = float(1).sub(rowLine.oneMinus().mul(rowK));
+  const stand = fbm2(wxz.div(6.5), 3).mul(0.5).add(0.5);
+  const patchy = mix(float(0.78), float(1.14), smoothstep(0.25, 0.75, stand));
+  const ripe = valueNoise2(wxz.div(31).add(17.3));
+  const gold = vec3(1.18, 1.02, 0.78);
+  const ripeTint = mix(vec3(1, 1, 1), gold, smoothstep(0.35, 0.85, ripe).mul(0.55));
+  carpetMat.colorNode = ctone.mul(ripeTint).mul(patchy).mul(rows);
   carpetMat.roughnessNode = float(0.9);
   carpetMat.metalnessNode = float(0);
   carpetMat.polygonOffset = true;

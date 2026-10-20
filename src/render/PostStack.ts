@@ -32,6 +32,7 @@ import {
   luminance,
   mix,
   mrt,
+  mx_noise_float,
   output,
   pass,
   screenSize,
@@ -271,25 +272,31 @@ export class PostStack {
       const viewDirV0 = getViewPosition(screenUV, float(0.5), uProjInv).normalize();
       const dirW0 = uCamWorld.mul(vec4(viewDirV0, 0)).xyz;
       const dist0 = getViewPosition(screenUV, d0, uProjInv).length();
-      // strongest for grazing rays 40–800 m out; none on sky or near field
-      const grazing = smoothstep(0.25, 0.04, dirW0.y.abs());
+      // strongest for grazing rays 40–800 m out; none on sky or near field.
+      // (v1.1) only rays that truly SKIM the hot ground: at |dir.y| < 0.25
+      // the whole lower half of a pyramid 400 m away shimmered
+      const grazing = smoothstep(0.1, 0.015, dirW0.y.abs());
       const band = smoothstep(40, 120, dist0).mul(smoothstep(1400, 500, dist0));
       const k = float(uShimmer)
         .mul(grazing)
         .mul(band)
         .mul(isSky0.select(float(0), float(1)));
-      const t = float(uWorldTime);
-      const wob = hash12(
-        screenUV.mul(vec2(230.7, 71.3)).add(t.mul(vec2(0.9, 1.7)).fract()),
-      )
-        .sub(0.5)
-        .mul(2);
-      const wob2 = hash12(
-        screenUV.mul(vec2(97.1, 189.3)).add(t.mul(vec2(1.3, 0.7)).fract()),
-      )
-        .sub(0.5)
-        .mul(2);
-      return screenUV.add(vec2(wob2.mul(0.4), wob).mul(k).mul(0.0028));
+      // (v1.1) SMOOTH noise, not a per-pixel hash: hash12(screenUV·k) is
+      // white noise, so every pixel jumped up to ~4 px on its own and noon
+      // edges dissolved into dither. Heat shimmer is a low-frequency,
+      // mostly vertical wobble of rows of the image, drifting with time.
+      // the noise only runs where the shimmer is live (k > 0): most hours
+      // and most pixels pay nothing
+      const uvOut = screenUV.toVar();
+      If(k.greaterThan(1e-4), () => {
+        const t = float(uWorldTime);
+        const aspect = screenSize.x.div(screenSize.y);
+        const q = vec3(screenUV.x.mul(aspect).mul(46), screenUV.y.mul(210), t.mul(1.8));
+        const wob = mx_noise_float(q);
+        const wob2 = mx_noise_float(q.mul(vec3(0.7, 0.55, 1.3)).add(vec3(17.3, 5.1, 0)));
+        uvOut.assign(screenUV.add(vec2(wob2.mul(0.35), wob).mul(k).mul(0.0016)));
+      });
+      return uvOut;
     })();
 
     // --- aerial perspective from depth -----------------------------------------

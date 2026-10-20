@@ -14,6 +14,7 @@
  */
 
 import { BufferAttribute, BufferGeometry, InstancedMesh, Mesh, Sphere, Vector3 } from 'three';
+import { DataTexture, FloatType, LinearFilter, RedFormat } from 'three';
 import { IrradianceNode, MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
   clamp,
@@ -29,6 +30,7 @@ import {
   positionLocal,
   positionWorld,
   sin,
+  texture,
   transformNormalToView,
   uniform,
   vec2,
@@ -38,6 +40,56 @@ import {
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { PyramidSpec } from './PyramidSpec';
+import { valueNoise3 } from '../core/NoiseJS';
+
+/** Tura casing albedo — fresh-dressed limestone is white with a cream cast
+ *  (v1.1: 0.87/0.845/0.79 measured sat 0.03 at noon — it read as plaster) */
+const TURA = [0.88, 0.84, 0.755] as const;
+
+/**
+ * Batch mottling (v1.1): casing stone came off the quarry face in batches
+ * whose tone differs by a few percent, so a newly finished face reads as
+ * faintly clouded at 5-15 m scale — the per-stone jitter alone averages
+ * out sub-pixel past ~300 m and the faces went flat.
+ *
+ * A pyramid's surface is a height field over xz, so the field only needs
+ * two dimensions: it is baked ONCE on the CPU into a small texture over the
+ * footprint. The near stones take it per INSTANCE (sampled at the stone
+ * centre into a spare buffer channel); the far shell samples the same
+ * texture — one source, so the LOD switch cannot pop. (The first version
+ * evaluated two 3D Perlin noises per VERTEX of 63k stones in every shadow
+ * cascade and cost bm3 a quarter of its frame rate.)
+ */
+const MOTTLE_RES = 256;
+function bakeMottle(cx: number, cz: number, side: number): { data: Float32Array; tex: DataTexture } {
+  const data = new Float32Array(MOTTLE_RES * MOTTLE_RES);
+  for (let j = 0; j < MOTTLE_RES; j++) {
+    for (let i = 0; i < MOTTLE_RES; i++) {
+      const x = cx - side / 2 + ((i + 0.5) / MOTTLE_RES) * side;
+      const z = cz - side / 2 + ((j + 0.5) / MOTTLE_RES) * side;
+      data[j * MOTTLE_RES + i] =
+        1 + valueNoise3(x / 14, 0, z / 14, 7331) * 0.034 + valueNoise3(x / 4.6, 0, z / 4.6, 9127) * 0.014;
+    }
+  }
+  const tex = new DataTexture(data, MOTTLE_RES, MOTTLE_RES, RedFormat, FloatType);
+  tex.magFilter = LinearFilter;
+  tex.minFilter = LinearFilter;
+  tex.needsUpdate = true;
+  return { data, tex };
+}
+function sampleMottle(data: Float32Array, u: number, v: number): number {
+  const gx = Math.min(Math.max(u * MOTTLE_RES - 0.5, 0), MOTTLE_RES - 1.001);
+  const gz = Math.min(Math.max(v * MOTTLE_RES - 0.5, 0), MOTTLE_RES - 1.001);
+  const x0 = Math.floor(gx);
+  const z0 = Math.floor(gz);
+  const fx = gx - x0;
+  const fz = gz - z0;
+  const at = (x: number, z: number): number => data[z * MOTTLE_RES + x] ?? 1;
+  return (
+    (at(x0, z0) * (1 - fx) + at(x0 + 1, z0) * fx) * (1 - fz) +
+    (at(x0, z0 + 1) * (1 - fx) + at(x0 + 1, z0 + 1) * fx) * fz
+  );
+}
 
 /**
  * Wire the probe field into a material as its ambient/light-map term.
@@ -124,7 +176,8 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   // --- pack instance buffers --------------------------------------------------
   const dataA = new Float32Array(n * 4); // s, y0, h, w
   const dataB = new Float32Array(n * 4); // face, tone, rough, tiltU
-  const dataT = new Float32Array(n * 2); // tiltV, (spare)
+  const dataT = new Float32Array(n * 2); // tiltV, mottle
+  const mottle = bakeMottle(p.cx, p.cz, p.baseSide * 1.02);
   for (let k = 0; k < n; k++) {
     const st = spec.stones[k] as NonNullable<(typeof spec.stones)[0]>;
     dataA[k * 4 + 0] = st.s;
@@ -136,6 +189,22 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
     dataB[k * 4 + 2] = st.rough;
     dataB[k * 4 + 3] = st.tiltU;
     dataT[k * 2 + 0] = st.tiltV;
+    {
+      // stone centre in world xz (face frame as in the vertex stage below)
+      const yMid = st.y0 + st.h * 0.5;
+      const halfMid = (p.baseSide / 2) * (1 - yMid / p.height);
+      const sC = st.s - halfMid;
+      const nfx = st.face === 1 ? 1 : st.face === 3 ? -1 : 0;
+      const nfz = st.face === 2 ? 1 : st.face === 0 ? -1 : 0;
+      const wxS = p.cx + -nfz * sC + nfx * halfMid;
+      const wzS = p.cz + nfx * sC + nfz * halfMid;
+      const side = p.baseSide * 1.02;
+      dataT[k * 2 + 1] = sampleMottle(
+        mottle.data,
+        (wxS - (p.cx - side / 2)) / side,
+        (wzS - (p.cz - side / 2)) / side,
+      );
+    }
   }
   const bufA = instancedArray(dataA, 'vec4');
   const bufB = instancedArray(dataB, 'vec4');
@@ -181,8 +250,23 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   // buffer and GTAO turned that noise into per-stone occlusion blotches
   // (the "waffle" bug) — 1.4 cm of daylight keeps every wall distinct
   const JOINT = 0.014;
+  // MITRED CORNERS (v1.1): stones are laid out by the face width at course
+  // MID-height, but the face narrows ~0.4 m per half-course at 51.8°, so the
+  // end stone of every course poked its top corners past the arris — a
+  // zipper of teeth up all four edges. Real corner stones were cut to the
+  // arris: clamp each vertex's along-face coordinate to the face half-width
+  // at that VERTEX's own height.
+  const vY = yMid
+    .add(local.y.mul(slantH.sub(JOINT)).mul(sinT))
+    .add(local.z.sub(0.5).mul(STONE_DEPTH).mul(cosT));
+  const hwV = uHalf.mul(float(1).sub(vY.div(uHeight)));
+  const aV = clamp(
+    sC.add(local.x.mul(A.w.sub(JOINT))),
+    hwV.negate().add(JOINT),
+    hwV.sub(JOINT),
+  );
   const wpos = centerPos
-    .add(along.mul(local.x.mul(A.w.sub(JOINT))))
+    .add(along.mul(aV.sub(sC)))
     .add(upSlope.mul(local.y.mul(slantH.sub(JOINT))))
     .add(outN.mul(local.z.mul(STONE_DEPTH)));
   mat.positionNode = wpos;
@@ -203,9 +287,12 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   // (instanceIndex exists only in the vertex stage — carry via varyings)
   const tone = varying(B.y) as unknown as NF;
   const striate = varying(hash(instanceIndex.add(17))) as unknown as NF;
-  const baseCol = vec3(0.87, 0.845, 0.79);
-  mat.colorNode = baseCol.mul(tone).mul(float(1).sub(striate.mul(0.03)));
-  mat.roughnessNode = clamp(float(0.42).add(varying(B.z) as unknown as NF), 0.25, 0.6);
+  const stoneMottle = varying(T.y) as unknown as NF;
+  const baseCol = vec3(...TURA);
+  mat.colorNode = baseCol.mul(tone).mul(stoneMottle).mul(float(1).sub(striate.mul(0.03)));
+  // (v1.1) dressed Tura limestone is HONED, not polished: at 0.42 the faces
+  // seen edge-on mirrored the zenith and the queens read as blue steel
+  mat.roughnessNode = clamp(float(0.62).add(varying(B.z) as unknown as NF), 0.45, 0.8);
   mat.metalnessNode = float(0);
   // shaded casing faces pick up sand/sky bounce from the probe field —
   // a modest lift keeps base courses sampling above the pavement layer
@@ -289,9 +376,12 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   // stone-scale jitter from quantized world cells (reads as texture at range)
   const cell = floor(positionWorld.xz.mul(0.65)).add(courseIdx.mul(7.13));
   const stoneJ = hash(cell.x.add(cell.y.mul(113.1))).mul(0.04);
-  farMat.colorNode = vec3(0.87, 0.845, 0.79)
+  const mSide = p.baseSide * 1.02;
+  const mUv = positionWorld.xz.sub(vec2(p.cx - mSide / 2, p.cz - mSide / 2)).div(mSide);
+  farMat.colorNode = vec3(...TURA)
+    .mul(texture(mottle.tex, mUv).x)
     .mul(float(1).sub(bandJ).sub(stoneJ));
-  farMat.roughnessNode = float(0.45);
+  farMat.roughnessNode = float(0.64); // matches the near stones (v1.1)
   farMat.metalnessNode = float(0);
   giLightMap(farMat, gi, normalWorld as unknown as NV3, 2.5);
   const far = new Mesh(farGeo, farMat);
