@@ -192,7 +192,7 @@ function figureGeometry(rng: Rng, carrying: boolean): BufferGeometry {
 /* work lines                                                          */
 /* ------------------------------------------------------------------ */
 
-interface Gang {
+export interface Gang {
   /** file start and end (the figures ping-pong between them) */
   x0: number;
   z0: number;
@@ -326,10 +326,13 @@ export function buildInhabitants(
   gi: ProbeGI | null,
   preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
   cull = true,
+  /** work lines contributed by other systems (the farmsteads' threshers) */
+  extra: readonly Gang[] = [],
 ): InhabitantCounts {
   const rng = seed.rng('inhabitants');
   const budget = FIGURE_BUDGET[preset];
-  const gangs = workLines();
+  // extra lines go LAST so the canon lines keep their random draws
+  const gangs = [...workLines(), ...extra];
   const wanted = gangs.reduce((a, g) => a + g.n, 0);
   const scale = Math.min(1, budget / wanted);
 

@@ -23,6 +23,7 @@ import { setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
 import { SunSky } from '../sky/SunSky';
 import { buildFields } from '../vegetation/Fields';
+import { buildFarmsteads } from '../vegetation/FarmDistrict';
 import { buildPalms } from '../vegetation/Palms';
 import { buildShore } from '../vegetation/Shore';
 import { NileWater } from '../water/NileWater';
@@ -126,6 +127,15 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.stats.counters['veg.palms'] = palmCount;
   engine.stats.counters['veg.tufts'] = fields.count;
   engine.stats.counters['veg.parcels'] = fields.parcels;
+  // farmsteads on a share of the fallow parcels (v1.1) — before the
+  // inhabitants, whose obstacle field reads their footprints
+  const farms = buildFarmsteads(scene, seed, hf, gi, fields.fallow);
+  engine.stats.counters['farms'] = farms.farms;
+  engine.stats.counters['cattle'] = farms.cattle;
+  console.log(
+    `[akhet] farmsteads: ${farms.farms}, cattle ${farms.cattle}; floors ` +
+      farms.floors.slice(0, 4).map(([x, z]) => `(${x.toFixed(0)}, ${z.toFixed(0)})`).join(' '),
+  );
 
   ctx.progress(0.905, 'shorelines: papyrus, reeds, shade trees');
   const shore = buildShore(scene, seed, hf, gi, engine.params.preset, perf.cull);
@@ -143,7 +153,12 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   engine.onUpdate(() => particles.tick(camera));
 
   ctx.progress(0.9092, 'inhabited: worker gangs, ox trains, scaffolding');
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull);
+  // threshers at each farmstead floor: a short line across it, mostly
+  // standing — winnowing, raking, driving the cattle round
+  const threshers = farms.floors.map(([fx, fz]) => ({
+    x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
+  }));
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, threshers);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

@@ -6,7 +6,11 @@
 > `reference-repos/fable5-world-demo/docs/THREE-NOTES.md` (verified API
 > gotchas for the pinned three.js). Never re-plan from scratch; continue from
 > "Next actions". Update this file after every meaningful step. Commit per
-> milestone. HARD RULE from the human: **no sub-agents** — all work inline.
+> milestone. HARD RULE from the human: **no sub-agents for code** — all code,
+> geometry, shaders and decisions inline by the main agent. Amended by the
+> human 2026-10-20: read-only sub-agents (Haiku) MAY do QA and reconnaissance
+> — screenshot review, code search, canon cross-checks — reporting findings
+> with evidence; every finding is verified by the main agent before any change.
 
 ## Mission (1 paragraph)
 

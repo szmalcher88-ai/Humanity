@@ -81,9 +81,21 @@ function tuftGeometry(BLADES: number): BufferGeometry {
   return g;
 }
 
+/** one crop parcel (world-axis aligned) */
+export interface Parcel {
+  x0: number;
+  z0: number;
+  w: number;
+  d: number;
+  tone: [number, number, number];
+  density: number;
+}
+
 export interface ParcelInfo {
   count: number;
   parcels: number;
+  /** parcels left bare (fallow) — farmsteads are built on a share of them */
+  fallow: Parcel[];
 }
 
 export function buildFields(
@@ -100,14 +112,6 @@ export function buildFields(
     preset === 'safe' ? FADE_FAR_SAFE : preset === 'low' ? FADE_FAR_LOW : FADE_FAR;
 
   /* --- parcel plan: strips along the river on both banks ------------------ */
-  interface Parcel {
-    x0: number;
-    z0: number;
-    w: number;
-    d: number;
-    tone: [number, number, number];
-    density: number;
-  }
   const parcels: Parcel[] = [];
   const PATH = 3.5; // path/ditch gap between parcels
   // keep the harbor basin, approach channel and valley-temple forecourt clear
@@ -328,5 +332,5 @@ export function buildFields(
     );
   }
 
-  return { count, parcels: parcels.length };
+  return { count, parcels: parcels.length, fallow: parcels.filter((p) => p.density === 0) };
 }
