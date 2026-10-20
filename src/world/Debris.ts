@@ -54,9 +54,12 @@ function chipGeometry(rng: Rng): BufferGeometry {
     [rng.range(-0.25, 0.25), rng.range(0.5, 0.9), rng.range(-0.25, 0.25)],
     [rng.range(-0.2, 0.2), -0.15, rng.range(-0.2, 0.2)],
   ] as const;
+  // (v1.1) wound OUTWARD — the first table faced every triangle into the
+  // chip: from outside the near faces were culled and the far faces showed
+  // their insides, lit upside-down by inward normals
   const F = [
-    [0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4],
-    [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5],
+    [0, 4, 2], [2, 4, 1], [1, 4, 3], [3, 4, 0],
+    [2, 5, 0], [1, 5, 2], [3, 5, 1], [0, 5, 3],
   ] as const;
   for (const f of F) {
     for (const i of f) pos.push(...(vx[i] as readonly number[]));

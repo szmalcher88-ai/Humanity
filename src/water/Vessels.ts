@@ -264,9 +264,21 @@ export function buildHarbor(
   /** waterline for an afloat hull — but if the bed is too shallow for the
    *  draft (bank margins, sandbars), seat the keel ON the ground instead.
    *  Fixed-Y placement half-buried the beached skiffs and floated others. */
-  const floatY = (x: number, z: number, draft: number): number => {
+  const floatY = (x: number, z: number, draft: number, yaw = 0, half = 0): number => {
     const bed = hf.heightAtCpu(x, z);
-    return bed > NILE_WATER_Y - draft - 0.25 ? bed + draft * 0.85 : NILE_WATER_Y;
+    if (bed <= NILE_WATER_Y - draft - 0.25) return NILE_WATER_Y;
+    return seatY(x, z, yaw, half, bed) + draft * 0.85;
+  };
+  /** (v1.1) a hull grounded on a shelving bank sat on the bed under its
+   *  CENTRE, so bow or stern hung in the air: seat it on the lowest of bow,
+   *  midships and stern (the high end digs into the bank, as a beached hull
+   *  does) — at most 0.6 m below the centre, the audit's keel tolerance */
+  const seatY = (x: number, z: number, yaw: number, half: number, bed = hf.heightAtCpu(x, z)): number => {
+    if (half <= 0) return bed;
+    const c = Math.cos(yaw);
+    const s = Math.sin(yaw);
+    const low = Math.min(bed, hf.heightAtCpu(x + c * half, z + s * half), hf.heightAtCpu(x - c * half, z - s * half));
+    return Math.max(low, bed - 0.6);
   };
 
   /** eastward probe for the REAL waterline: first x with `depth` m of water.
@@ -350,9 +362,9 @@ export function buildHarbor(
     }
     anchored.push([x, z]);
     const yawB = rng.float() * Math.PI * 2;
-    if (i % 3 === 0) barge(w, rng, x, z, yawB, floatY(x, z, 0.9));
-    else if (i % 3 === 1) traveler(w, rng, x, z, yawB, floatY(x, z, 0.6));
-    else skiff(w, rng, x, z, yawB, floatY(x, z, 0.2));
+    if (i % 3 === 0) barge(w, rng, x, z, yawB, floatY(x, z, 0.9, yawB, 9));
+    else if (i % 3 === 1) traveler(w, rng, x, z, yawB, floatY(x, z, 0.6, yawB, 7));
+    else skiff(w, rng, x, z, yawB, floatY(x, z, 0.2, yawB, 2.6));
     vessels++;
   }
 
@@ -379,7 +391,8 @@ export function buildHarbor(
     let sx = 1750;
     while (sx < 1980 && hf.heightAtCpu(sx + 4, z) > NILE_WATER_Y + 0.25) sx += 4;
     const x = sx - 5 + rng.range(-3, 2);
-    skiff(w, rng, x, z, rng.range(0.8, 2.2), hf.heightAtCpu(x, z) + 0.17);
+    const yawS = rng.range(0.8, 2.2);
+    skiff(w, rng, x, z, yawS, seatY(x, z, yawS, 2.6) + 0.17);
     vessels++;
   }
 

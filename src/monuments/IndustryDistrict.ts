@@ -174,7 +174,7 @@ export function buildIndustryDistrict(
       box(mud, su - 3.9, y, sv, 0.5, 2.5, 5.0, 0.56, 0.02);
       box(mud, su + 3.9, y, sv, 0.5, 2.5, 5.0, 0.56, 0.02);
       box(clay, su, y + 2.5, sv, 8.8, 0.12, 5.6, 1.15);
-      for (let w0 = 0; w0 < 3; w0++) box(wood, su - 2.5 + w0 * 2.5, y + 0.3, sv + 0.6, 0.5, 0.75, 0.5, 0.8); // wheels' turning seats
+      for (let w0 = 0; w0 < 3; w0++) box(wood, su - 2.5 + w0 * 2.5, y + 0.3, sv + 0.6, 0.5, 0.75, 0.5, 0.8); // tournettes: hand-turned slow wheels (the fast kick wheel is Late Period)
       reg('potter-shed', su, sv, 4.1, 2.8, y, y + 2.7);
     }
     // the clay heap, still wet on its north side

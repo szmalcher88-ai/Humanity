@@ -17,7 +17,7 @@
  *  2. OX SLEDGE TRAINS — a static tableau: teams yoked to a wooden sledge
  *     with a dressed block on it, ropes running forward to the haul gang.
  *     Static on purpose; the life comes from the gang leaning into the ropes.
- *  3. SCAFFOLDING — timber falsework, a lever crane and a rubble construction
+ *  3. SCAFFOLDING — timber falsework, a block on its sledge and a rubble construction
  *     ramp on the mortuary temple's SE corner: the one building visibly
  *     unfinished, which is what dates the whole frame.
  *
@@ -677,16 +677,25 @@ export function buildInhabitants(
     for (let i = 0; i < 7; i++) {
       wood.box(bx - 2.2 + i * 1.6, gy + 6.1, bz - 0.9, 1.5, 0.09, 4.4, 0.34, 0, 0);
     }
-    // a shaduf-style lever crane: mast, pivoted beam, counterweight, load.
-    // WEST of the falsework and SOUTH of z=26: the first placement put the
-    // mast at z 24.4, i.e. standing inside the mortuary temple.
+    // (v1.1) the block arrives the Old Kingdom way: on a sledge at the
+    // foot of the rubble ramp, tow ropes laid out ahead of it, and a stack of
+    // timber levers for the last centimetres. This replaced a "shaduf-style
+    // lever crane" — the shaduf is New Kingdom, and canon says "no fantasy
+    // cranes" (Haiku canon audit). Same spot: WEST of the falsework and
+    // SOUTH of z=26 (z 24.4 stood inside the mortuary temple).
     const mx = bx - 6.5;
     const mz = bz + 2;
     const my = hf.heightAtCpu(mx, mz);
-    wood.box(mx, my, mz, 0.26, 5.4, 0.26, 0.28, 0.02, 0.3);
-    wood.box(mx, my + 5.2, mz, 7.6, 0.18, 0.18, 0.3, 0, 0.3);
-    w.box(mx + 3.1, my + 4.55, mz + 1.0, 0.9, 0.7, 0.9, 0.55, 0.06, 0.3);
-    w.box(mx - 3.3, my + 2.2, mz - 1.05, 1.1, 0.9, 1.1, 0.9, 0.02, 0.3);
+    for (const s of [-0.6, 0.6]) wood.box(mx, my - 0.02, mz + s, 3.4, 0.22, 0.26, 0.3, 0, 0.3);
+    wood.box(mx, my + 0.2, mz, 3.1, 0.12, 1.4, 0.34, 0, 0.3);
+    w.box(mx, my + 0.32, mz, 1.9, 1.05, 1.2, 0.9, 0.012, 0.3);
+    for (const s of [-0.35, 0.35]) {
+      // tow ropes running ahead up the ramp line
+      wood.box(mx + 3.6, my + 0.05, mz + s, 4.2, 0.06, 0.06, 0.62, 0, 0.3);
+    }
+    for (let k = 0; k < 4; k++) {
+      wood.box(mx - 2.6, my + k * 0.13, mz - 1.4 + k * 0.1, 3.2, 0.12, 0.14, 0.28, 0, 0.3 + (k % 2) * 0.2);
+    }
     void sc;
   }
 

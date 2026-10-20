@@ -52,7 +52,7 @@ falsework on the temple's unfinished corner, the eastern cemetery beyond.
 
 ![queens and temple](docs/gallery/queens-and-temple.jpg)
 
-**Construction tableau** — timber falsework, a lever crane and a rubble ramp on
+**Construction tableau** — timber falsework, a block on its sledge and a rubble ramp on
 the temple's south-east corner, late afternoon.
 
 ![temple scaffolding](docs/gallery/temple-scaffolding.jpg)

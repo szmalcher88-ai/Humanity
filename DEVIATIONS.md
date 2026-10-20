@@ -109,3 +109,14 @@ The colour script's night keyframe assumes a readable moonlit blue silhouette.
 the casing's 198.1 — the monument and its ground were the same tone.
 **Confidence:** B (published reflectance ranges for the materials).
 **Code:** `src/render/TerrainMaterial.ts`.
+
+## D-13 — Night lighting on posts
+**Chosen (Phase 7 night rig, declared v1.1):** fire bowls raised on wooden posts
+along the gallery street, at the Wall of the Crow gate and at the quay head.
+**Why:** a night frame needs a few readable light sources at eye height; the
+canon names only "torch lighting", and Old Kingdom evidence is for hand-held
+torches, hearths and small oil lamps — not for fixed street lighting. The posts
+are a cinematic convention, flagged by the v1.1 canon audit, kept and declared.
+**Alternatives:** torches held by figures; hearths and braziers on the ground.
+**Confidence:** n/a (art direction, declared).
+**Code:** `src/monuments/Torches.ts`.

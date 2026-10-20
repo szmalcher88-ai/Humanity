@@ -130,6 +130,10 @@ export class GeoWriter {
     quad(b3, b2, t2, t3); // south
     quad(b0, b3, t3, t0); // west
     quad(t0, t3, t2, t1); // top
+    // (v1.1) the box had no bottom: every raised box — lintels, portico and
+    // causeway roofs, the Wall of the Crow's gate beam — was open underneath,
+    // and from below you looked through it at the sky
+    quad(b0, b1, b2, b3); // bottom
   }
 
   build(): BufferGeometry {
@@ -313,9 +317,12 @@ export function buildKhufuComplex(
     // N/S runs batter their ENDS too (explicit batterZ): at the corners
     // their ends must lean with the side walls' outer faces, or a plumb end
     // stands proud of a battered face — a wedge up every corner (v1.1)
-    local.box(0, 0, -r, 2 * r + th, h, th, 0.98, 0.06, 0, 0.06); // north
-    local.box(0, 0, r, 2 * r + th, h, th, 0.97, 0.06, 0, 0.06); // south
-    local.box(-r, 0, 0, th, h, 2 * r + th, 0.99, 0.06); // west
+    // (and the west run batters its ENDS too, else its plumb end stands
+    // proud of the N/S faces at NW/SW; the N/S runs stop 2 cm short of the
+    // west wall's outer plane so the corner faces are not coplanar)
+    local.box(0.02, 0, -r, 2 * r + th - 0.04, h, th, 0.98, 0.06, 0, 0.06); // north
+    local.box(0.02, 0, r, 2 * r + th - 0.04, h, th, 0.97, 0.06, 0, 0.06); // south
+    local.box(-r, 0, 0, th, h, 2 * r + th, 0.99, 0.06, 0, 0.06); // west
     const wall = (id: string, x: number, z: number, hx: number, hz: number): void =>
       fpReg({
         id: `temenos:${id}`, family: 'temenos', x, z, hx, hz,
@@ -357,7 +364,7 @@ export function buildKhufuComplex(
       local.box(xw, 0, -(doorHalf + sideRun / 2), th, h, sideRun, 1.0, 0.04);
       local.box(xw, 0, doorHalf + sideRun / 2, th, h, sideRun, 1.0, 0.04);
       // lintels over the doorways
-      local.box(xw, h - 1.4, 0, th - 2 * 0.04 * (h - 1.4), 1.4, doorHalf * 2 + 0.04, 0.98, 0.04, 0, 0);
+      local.box(xw, h - 1.4, 0, th - 2 * 0.04 * (h - 1.4), 1.4, doorHalf * 2, 0.98, 0.04, 0, 0);
     }
     // inner statue-court pillars (two rows, granite-toned via dark tone)
     const t = rng.fork('mt-pillars');
@@ -504,7 +511,8 @@ export function buildKhufuComplex(
     const L = 36;
     // platform pedestal
     local.box(vx, vy - 5, vz, W + 10, 5.2, L + 10, 0.92, 0.04);
-    tura.box(vx, vy + 0.02, vz, W + 8, 0.18, L + 8, 0.97);
+    // floor top 2 cm ABOVE the pedestal top (both at vy+0.20 z-fought)
+    tura.box(vx, vy + 0.02, vz, W + 8, 0.2, L + 8, 0.97);
     // heavy walls, west door (to causeway) + two east doors (from harbor)
     // end walls batter all four faces (corner wedges — see the temenos)
     local.box(vx, vy, vz - L / 2 + th / 2, W, h, th, 0.99, 0.05, 0, 0.05);
@@ -520,7 +528,7 @@ export function buildKhufuComplex(
       local.box(xw, vy, vz + (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
       // lintel battered on its faces only, and as thick as the jambs ARE at
       // that height — a plumb lintel stood proud of the leaning wall face
-      local.box(xw, vy + h - 1.5, vz, th - 2 * 0.05 * (h - 1.5), 1.5, dHalf * 2 + 0.04, 0.97, 0.05, 0, 0);
+      local.box(xw, vy + h - 1.5, vz, th - 2 * 0.05 * (h - 1.5), 1.5, dHalf * 2, 0.97, 0.05, 0, 0);
     }
     fpReg({
       id: 'valley-temple', family: 'temple', x: vx, z: vz,
@@ -625,7 +633,11 @@ export function buildKhufuComplex(
         if (chapel) {
           const cx2 = x + W / 2 + 1.6;
           const cz2 = z + chapelDz;
-          local.box(cx2, grd(cx2, cz2) - 0.4, cz2, 3.2, 3.0, 4.2, 0.9, 0.06);
+          // lowest corner, like the tomb it leans on (centre seating
+          // floated one end on the cemetery's slopes)
+          const cy2 = Math.min(grd(cx2 - 1.6, cz2 - 2.1), grd(cx2 + 1.6, cz2 - 2.1),
+            grd(cx2 + 1.6, cz2 + 2.1), grd(cx2 - 1.6, cz2 + 2.1));
+          local.box(cx2, cy2 - 0.3, cz2, 3.2, 3.0, 4.2, 0.9, 0.06);
         }
       }
     }
@@ -665,7 +677,9 @@ export function buildKhufuComplex(
         if (te.chance(0.6)) {
           const cx2 = x + W / 2 + 1.8;
           const cz2 = z + te.range(-L / 3, L / 3);
-          local.box(cx2, grd(cx2, cz2) - 0.4, cz2, 3.6, 3.2, 4.6, 0.92, 0.06);
+          const cy2 = Math.min(grd(cx2 - 1.8, cz2 - 2.3), grd(cx2 + 1.8, cz2 - 2.3),
+            grd(cx2 + 1.8, cz2 + 2.3), grd(cx2 - 1.8, cz2 + 2.3));
+          local.box(cx2, cy2 - 0.3, cz2, 3.6, 3.2, 4.6, 0.92, 0.06);
         }
       }
     }
