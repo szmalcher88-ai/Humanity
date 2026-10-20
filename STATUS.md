@@ -394,6 +394,61 @@ HAIKU — ITERATION I2 (5 agents, read-only, every finding verified):
 VERDICT: recon briefed with the build question (constraints, numbers, the
 API recipe) stays at ~95 %. Keep it.
 
+I3 — TOWN LIFE (done; canon Vol VIII + Vol IV District 6–7):
+1. NEW BUILDINGS on two new terraces (levels from the new `tools/ground.ts`,
+   the cut/fill mean of the ground they replace): a BREWERY beside the
+   bakeries (walled yard, roofed shed over six mash vats in a bench, fourteen
+   sealed fermentation jars, hearth with its smoke, grain bins, donkeys with
+   panniers at the gate) and a PHYSICIANS' HOUSE (two rooms, a treatment
+   court: a patient on a bed, the physician kneeling, an assistant with a
+   basin, herb jars — "practical rather than mystical"). In the RAB court a
+   SCRIBAL OFFICE: a portico, shelves of papyrus rolls, four scribes seated
+   cross-legged with writing boards, an overseer.
+2. THE PUBLIC COURT in the eastern town: six house cells drawn as before but
+   written into a throwaway writer (the town's random stream is unchanged),
+   leaving a ~28 × 17 m square with the town's FIRST WELL (Haiku: there was
+   no water source inside the walls), benches, two men at senet under a
+   shade, women at querns, children at play, a dog, and water carriers —
+   children (the gangs now take a height scale, no new random draw; their
+   stride and speed scale with it) and women walking well ↔ lanes.
+3. INDUSTRIAL QUARTER: a WEAVING TERRACE (three horizontal ground looms with
+   warp and web, weavers squatting, spinners with drop-spindles, linen bolts),
+   a STONE-CARVING lean-to (a seated statue roughed out, a block half-dressed,
+   chips, copper chisels, a mallet, carvers at work) and the town's managed
+   WASTE (a raked ash pit, a heap built of broken pottery).
+4. ANIMALS (new `src/monuments/Townsfolk.ts`: box figures and animals in one
+   coloured mesh): goats, hair sheep with horizontal horns, donkeys, Egyptian
+   geese and tesem dogs — in the pens (empty until now), at tethers, as a
+   flock by the woodpiles, a dog at the Wall of the Crow gate. Never random.
+5. BUGS the Haiku sweep found, all confirmed and fixed: `Gang.carry` was dead
+   data (the carrying figure went to every second figure by index, whatever
+   the gang); the gallery-street, bakery-yard and Wall-of-the-Crow-gate gangs
+   were laid in WORLD offsets, not the rotated town frame (the street ran
+   through a barrack block, the gate gang stood 90 m west of the gate,
+   outside the wall); one 70 × 80 m footprint over the eastern town and one
+   116 × 24 m box over the bakeries made every lane and yard solid → one
+   footprint per house and per bakery; pens, woodpiles and the enclosure
+   wall had no footprints; the enclosure's promised gates did not exist →
+   three 5 m gates; its east run cut through the easternmost houses and lay
+   buried 3.7 m at the terrace edge (unregistered, never audited) → moved
+   out, stopped at the edge (the town's east gate). Figures: 996 placed,
+   99 moved off structures, 5 dropped (v1.2 I2: 960 / 157 / 27).
+Battery 18/19 + 1 WARN — perf bm1 77 / bm3 68 / bm7 43 @1440p (threshold 45).
+A/B in one sitting at bm7, alternated twice, `?hide=townsfolk,industry-folk`:
+44–45 fps with the new meshes vs 43–44 without — they cost nothing; bm7 has
+read 46 / 44 / 43 across the v1.2 batteries (I7: profile it). Audit clean.
+
+HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon VIII town requirements vs code | 22 | 22 — the gap list this iteration built from |
+| B | worker-town layout, free space | 18 | 18 — incl. three bugs: world-offset gangs, the gateless enclosure through the houses, unregistered pens |
+| C | industrial-quarter free space | 22 | 22 — the weaving, carving and waste sites came straight from its F1/F2/F5 |
+| D | animals: how they are built and where they live | 18 | 17 — one opinion row (pen-wall height) |
+| E | children and carriers in the figure system | 18 | 18 — incl. the dead `carry` field, no well in town, the rng-draw order that let children scale for free |
+VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
+finding real bugs on the side.
+
 ### CANON VOLS VII–IX (added 2026-10-20) — what they change
 
 Precedence stays: brief > canon > model judgment (brief, "What this
@@ -439,11 +494,11 @@ GitHub Pages stays OFF until the human calls the project ready.
 |---|---|---|
 | I1 | crews + life on the water | DONE (above) |
 | I2 | the river at work (canon IX §9.14–9.22) — DONE (above; wakes deferred to I7) | boats UNDERWAY on a navigation graph (spline-following in the vertex stage, wakes); the Tura limestone route as the flagship sequence (loaded barge arriving, unloading to a staging area, a scribe recording — Merer's diary, nothing invented); loaded hulls sitting lower; a general cargo vessel and a ceremonial vessel class; reed and papyrus cutters with bundles; a ferry crossing |
-| I3 | town life (canon VIII) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
+| I3 | town life (canon VIII) — DONE (above) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
 | I4 | the land | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
 | I5 | the necropolis + the monument | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
 | I6 | the harbour per canon IX §9.11–9.13 | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
-| I7 | polish + perf | water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
+| I7 | polish + perf | bm7 (quarry) drifted from 45–47 to 43–45 fps over v1.2 with no single cause found by A/B (fleet, townsfolk: zero cost) — profile it; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
 | T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)

@@ -30,6 +30,7 @@ import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { Heightfield } from '../world/Heightfield';
 import { WORKER_TOWN_YAW } from '../world/CANON_DIMENSIONS';
 import { townToWorld } from '../world/TownFrame';
+import { ColorWriter, addTownsfolk, person } from './Townsfolk';
 import { NILE_WATER_Y } from '../world/WorldConst';
 import { fpReg } from '../debug/Footprints';
 import { GeoWriter, limestoneMaterial } from './KhufuComplex';
@@ -59,6 +60,10 @@ export function buildIndustryDistrict(
   const clay = new GeoWriter();
   const ore = new GeoWriter();
   const wood = new GeoWriter();
+  const stone = new GeoWriter(); // (v1.2 I3) the carvers' limestone
+  const ash = new GeoWriter(); // (v1.2 I3) the town's ash
+  const folk = new ColorWriter(); // weavers, spinners, carvers
+  const fr = seed.rng('industry-folk');
   let pieces = 0;
 
   const W = (u: number, v: number): [number, number] => townToWorld(u, v);
@@ -269,6 +274,124 @@ export function buildIndustryDistrict(
     reg('rope-walk', u0, 152, 1.2, 61, grd(u0, 152) - 0.3, grd(u0, 152) + 1.2, true);
   }
 
+  /* --- (v1.2 I3) weaving terrace: horizontal ground looms (canon VIII
+   *      "Textile production"; the Old Kingdom loom lies on the ground, its
+   *      warp and breast beams pegged down, the weavers squatting beside it)
+   *      on the flat alluvium south-east of the brickyard --------------------- */
+  {
+    const linen: [number, number, number] = [0.86, 0.83, 0.74];
+    const warp: [number, number, number] = [0.78, 0.74, 0.62];
+    const y = low(160.5, 188, 9.5, 7) - 0.02;
+    // a reed-mat shade over the north half
+    for (const [du, dv] of [[-8.5, -6.2], [0, -6.2], [8.5, -6.2], [-8.5, -0.5], [0, -0.5], [8.5, -0.5]] as const) {
+      box(wood, 160.5 + du, y, 188 + dv, 0.12, 2.3, 0.12, 0.72);
+    }
+    box(clay, 160.5, y + 2.3, 184.65, 17.4, 0.07, 6.4, 1.2);
+    for (let k = 0; k < 3; k++) {
+      const lu = 154.5 + k * 6;
+      // each loom on its own highest ground, so the warp never dips into it
+      const yk = Math.max(grd(lu - 0.8, 182.8), grd(lu + 0.8, 182.8), grd(lu, 186.3), grd(lu - 0.8, 189.8), grd(lu + 0.8, 189.8));
+      // warp beam and breast beam, each held by two pegs
+      for (const lv of [182.8, 189.8]) {
+        box(wood, lu, yk + 0.02, lv, 1.7, 0.1, 0.12, 0.8);
+        for (const s of [-0.95, 0.95]) box(wood, lu + s, yk - 0.15, lv, 0.07, 0.34, 0.07, 0.75);
+      }
+      // the stretched warp and the woven web at the breast-beam end
+      const [wx0, wz0] = W(lu, 186.3);
+      folk.box(wx0, yk + 0.08, wz0, 1.45, 0.012, 6.9, warp, YAW);
+      const [wx1, wz1] = W(lu, 188.6);
+      folk.box(wx1, yk + 0.09, wz1, 1.45, 0.02, 2.3, linen, YAW);
+      for (const s of [-1, 1]) {
+        const [px, pz] = W(lu + s * 1.25, 188.4 - (k % 2) * 0.8);
+        person(folk, fr, px, y, pz, YAW + (s > 0 ? Math.PI : 0), 'squat', 1, [0.84, 0.81, 0.73]);
+      }
+    }
+    // spinners standing at the open half, drop-spindles hanging
+    for (let k = 0; k < 3; k++) {
+      const [px, pz] = W(153 + k * 4.5, 193.2);
+      person(folk, fr, px, y, pz, YAW - Math.PI / 2, 'stand', 1, [0.84, 0.81, 0.73]);
+      const [sx, sz] = W(153 + k * 4.5 - 0.3, 193.2);
+      folk.beam([sx, y + 0.95, sz], [sx, y + 0.55, sz], 0.012, [0.45, 0.35, 0.22]);
+      folk.box(sx, y + 0.5, sz, 0.09, 0.05, 0.09, [0.45, 0.35, 0.22], YAW); // the whorl
+    }
+    // flax bundles and finished bolts on a mat
+    box(clay, 167, y, 193, 2.4, 0.03, 1.6, 1.1);
+    for (let k = 0; k < 3; k++) {
+      const [bx, bz] = W(166.3 + k * 0.7, 193);
+      folk.box(bx, y + 0.03, bz, 0.5, 0.22, 1.1, linen, YAW);
+    }
+    reg('weaving', 160.5, 188, 9.6, 7, y, y + 2.4);
+  }
+
+  /* --- (v1.2 I3) stone-carving shed on the pottery terrace (canon IV
+   *      District 7 "Stone carving"): a seated statue roughed out of a
+   *      block, a block half-dressed, chips, chisels and mallets ------------ */
+  {
+    const cu = -21;
+    const cv = 112;
+    const y = grd(cu, cv) - 0.02;
+    // a lean-to over the back (north) third; the work lies open in front of
+    // it in the sun, as carvers worked
+    for (const du of [-5.6, 0, 5.6]) for (const dv of [-3.2, -0.6]) box(wood, cu + du, y, cv + dv, 0.14, 2.5, 0.14, 0.72);
+    box(clay, cu, y + 2.5, cv - 1.9, 12, 0.08, 3.4, 1.2);
+    box(mud, cu, y, cv - 3.3, 12, 1.6, 0.4, 0.56, 0.02); // its back wall
+    // the seated statue, roughed out: plinth, body, the head still a block
+    box(stone, cu - 2.5, y, cv, 1.4, 0.45, 1.1, 0.98);
+    box(stone, cu - 2.6, y + 0.45, cv, 1.0, 0.95, 0.85, 1.02, 0.04);
+    box(stone, cu - 2.85, y + 1.4, cv, 0.5, 0.55, 0.52, 1.0, 0.05);
+    box(stone, cu - 2.15, y + 0.45, cv, 0.6, 0.5, 0.75, 0.96); // the lap and knees
+    // a block half-dressed: the finished face smooth, the rest rough
+    box(stone, cu + 2.4, y, cv - 0.6, 1.6, 1.0, 1.2, 0.97);
+    box(stone, cu + 3.15, y, cv - 0.6, 0.2, 1.08, 1.32, 1.06, 0.02);
+    for (let k = 0; k < 40; k++) {
+      const u = cu + fr.range(-4.5, 4.5);
+      const v = cv + fr.range(-2.8, 2.8);
+      box(stone, u, grd(u, v) - 0.01, v, fr.range(0.06, 0.16), fr.range(0.03, 0.07), fr.range(0.05, 0.12), fr.range(0.92, 1.05), 0, fr.float() * Math.PI);
+    }
+    // carvers at work, tools on the ground beside them
+    for (const [du, dv, a, pose] of [[-1.5, 0.9, Math.PI, 'squat'], [-2.6, -1.1, Math.PI / 2, 'kneel'], [1.4, -0.6, 0, 'kneel']] as const) {
+      const [px, pz] = W(cu + du, cv + dv);
+      person(folk, fr, px, y, pz, YAW + a, pose);
+    }
+    for (let k = 0; k < 4; k++) {
+      const [tx2, tz2] = W(cu - 0.6 + k * 0.3, cv + 1.8);
+      folk.box(tx2, y, tz2, 0.22, 0.03, 0.03, [0.55, 0.35, 0.2], YAW + k); // copper chisels
+    }
+    const [mx, mz] = W(cu + 0.8, cv + 1.6);
+    folk.box(mx, y, mz, 0.16, 0.14, 0.16, [0.42, 0.31, 0.19], YAW); // wooden mallet
+    reg('carving-shed', cu, cv, 6.2, 3.6, y, y + 2.6);
+  }
+
+  /* --- (v1.2 I3) the town's waste, kept and managed (canon VIII "Waste
+   *      management": ash pits, broken-pottery dumps — "managed rather than
+   *      randomly scattered"), out on the flat south of the quarter ---------- */
+  {
+    const au = 76;
+    const av = 198;
+    const y = grd(au, av) - 0.05;
+    const [ax0, az0] = W(au, av);
+    dark.drum(ax0, y, az0, 3.2, 0.06, 0.6, 0, 16); // the pit floor, burnt
+    ash.drum(ax0, y + 0.05, az0, 2.8, 0.38, 1.0, 5.5, 16); // low ash, raked out
+    ash.drum(ax0 + 0.6, y + 0.05, az0 - 0.4, 1.4, 0.55, 0.85, 2.0, 12); // the newest tip
+    const su = 86;
+    const sv = 199;
+    const sy = grd(su, sv) - 0.05;
+    const [sx0, sz0] = W(su, sv);
+    mud.drum(sx0, sy, sz0, 2.4, 0.7, 0.62, 2.4, 16); // the earth core of the heap
+    // the heap's skin: broken pottery lying on the slope, red-brown and buff
+    for (let k = 0; k < 260; k++) {
+      const a = fr.float() * Math.PI * 2;
+      const r = Math.sqrt(fr.float()) * 3.4;
+      const u = su + Math.cos(a) * r;
+      const v = sv + Math.sin(a) * r;
+      const h = r < 2.4 ? 0.7 * (1 - r / 2.4) : 0;
+      const t = fr.chance(0.3) ? 1.2 : fr.range(0.82, 1.05);
+      box(clay, u, sy + h - 0.02, v, fr.range(0.12, 0.3), fr.range(0.03, 0.06), fr.range(0.08, 0.22), t, 0, fr.float() * Math.PI);
+    }
+    reg('ash-pit', au, av, 3.2, 3.2, y, y + 0.8);
+    reg('sherd-dump', su, sv, 2.6, 2.6, sy, sy + 1.0);
+  }
+
   /* --- materialize ------------------------------------------------------------- */
   const meshes: Mesh[] = [
     new Mesh(mud.build(), limestoneMaterial([0.6, 0.48, 0.35], gi, 0.3, 0.45)),
@@ -280,6 +403,9 @@ export function buildIndustryDistrict(
     new Mesh(clay.build(), limestoneMaterial([0.62, 0.45, 0.32], gi, 0.5, 1.15, { rough: 0.88 })),
     new Mesh(ore.build(), limestoneMaterial([0.22, 0.42, 0.33], gi, 0.5, 1.15, { rough: 0.8 })),
     new Mesh(wood.build(), limestoneMaterial([0.36, 0.27, 0.17], gi, 0.24, 0.32, { rough: 0.8 })),
+    // (v1.2 I3) the carvers' fine limestone, and ash
+    new Mesh(stone.build(), limestoneMaterial([0.8, 0.76, 0.66], gi, 0.5, 1.15, { rough: 0.7 })),
+    new Mesh(ash.build(), limestoneMaterial([0.44, 0.42, 0.39], gi, 0.5, 1.15, { rough: 0.95, spec: 0.15 })),
   ];
   for (const m of meshes) {
     m.castShadow = true;
@@ -287,5 +413,6 @@ export function buildIndustryDistrict(
     m.name = 'industry';
     scene.add(m);
   }
+  addTownsfolk(scene, folk, gi, 'industry-folk');
   return pieces;
 }

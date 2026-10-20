@@ -11,7 +11,7 @@ import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
-import { buildWorkerTown } from '../monuments/WorkerTown';
+import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { Torches } from '../monuments/Torches';
@@ -169,7 +169,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines]);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines]);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;
@@ -210,6 +210,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     return issues;
   };
   window.__akhet.fleet = () => fleetAt(engine.worldTime);
+  window.__akhet.groundAt = (x, z) => hf.heightAtCpu(x, z);
   window.__akhet.setWorldClock = (t) => {
     engine.worldTime = t;
   };

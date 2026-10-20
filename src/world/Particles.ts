@@ -92,6 +92,11 @@ export class WorkParticles {
       const [x, z] = townToWorld(60 + rng.range(0, 60), -120 + rng.range(0, 70));
       smokeSrc.push({ x, z, r: 1.5, w: 0.6 });
     }
+    {
+      // (v1.2 I3) the brewery's hearth
+      const [x, z] = townToWorld(14.3, 35.4);
+      smokeSrc.push({ x, z, r: 0.8, w: 0.8 });
+    }
     // kilns and copper furnaces of the industrial quarter
     for (const [u, v] of INDUSTRY_SMOKE) {
       const [x, z] = townToWorld(u, v);

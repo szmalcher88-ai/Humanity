@@ -257,6 +257,11 @@ export const WORKER_TOWN_PADS: readonly (readonly [number, number, number, numbe
   [-103, 25, 4, 48, -36.6], // bakery rows
   [70, 26, 122, 68, -41.9], // Royal Administrative Building
   [-116, 52, -30, 72, -36.6], // animal pens + woodpiles
+  // (v1.2 I3) canon Vol VIII — levels from tools/ground.ts (cut/fill mean of
+  // the ground they replace); the brewery pad starts 6 m (one blend) east of
+  // the bakery row so it never drags the last oven down
+  [10, 26, 32, 48, -38.3], // brewery
+  [62, -38, 80, -24, -37.9], // physicians' house
   // industrial quarter (v1.1, monuments/IndustryDistrict.ts) — the
   // brickyard stands on the dead-flat alluvium and needs no terrace
   [-30, 108, 30, 152, -39.7], // pottery yard

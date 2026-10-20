@@ -21,7 +21,7 @@
  *     ramp on the mortuary temple's SE corner: the one building visibly
  *     unfinished, which is what dates the whole frame.
  *
- * Figures are ~70 tris. At their working distance (40–600 m) they are 2–20 px
+ * Figures are ~96 tris (108 carrying). At their working distance (40–600 m) they are 2–20 px
  * tall, which is exactly the budget: silhouette, proportion and gait read at
  * that size; faces do not, and are not attempted (the brief's no-close-ups
  * rule for crowds).
@@ -60,14 +60,14 @@ import { GeoWriter, limestoneMaterial } from './KhufuComplex';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
-import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER, WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
+import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER } from '../world/CANON_DIMENSIONS';
 import { NILE_WATER_Y } from '../world/WorldConst';
 import { fpAll, type Footprint } from '../debug/Footprints';
 import { townToWorld } from '../world/TownFrame';
 
 /** figures allowed ON TOP of the budget for lines contributed by other
  *  systems (the farmsteads' threshers) */
-const EXTRA_SHARE = 0.12;
+const EXTRA_SHARE = 0.2;
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
 const FIG_FADE = [760, 560] as const;
@@ -205,8 +205,12 @@ export interface Gang {
   n: number;
   /** file half-width (m) — a gang spreads, a rope team is narrow */
   spread: number;
-  /** fraction carrying a load */
+  /** fraction carrying a load (v1.2 I3: now actually decides who carries —
+   *  until then the carrying geometry went to every second figure by index,
+   *  whatever the gang) */
   carry: number;
+  /** height scale for the whole gang (children ~0.62); default 1 */
+  scale?: number;
   /** 0 = walking the line, 1 = standing/working in place */
   still: number;
 }
@@ -266,8 +270,6 @@ function townLine(
 function workLines(): Gang[] {
   const qx = QUARRY_KHUFU_CENTER.x;
   const qz = QUARRY_KHUFU_CENTER.z;
-  const tx = WORKER_TOWN_CENTER.x;
-  const tz = WORKER_TOWN_CENTER.z;
   const vx = VALLEY_TEMPLE_CENTER.x;
   const vz = VALLEY_TEMPLE_CENTER.z;
   return [
@@ -308,11 +310,14 @@ function workLines(): Gang[] {
     // the market lane on the north-shore road (v1.2): sellers and buyers
     { x0: 926, z0: -334, x1: 992, z1: -334, n: 36, spread: 3.4, carry: 0.35, still: 0.65 },
     { x0: 1035, z0: 90, x1: 1085, z1: 96, n: 14, spread: 4, carry: 0.6, still: 0.2 },
-    // town: the gallery street and the bakery yard
-    { x0: tx - 110, z0: tz - 96, x1: tx + 60, z1: tz - 92, n: 90, spread: 6, carry: 0.25, still: 0.3 },
-    { x0: tx - 95, z0: tz + 34, x1: tx + 10, z1: tz + 40, n: 60, spread: 9, carry: 0.2, still: 0.6 },
+    // town: the gallery street and the bakery yard. (v1.2 I3) in the TOWN's
+    // frame: as world offsets the street ran diagonally through a barrack
+    // block, the yard through the ovens, and the gate gang stood 90 m west
+    // of the gate, outside the wall
+    ...townLine(-115, -95.5, 47, -95.5, 90, 1.4, 0.25, 0.3),
+    ...townLine(-98, 26.5, 2, 26.5, 60, 2.2, 0.2, 0.6),
     // the Wall of the Crow gate — the whole town funnels through it
-    { x0: tx - 168, z0: tz - 230, x1: tx - 168, z1: tz - 190, n: 55, spread: 5, carry: 0.3, still: 0.15 },
+    ...townLine(-45, -205, -45, -150, 55, 3, 0.3, 0.15),
     // industrial quarter (v1.1): moulders on the drying field, brick porters
     // up to the town, potters, copper smiths, rope makers walking the walk
     ...townLine(104, 104, 140, 188, 46, 16, 0.2, 0.82),
@@ -431,7 +436,8 @@ export function buildInhabitants(
         half,
         phase: rng.float(),
         yaw: Math.atan2(ux, uz) + (still ? rng.range(-3, 3) : 0),
-        h: rng.range(0.94, 1.06),
+        // the gang's scale multiplies the same draw: no new random number
+        h: rng.range(0.94, 1.06) * (g.scale ?? 1),
         carry: rng.chance(g.carry),
       });
     }
@@ -444,7 +450,9 @@ export function buildInhabitants(
   let figureCount = 0;
   for (let v = 0; v < VARIANTS; v++) {
     const carrying = v >= 2;
-    const mine = figs.filter((_, i) => i % VARIANTS === v);
+    // carriers get the carrying geometry; each class split over two figure
+    // variants by index (the gang's `carry` fraction was dead data until I3)
+    const mine = figs.filter((f, i) => (f.carry ? 2 : 0) + (i % 2) === v);
     if (mine.length === 0) continue;
     const data = new Float32Array(mine.length * 4); // x, y, z, yaw
     const dataB = new Float32Array(mine.length * 4); // dx, dz, half, phase
@@ -480,9 +488,10 @@ export function buildInhabitants(
     // wave ran −2..1, so every walker teleported 2·half at the wrap and
     // walked backwards for half its beat. Old Kingdom porters: ~1.3 m/s
     // free, ~1.0 m/s under a load, one full leg cycle per ~1.45 m.
-    const speed = C.w.mul(carrying ? 1.0 : 1.22); // C.w ∈ 0.85..1.2
+    // a child (C.x ≈ 0.62) walks slower on a shorter stride (v1.2 I3)
+    const speed = C.w.mul(carrying ? 1.0 : 1.22).mul(C.x.clamp(0.55, 1.1)); // C.w ∈ 0.85..1.2
     const STRIDE = 1.45;
-    const legRate = speed.div(STRIDE).mul(Math.PI * 2);
+    const legRate = speed.div(C.x.mul(STRIDE)).mul(Math.PI * 2);
     const tt = uWorldTime.mul(legRate).add(B.w.mul(11.3));
     // ping-pong lap = out and back = 4·half metres; tri −1 → +1 → −1
     const lap = B.z.max(0.5).mul(4);
