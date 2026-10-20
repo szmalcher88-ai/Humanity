@@ -21,51 +21,58 @@ design decision, not an omission (see *Hard rules*).
 
 ## Gallery
 
+Every frame below is rendered live by `npx tsx tools/gallery.ts` (one boot, no
+post-processing outside the engine) and committed to `docs/gallery/`.
+
 **Dawn from the harbour** — the two-frame test, first half. The basin catches the
 sky, the causeway climbs to the plateau, the pyramid trio takes the first warm
 light.
 
-![dawn from the harbour](shots/final/dawn-from-harbor.png)
+![dawn from the harbour](docs/gallery/dawn-from-harbor.jpg)
 
 **Noon on the plateau** — the two-frame test, second half. Brutal near-neutral
 light, dense blue zenith, and the casing reading distinctly brighter than the
 desert it stands on (see *The chalkiness fix* below for why that sentence is the
 whole point).
 
-![noon on the plateau](shots/final/noon-on-plateau.png)
+![noon on the plateau](docs/gallery/noon-on-plateau.jpg)
 
-**Low-sun glint** — the sun road on the river at T 6.4, with the lobe widening
-into the distance to stand in for sub-pixel ripple variance.
+**The harbour** — storage magazines and a granary on the north shore, the
+basin, the valley temple and the causeway climbing to the pyramids.
 
-![sun road at dawn](shots/water/dawn-sunroad.png)
+![harbour panorama](docs/gallery/harbor-panorama.jpg)
+
+**The boatyard** — hulls on their stocks still held by the moulds, cedar baulks
+cross-stacked to season, a saw frame, and the gangs who work there.
+
+![boatyard](docs/gallery/boatyard.jpg)
+
+**The queens' pyramids and the mortuary temple** — the basalt court, the
+falsework on the temple's unfinished corner, the eastern cemetery beyond.
+
+![queens and temple](docs/gallery/queens-and-temple.jpg)
+
+**Construction tableau** — timber falsework, a lever crane and a rubble ramp on
+the temple's south-east corner, late afternoon.
+
+![temple scaffolding](docs/gallery/temple-scaffolding.jpg)
+
+**Heit el-Ghurab** — the workers' town on its levelled terraces: gallery blocks
+with street porticos, the eastern town, bakeries, and the Wall of the Crow
+stepping down the slope.
+
+![worker town](docs/gallery/worker-town.jpg)
+
+**The Nile bank** — papyrus in the shallows, palms and field margins on a bank
+that slumps and scours rather than running ruled-straight.
+
+![river shore](docs/gallery/river-shore.jpg)
 
 **Night** — analytic stars and a phase-shaded moon; the town's torches and bakery
 hearths carry the "someone is home" read, and the moon takes over the sun's own
 directional light so shadows keep working after dusk.
 
-![the worker town at night](shots/night/town2.png)
-
-**Cirrus at dawn** — a 6.2 km ice deck, wind-sheared 5.5:1 along the etesian
-wind, brightest where it forward-scatters near the sun.
-
-![cirrus deck](shots/clouds/sky-dawn2.png)
-
-**Work-site dust** — froxel volumetrics over the Khufu quarry: gaussian dust
-columns anchored to the same work sites the particle plumes emit from.
-
-![quarry dust at dawn](shots/froxel/quarry-dawn2.png)
-
-**Morning valley mist** — the same system, other half: a low layer over the
-flooded basin that you look *across*, gated to the wet floodplain and to low sun.
-
-![valley mist](shots/froxel/valley-mist2.png)
-
-**Inhabited** — the haul road running from the quarry to the pyramid's foot, with
-gangs walking it in both directions and a reed-mat sunshade where they rest.
-
-![the haul road](shots/people/haul-road.png)
-
-![gangs at the quarry face](shots/people/closeup.png)
+![night harbour](docs/gallery/night-harbour.jpg)
 
 ---
 
@@ -77,9 +84,10 @@ gangs walking it in both directions and a reed-mat sunshade where they rest.
 | **Terrain** | CDLOD quadtree of instanced patches, morphing + skirted, 5-family splat, micro-displacement, far vista shell |
 | **Monuments** | Pure course solver (Petrie sawtooth profile, 210 courses normalised to survey height) driving 63k instanced chamfered casing stones for G1 + queens + satellite, with a silhouette-true backing pyramid as far LOD |
 | **Khufu complex** | Court pavement as ~17k individual slabs, temenos wall, mortuary temple, walled and roofed causeway on its embankment, valley temple, boat pits, ~400 mastabas in two cemeteries |
-| **Worker town** | Gallery blocks with street porticos and real doorways, eastern town, bakery rows, Royal Administrative Building with beehive silos, Wall of the Crow |
+| **Worker town** | Gallery blocks with street porticos and real doorways, eastern town, bakery rows, Royal Administrative Building with beehive silos, Wall of the Crow — each district on its own levelled terrace |
+| **Harbour district** | Storage magazines, a beehive-silo granary, a stone yard of dressed casing blocks and Aswan granite, cargo slipways, a boatyard with hulls on stocks, wells |
 | **Water** | Flow-advected ripple normals, true sky reflection, depth absorption over the sampled bed, low-sun glint |
-| **Life** | 5.4k palms · 750k field tufts in 754 parcels · 3.5k shore clumps · 380 trees · 84k debris chips · 131k work particles · ~900 walking figures · ox sledge trains |
+| **Life** | 5.4k palms · 750k field tufts in 754 parcels · 3.5k shore clumps · 380 trees · 84k debris chips · 131k work particles · ~880 working figures · ox sledge trains |
 | **Sky** | Hillaire LUT atmosphere (dry-desert Mie + dust layer), raymarched cumulus, cirrus deck, analytic stars/Milky Way/moon |
 | **Light** | 256²×6 terrain-relative SH probe GI with an analytic ray–pyramid intersector (the casing is a bounce source), CSM + PCSS + contact shadows, GTAO, screen-space bounce, froxel volumetrics, TRAA, per-ToD colour script |
 

@@ -279,6 +279,16 @@ M3 — THE HARBOR DISTRICT + PEOPLE (done):
 4. bm1 "harbor panorama" re-framed (the old pose looked at bare silt with
    neither the harbor nor the pyramids in frame).
 
+M4 — THE PUBLIC GALLERY WAS BROKEN (done):
+README pointed every image into gitignored `shots/`. New `tools/gallery.ts`
+renders nine curated frames (one boot, `?clean=1` hides the fps chip and
+notices — new HUD switch) into TRACKED `docs/gallery/*.jpg` (~0.14 MB each).
+PERF CAVEAT (2026-10-20 evening): after hours of captures the RTX 3050 sat
+at 86 °C with SW thermal slowdown (clock 1410/2100 MHz) and 100 % utilisation
+from OTHER processes (Edge, Docker, other agents) — the sweep read 20/22/16
+on code that measured 50/73/47 an hour earlier. Re-measure on an idle GPU
+before believing any frame-rate number from that window.
+
 ### v1.0.1 — BLACK SCREEN AFTER LAUNCH (fixed 2026-07-25)
 
 User report: "a few seconds after launch the monitor goes black, and it wants

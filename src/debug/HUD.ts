@@ -76,9 +76,12 @@ export class Hud {
     });
   }
 
+  /** ?clean=1 — no overlays at all (gallery frames, trailer capture) */
+  private readonly clean = new URLSearchParams(window.location.search).get('clean') === '1';
+
   private applyVisibility(): void {
     this.el.style.display = this.visible ? 'block' : 'none';
-    this.fpsEl.style.display = this.visible ? 'none' : 'block';
+    this.fpsEl.style.display = this.visible || this.clean ? 'none' : 'block';
   }
 
   addProvider(p: HudProvider): void {
