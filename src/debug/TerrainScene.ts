@@ -27,8 +27,9 @@ import { buildFarmsteads } from '../vegetation/FarmDistrict';
 import { buildPalms } from '../vegetation/Palms';
 import { buildShore } from '../vegetation/Shore';
 import { buildBirds } from '../vegetation/Birds';
+import { buildReedHarvest } from '../vegetation/ReedHarvest';
 import { NileWater } from '../water/NileWater';
-import { buildHarbor, crewCount } from '../water/Vessels';
+import { buildHarbor, crewCount, fleetAt, movingCount } from '../water/Vessels';
 import { setWorldTime } from '../render/WorldClock';
 import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
@@ -103,6 +104,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     buildKhufuComplex(structures, seed, hf, gi);
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
     engine.stats.counters['harbor.crew'] = crewCount;
+    engine.stats.counters['harbor.moving'] = movingCount;
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
     engine.stats.counters['harbor.district'] = buildHarborDistrict(structures, seed, hf, gi);
     engine.stats.counters['industry'] = buildIndustryDistrict(structures, seed, hf, gi);
@@ -147,6 +149,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const birds = buildBirds(scene, seed, hf, gi, engine.params.preset);
   engine.stats.counters['birds.waders'] = birds.waders;
   engine.stats.counters['birds.flyers'] = birds.flyers;
+  // reed and papyrus cutters at a few beds on the river strip (v1.2 I2)
+  const reeds = buildReedHarvest(scene, seed, hf, gi, shore.reedSpots, fields.all);
+  engine.stats.counters['reed.sites'] = reeds.sites;
 
   ctx.progress(0.908, 'works: stone debris fields');
   engine.stats.counters['debris'] = buildDebris(
@@ -164,7 +169,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, threshers);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines]);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;
@@ -203,6 +208,10 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     const issues = inspector.audit();
     engine.stats.counters['collision.issues'] = issues.length;
     return issues;
+  };
+  window.__akhet.fleet = () => fleetAt(engine.worldTime);
+  window.__akhet.setWorldClock = (t) => {
+    engine.worldTime = t;
   };
   window.__akhet.footprints = () =>
     fpAll().map((f) => ({ id: f.id, x: f.x, z: f.z, y0: f.y0, y1: f.y1, hx: f.hx, hz: f.hz }));

@@ -6,6 +6,7 @@
  *
  *   npx tsx tools/closeup.ts --id vessel: --n 6
  *   npx tsx tools/closeup.ts --id stall:,slipway:,furnace: --n 2   # n per prefix
+ *   npx tsx tools/closeup.ts --id mover: --n 12                    # the moving fleet
  *   npx tsx tools/closeup.ts --id kiln --dist 18 --elev 0.3 --fov 30 --T 9
  *
  * The dev server must be running. Frames land in shots/closeup/.
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
   const elev = num('elev', 0.22); // camera elevation angle above the target (rad)
   const bearing = num('bearing', 0.7); // camera bearing around the target (rad)
   const T = num('T', 9.5);
+  const wt = num('wt', 0); // world-simulation time (s): where the moving fleet is
   const outDir = arg('out') ?? 'shots/closeup';
   mkdirSync(outDir, { recursive: true });
 
@@ -56,11 +58,17 @@ async function main(): Promise<void> {
   const err = await page.evaluate(() => window.__akhet.error);
   if (err) throw new Error(err);
 
-  const all: Target[] = await page.evaluate(() =>
-    (window.__akhet.footprints?.() ?? []).map((f) => ({
+  await page.evaluate(async (t) => {
+    window.__akhet.setWorldClock?.(t);
+    await window.__akhet.settle?.(4);
+  }, wt);
+  const all: Target[] = await page.evaluate(() => [
+    ...(window.__akhet.footprints?.() ?? []).map((f) => ({
       id: f.id, x: f.x, z: f.z, y: (f.y0 + f.y1) / 2, r: Math.max(f.hx, f.hz),
     })),
-  );
+    // moving vessels where they are at this world time: ids mover:k:kind
+    ...(window.__akhet.fleet?.() ?? []).map((m) => ({ id: `${m.id}:${m.kind}`, x: m.x, z: m.z, y: -44.5, r: 9 })),
+  ]);
   const targets: Target[] = [];
   for (const pre of prefix.split(',')) {
     const hits = all.filter((f) => f.id.startsWith(pre));

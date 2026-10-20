@@ -69,7 +69,11 @@ async function main(): Promise<void> {
       execFileSync('npx', ['tsx', script], { encoding: 'utf8', shell: true });
       record(label, true, 'smoke test clean');
     } catch (e) {
-      record(label, false, e instanceof Error ? e.message.slice(0, 120) : 'threw');
+      // the probe's own verdict is on stdout — show its tail, not just
+      // "Command failed" (v1.2: a slow-adapter FAIL arrived with no reason)
+      const out = (e as { stdout?: string }).stdout ?? '';
+      const tail = out.trim().split(/\r?\n/).slice(-3).join(' | ');
+      record(label, false, (tail || (e instanceof Error ? e.message : 'threw')).slice(0, 240));
     }
   }
 

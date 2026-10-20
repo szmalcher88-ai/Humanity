@@ -43,6 +43,29 @@ import { GeoWriter, limestoneMaterial } from './KhufuComplex';
 
 const FAMILY = 'harbor-district';
 
+/** cargo slipway heads [k, x, z] on the dry road, each running toward the
+ *  basin centre (shared with the moving fleet, which docks at them) */
+export const SLIPWAY_STARTS = [[0, 1040, -312], [1, 1160, -302], [2, 1045, 44]] as const;
+const BASIN_C = { x: 1077, z: -135 };
+
+/** one slipway's line: unit direction toward the basin, the distance to the
+ *  waterline crossing (tShore) and the ramp length (7 m on under water) */
+export function slipwayRamp(
+  grd: (x: number, z: number) => number, k: number,
+): { sx0: number; sz0: number; ux: number; uz: number; tShore: number; ramp: number } {
+  const s = SLIPWAY_STARTS[k] as readonly [number, number, number];
+  const sx0 = s[1];
+  const sz0 = s[2];
+  const dx = BASIN_C.x - sx0;
+  const dz = BASIN_C.z - sz0;
+  const len0 = Math.hypot(dx, dz);
+  const ux = dx / len0;
+  const uz = dz / len0;
+  let t = 0;
+  while (t < 160 && grd(sx0 + ux * t, sz0 + uz * t) > NILE_WATER_Y + 0.3) t += 2;
+  return { sx0, sz0, ux, uz, tShore: t, ramp: Math.max(10, t + 7) };
+}
+
 export function buildHarborDistrict(
   scene: Object3D,
   seed: WorldSeed,
@@ -226,19 +249,10 @@ export function buildHarborDistrict(
 
   /* --- cargo slipways into the basin --------------------------------------- */
   {
-    // ramps run from the dry road down past the waterline; found by walking
-    // toward the basin centre until the bed is 1.2 m under water
-    const basin = { x: 1077, z: -135 };
-    for (const [k, sx0, sz0] of [[0, 1040, -312], [1, 1160, -302], [2, 1045, 44]] as const) {
-      const dx = basin.x - sx0;
-      const dz = basin.z - sz0;
-      const len0 = Math.hypot(dx, dz);
-      const ux = dx / len0;
-      const uz = dz / len0;
-      let t = 0;
-      while (t < 160 && grd(sx0 + ux * t, sz0 + uz * t) > NILE_WATER_Y + 0.3) t += 2;
-      const tEnd = t + 7; // run on into the water
-      const ramp = Math.max(10, tEnd);
+    // ramps run from the dry road down past the waterline and 7 m on into
+    // the water, toward the basin centre (slipwayRamp, shared with the fleet)
+    for (const [k] of SLIPWAY_STARTS) {
+      const { sx0, sz0, ux, uz, ramp } = slipwayRamp(grd, k);
       const yaw = Math.atan2(uz, ux);
       const cx = sx0 + ux * ramp / 2;
       const cz = sz0 + uz * ramp / 2;

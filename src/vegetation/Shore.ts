@@ -356,6 +356,8 @@ function spawnClass(
 export interface ShoreCounts {
   clumps: number;
   trees: number;
+  /** reed-bed spots (x, z, ground y) — reed-cutting sites are drawn from them */
+  reedSpots: [number, number, number][];
 }
 
 export function buildShore(
@@ -400,6 +402,7 @@ export function buildShore(
   ];
   const clumpTarget = CLUMP_TARGET[preset];
   const clumpSpots: [number, number, number][][] = [[], []];
+  const reedSpots: [number, number, number][] = [];
   let tries = 0;
   let placed = 0;
   while (placed < clumpTarget && tries < clumpTarget * 60) {
@@ -412,6 +415,7 @@ export function buildShore(
     for (let c = 0; c < classes.length; c++) {
       if ((classes[c] as ClassSpec).fit(y)) {
         (clumpSpots[c] as [number, number, number][]).push([x, z, Math.max(y, W - 0.15)]);
+        if (c === 1) reedSpots.push([x, z, y]);
         placed++;
         break;
       }
@@ -467,5 +471,5 @@ export function buildShore(
     sway: 0.06,
   }, gi, cull);
 
-  return { clumps, trees };
+  return { clumps, trees, reedSpots };
 }

@@ -67,7 +67,7 @@ import { townToWorld } from '../world/TownFrame';
 
 /** figures allowed ON TOP of the budget for lines contributed by other
  *  systems (the farmsteads' threshers) */
-const EXTRA_SHARE = 0.08;
+const EXTRA_SHARE = 0.12;
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
 const FIG_FADE = [760, 560] as const;
@@ -302,6 +302,9 @@ function workLines(): Gang[] {
     { x0: 1033.6, z0: -310.7, x1: 1038.1, z1: -289.2, n: 16, spread: 3, carry: 0.5, still: 0.4 },
     { x0: 1165.8, z0: -299.1, x1: 1156.0, z1: -279.4, n: 16, spread: 3, carry: 0.5, still: 0.4 },
     { x0: 992, z0: 58, x1: 1116, z1: 74, n: 44, spread: 10, carry: 0.25, still: 0.75 },
+    // (v1.2 I2) the Tura delivery: the hauling team on the south-shore
+    // slipway's axis, inland of the sledge, leaning into its tow ropes
+    { x0: 1044.6, z0: 46.0, x1: 1042.2, z1: 59.7, n: 14, spread: 1.6, carry: 0.8, still: 0.3 },
     // the market lane on the north-shore road (v1.2): sellers and buyers
     { x0: 926, z0: -334, x1: 992, z1: -334, n: 36, spread: 3.4, carry: 0.35, still: 0.65 },
     { x0: 1035, z0: 90, x1: 1085, z1: 96, n: 14, spread: 4, carry: 0.6, still: 0.2 },

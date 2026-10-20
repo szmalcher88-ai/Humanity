@@ -96,6 +96,8 @@ export interface ParcelInfo {
   parcels: number;
   /** parcels left bare (fallow) — farmsteads are built on a share of them */
   fallow: Parcel[];
+  /** every parcel (props must stay off the crops) */
+  all: Parcel[];
 }
 
 export function buildFields(
@@ -334,5 +336,5 @@ export function buildFields(
     );
   }
 
-  return { count, parcels: parcels.length, fallow: parcels.filter((p) => p.density === 0) };
+  return { count, parcels: parcels.length, fallow: parcels.filter((p) => p.density === 0), all: parcels };
 }

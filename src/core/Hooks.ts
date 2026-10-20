@@ -72,6 +72,10 @@ export interface AkhetHooks {
   surfaceProbe: ((x: number, z: number, feetY: number) => number) | null;
   /** run the footprint collision/consistency audit (harness gate) */
   collisionAudit: (() => CollisionIssue[]) | null;
+  /** set the world-simulation clock (s) — tooling: shoot moving things at a time */
+  setWorldClock: ((t: number) => void) | null;
+  /** moving vessels where they are now (tooling: tools/closeup.ts --fleet) */
+  fleet: (() => Array<{ id: string; kind: string; x: number; z: number; a: number; load: number }>) | null;
   /** registered footprints (id, centre, extent) — tooling (tools/closeup.ts) */
   footprints: (() => Array<{ id: string; x: number; z: number; y0: number; y1: number; hx: number; hz: number }>) | null;
   /** Inspector: nudge an editable placement by (dx, dz) and rebuild */
@@ -107,6 +111,8 @@ export function initHooks(): AkhetHooks {
     surfaceProbe: null,
     collisionAudit: null,
     footprints: null,
+    fleet: null,
+    setWorldClock: null,
     editNudge: null,
     editExport: null,
   };

@@ -20,14 +20,19 @@
 
 import { BufferAttribute, BufferGeometry, Mesh, type Object3D } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
-import { attribute, float, positionLocal, sin, vec2, vec3 } from 'three/tsl';
+import {
+  attribute, cos, float, instancedArray, mix, normalLocal, positionLocal, sin, smoothstep,
+  transformNormalToView, varying, vec2, vec3,
+} from 'three/tsl';
 import { uWorldTime } from '../render/WorldClock';
 import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { fpReg } from '../debug/Footprints';
 import { giLightMap } from '../monuments/PyramidBuilder';
-import type { NV3, NV4 } from '../gpu/TSLTypes';
+import type { NV2, NV3, NV4 } from '../gpu/TSLTypes';
+import { DT, TrackBuilder, arc, lane, planWater, riverAxis, smooth, type P2, type TrackPoint } from './Navigation';
+import { slipwayRamp } from '../monuments/HarborDistrict';
 import { NILE_WATER_Y } from '../world/WorldConst';
 
 type V3 = [number, number, number];
@@ -37,6 +42,16 @@ class W {
   col: number[] = [];
   bobA: number[] = []; // per-vertex: hull cx, cz, phase, heave amp
   bobB: number[] = []; // per-vertex: tilt dir x, z, freq, tilt amp
+  nav: number[] = []; // per-vertex: moving-hull index (-1 static), cargo threshold (-1 none)
+  private curNav: [number, number] = [-1, -1];
+  /** everything written next belongs to moving hull `k` (-1: static) */
+  setNav(k: number): void {
+    this.curNav = [k, -1];
+  }
+  /** cargo written next goes ashore once the load drops below `thr` */
+  setCargo(thr: number): void {
+    this.curNav = [this.curNav[0], thr];
+  }
   private curA: [number, number, number, number] = [0, 0, 0, 0];
   private curB: [number, number, number, number] = [0, 0, 1, 0];
   /** everything written until endBob() rides THIS hull's motion */
@@ -57,6 +72,7 @@ class W {
       this.col.push(...t);
       this.bobA.push(...this.curA);
       this.bobB.push(...this.curB);
+      this.nav.push(...this.curNav);
     }
   }
   tri(a: V3, b: V3, c: V3, t: V3): void {
@@ -65,6 +81,7 @@ class W {
       this.col.push(...t);
       this.bobA.push(...this.curA);
       this.bobB.push(...this.curB);
+      this.nav.push(...this.curNav);
     }
   }
   box(cx: number, y0: number, cz: number, lx: number, h: number, lz: number, t: V3, yaw = 0): void {
@@ -116,6 +133,7 @@ class W {
     g.setAttribute('tone', new BufferAttribute(new Float32Array(this.col), 3));
     g.setAttribute('bobA', new BufferAttribute(new Float32Array(this.bobA), 4));
     g.setAttribute('bobB', new BufferAttribute(new Float32Array(this.bobB), 4));
+    g.setAttribute('nav', new BufferAttribute(new Float32Array(this.nav), 2));
     g.computeVertexNormals();
     return g;
   }
@@ -234,7 +252,9 @@ function boatman(
  * Every face goes through face(): wound by a hint vector, never by hand.
  */
 
-type Mode = 'moored' | 'anchored' | 'underway';
+/** 'underway' decides sail or oars by heading; a moving hull is built at
+ *  yaw 0, so it is told outright ('sailing' / 'rowing') */
+type Mode = 'moored' | 'anchored' | 'underway' | 'sailing' | 'rowing';
 
 const sub3 = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross3 = (p: V3, q: V3): V3 => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
@@ -298,10 +318,12 @@ interface PlankParams {
 }
 
 let hullSeq = 0;
+/** off while a moving hull is built: it has no fixed place to police */
+let registerHulls = true;
 
 /** planked river hull: open, with bulwarks and a boarded floor */
 function plankHull(w: W, det: Rng, p: PlankParams, cx: number, cz: number, yaw: number, baseY: number): Hull {
-  fpReg({
+  if (registerHulls) fpReg({
     id: `vessel:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
     hx: p.L / 2 + 0.3, hz: p.B / 2, yaw,
     y0: baseY - p.draft, y1: baseY + p.free + p.sweep + p.post,
@@ -382,21 +404,22 @@ function plankHull(w: W, det: Rng, p: PlankParams, cx: number, cz: number, yaw: 
 /** papyriform end posts (traveling boats): the prow stem rising forward
  *  into a papyrus-umbel finial, the stern post rising and curling inboard —
  *  the bundle boat's ends translated into timber, as on the Khufu ship */
-function papyriformPosts(w: W, h: Hull): void {
+function papyriformPosts(w: W, h: Hull, k = 1): void {
   const e = h.end;
   const L = h.L;
   const t = mul3(h.tone, 0.9);
+  const q = (x: number, y: number): V3 => [Math.sign(x) * (L / 2) + (x - Math.sign(x) * (L / 2)) * k, e + y * k, 0];
   const chain = (pts: V3[], r0: number, r1: number): void => {
     for (let i = 0; i + 1 < pts.length; i++) {
-      const r = r0 + ((r1 - r0) * i) / Math.max(1, pts.length - 2);
+      const r = (r0 + ((r1 - r0) * i) / Math.max(1, pts.length - 2)) * Math.sqrt(k);
       lbeam(w, h, pts[i] as V3, pts[i + 1] as V3, r, t);
     }
   };
-  chain([[L / 2 - 0.6, e - 0.45, 0], [L / 2 + 0.02, e + 0.15, 0], [L / 2 + 0.3, e + 0.8, 0], [L / 2 + 0.4, e + 1.3, 0]], 0.17, 0.09);
-  const tip = h.P(L / 2 + 0.4, e + 1.24, 0);
-  w.drum(tip[0], tip[1], tip[2], 0.09, 0.34, mul3(h.tone, 1.04), -0.62, 8); // the umbel flares open
-  chain([[-L / 2 + 0.6, e - 0.45, 0], [-L / 2 - 0.08, e + 0.35, 0], [-L / 2 - 0.22, e + 1.15, 0], [-L / 2 - 0.08, e + 1.8, 0], [-L / 2 + 0.35, e + 2.1, 0]], 0.19, 0.08);
-  lbeam(w, h, [-L / 2 + 0.33, e + 2.1, 0], [-L / 2 + 0.6, e + 2.04, 0], 0.14, mul3(h.tone, 1.04)); // curled finial
+  chain([q(L / 2 - 0.6, -0.45), q(L / 2 + 0.02, 0.15), q(L / 2 + 0.3, 0.8), q(L / 2 + 0.4, 1.3)], 0.17, 0.09);
+  const tip = h.P(...q(L / 2 + 0.4, 1.24));
+  w.drum(tip[0], tip[1], tip[2], 0.09 * k, 0.34 * k, mul3(h.tone, 1.04), -0.62, 8); // the umbel flares open
+  chain([q(-L / 2 + 0.6, -0.45), q(-L / 2 - 0.08, 0.35), q(-L / 2 - 0.22, 1.15), q(-L / 2 - 0.08, 1.8), q(-L / 2 + 0.35, 2.1)], 0.19, 0.08);
+  lbeam(w, h, q(-L / 2 + 0.33, 2.1), q(-L / 2 + 0.6, 2.04), 0.14 * Math.sqrt(k), mul3(h.tone, 1.04)); // curled finial
 }
 
 /** blunt stem heads (barges) */
@@ -543,7 +566,7 @@ interface BundleParams {
 /** papyrus-bundle skiff: an oval bundle flattened on top (where the boatman
  *  stands), tapering into upturned tied tips, lashed every ~0.5 m */
 function bundleHull(w: W, det: Rng, p: BundleParams, cx: number, cz: number, yaw: number, baseY: number): Hull {
-  fpReg({
+  if (registerHulls) fpReg({
     id: `vessel:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
     hx: p.L / 2 + 0.2, hz: p.B / 2, yaw,
     y0: baseY - p.draft, y1: baseY + p.free + p.sweep + 0.4,
@@ -664,6 +687,7 @@ function bobScope(w: W, rng: Rng, cx: number, cz: number, y: number, amp: number
 function barge(
   w: W, rng: Rng, det: Rng, cx: number, cz: number, yaw: number, y: number,
   crew: Rng | null = null, mode: Mode = 'anchored',
+  opt: { moving?: boolean; unloads?: boolean; out?: { sink: number } } = {},
 ): Hull {
   bobScope(w, rng, cx, cz, y, 0.045, 0.004);
   // the same two tone draws as v1.1, but coupled: two independent channel
@@ -678,17 +702,9 @@ function barge(
   // surface, so a low-riding hull read as swamped — waterline art needs
   // real height above water, not survey-accurate laden trim
   const sweep = rng.range(0.4, 0.9);
-  const h = plankHull(w, det, {
-    L, B, draft: 0.9, free: 1.2, sweep, sweepExp: 3.0, full: 0.5, bulw: 0.45, post: 0.4, tone,
-  }, cx, cz, yaw, y);
-  stemHeads(w, h);
-  steeringOars(w, h, 0.8);
-  for (const fx of [-0.42, -0.34, 0.34, 0.42]) {
-    const a = h.at(fx * L);
-    if (a.inner > 0.3) lbox(w, h, fx * L, a.sheer - 0.16, 0, 0.22, 0.16, a.half * 1.9, mul3(tone, 1.08));
-  }
-  // the hold: draws in the v1.1 order (fx, stone?, size, height, width), so
-  // the fleet's random stream — and with it the whole harbour — is unchanged
+  // the hold: draws in the v1.1 order (fx, stone?, size, height, width) —
+  // the hull builders draw nothing from `rng`, so drawing the cargo BEFORE
+  // lofting keeps the fleet's stream, and with it the harbour, unchanged
   const n = rng.int(4) + 2;
   const items: Array<{ fx: number; stone: boolean; s: number; hh: number; lz: number }> = [];
   for (let i = 0; i < n; i++) {
@@ -698,6 +714,26 @@ function barge(
     const hh = rng.range(0.5, 1.1);
     const lz = s * rng.range(0.7, 1.2);
     items.push({ fx, stone, s, hh, lz });
+  }
+  // (v1.2 I2, canon IX §9.20) a laden hull sits lower: displacement of the
+  // cargo over the waterplane (~0.72·L·B), clamped to the freeboard budget
+  let mass = 0;
+  for (const it of items) {
+    mass += it.stone ? it.s * it.hh * Math.min(it.lz, B * 0.7) * 2300 : Math.round(it.s / 0.52) * Math.round(it.lz / 0.52) * 45;
+  }
+  const sink = Math.min(0.3, mass / (1000 * 0.72 * L * B));
+  if (opt.out) opt.out.sink = sink;
+  const afloat = Math.abs(y - NILE_WATER_Y) < 0.01;
+  // a moving hull is built unladen-high; its shader lowers it by sink·load
+  const yb = afloat && !opt.moving ? y - sink : y;
+  const h = plankHull(w, det, {
+    L, B, draft: 0.9, free: 1.2, sweep, sweepExp: 3.0, full: 0.5, bulw: 0.45, post: 0.4, tone,
+  }, cx, cz, yaw, yb);
+  stemHeads(w, h);
+  steeringOars(w, h, 0.8);
+  for (const fx of [-0.42, -0.34, 0.34, 0.42]) {
+    const a = h.at(fx * L);
+    if (a.inner > 0.3) lbox(w, h, fx * L, a.sheer - 0.16, 0, 0.22, 0.16, a.half * 1.9, mul3(tone, 1.08));
   }
   items.sort((p, q) => p.fx - q.fx);
   for (let i = 1; i < items.length; i++) {
@@ -709,7 +745,10 @@ function barge(
   const last = items[items.length - 1] as (typeof items)[number];
   const shift = (first.fx - first.s / 2 + (last.fx + last.s / 2)) / 2;
   const tops: Array<[number, number]> = [];
-  for (const it of items) {
+  for (const [k, it] of items.entries()) {
+    // an unloading barge tags each item with the load at which it goes
+    // ashore: the shader hides it once the load drops below (k+½)/n
+    if (opt.unloads) w.setCargo((k + 0.5) / items.length);
     const fx = it.fx - shift;
     const a = h.at(fx);
     const lz = Math.min(it.lz, a.inner * 1.7);
@@ -732,9 +771,10 @@ function barge(
       }
     }
   }
-  const afloat = Math.abs(y - NILE_WATER_Y) < 0.01;
+  if (opt.unloads) w.setCargo(-1);
   if (mode === 'anchored' && afloat) anchorLine(w, h);
   // crew: polers at the ends working poles into the bed, hands on the stone
+  // (not on an unloading barge: they would sit on air once the stone is off)
   if (crew && afloat) {
     for (const end of mode === 'moored' ? [-1] : [-1, 1]) {
       const lx = end * 0.38 * L;
@@ -744,7 +784,7 @@ function barge(
       boatman(w, crew, h, lx, lz, a.floor, 'stand', end > 0 ? Math.PI : 0);
       lbeam(w, h, [lx + 0.12, a.floor + 1.45, lz + side * 0.2], [lx - end * 1.6, -2.4, side * (a.half + 2.5)], 0.05, WOOD);
     }
-    const sitters = Math.min(crew.int(3), tops.length);
+    const sitters = opt.unloads ? 0 : Math.min(crew.int(3), tops.length);
     for (let i = 0; i < sitters; i++) {
       const [fx, ty] = tops[i] as [number, number];
       boatman(w, crew, h, fx, crew.range(-0.2, 0.2), ty, 'sit', crew.float() * Math.PI * 2);
@@ -774,8 +814,8 @@ function traveler(
   }, cx, cz, yaw, y);
   papyriformPosts(w, h);
   const afloat = Math.abs(y - NILE_WATER_Y) < 0.01;
-  const sailing = mode === 'underway' && Math.sin(yaw) > 0.4;
-  const rowing = mode === 'underway' && !sailing;
+  const sailing = mode === 'sailing' || (mode === 'underway' && Math.sin(yaw) > 0.4);
+  const rowing = mode === 'rowing' || (mode === 'underway' && !sailing);
   const benches = [0.18, 0.25, 0.32];
   for (const fx of [...benches, 0.39, -0.27]) {
     const a = h.at(fx * L);
@@ -921,6 +961,389 @@ function seine(
   return 2;
 }
 
+
+/* ------------------------------------------------------------------ */
+/* more vessel classes (v1.2 I2, canon Vol IX §9.14)                    */
+/* ------------------------------------------------------------------ */
+
+const SACK: V3 = [0.7, 0.62, 0.47];
+
+/** a reed-mat awning on four poles (crew shade) */
+function awning(w: W, h: Hull, x: number, len: number): void {
+  const a = h.at(x);
+  const hw = Math.max(0.4, a.inner * 0.85);
+  const f0 = Math.min(h.at(x - len / 2).floor, h.at(x + len / 2).floor) - 0.03;
+  for (const px of [-len / 2, len / 2]) {
+    for (const s of [-1, 1]) lbox(w, h, x + px, f0, s * hw, 0.08, 1.75, 0.08, WOOD);
+  }
+  lbox(w, h, x, f0 + 1.75, 0, len + 0.3, 0.07, hw * 2 + 0.3, mul3(MAT, 0.95));
+}
+
+/**
+ * General cargo boat (canon IX §9.14 "Cargo Transport: food, timber,
+ * equipment"): a mid-size planked hull with modest spoon ends, a reed-mat
+ * awning aft over the crew, a hold of grain sacks, cedar baulks or jars and
+ * baskets. Sailing south it sets a bipod rig; going north the rig lies
+ * unstepped on the cargo and the crew rows down the current.
+ */
+function cargoBoat(
+  w: W, rng: Rng, det: Rng, cx: number, cz: number, yaw: number, y: number,
+  crew: Rng | null = null, mode: Mode = 'anchored',
+): Hull {
+  bobScope(w, rng, cx, cz, y, 0.05, 0.006);
+  const L = rng.range(11, 15);
+  const B = L * rng.range(0.25, 0.29);
+  const tone: V3 = [0.47 * rng.range(0.9, 1.08), 0.35, 0.22];
+  const sweep = rng.range(0.7, 1.1);
+  const kind = rng.int(3); // 0 grain, 1 timber, 2 jars and baskets
+  const h = plankHull(w, det, {
+    L, B, draft: 0.6, free: 1.05, sweep, sweepExp: 2.6, full: 0.55, bulw: 0.45, post: 0.6, tone,
+  }, cx, cz, yaw, y);
+  stemHeads(w, h);
+  steeringOars(w, h, 0.85);
+  const sailing = mode === 'sailing' || (mode === 'underway' && Math.sin(yaw) > 0.4);
+  const rowing = !sailing && (mode === 'rowing' || mode === 'underway');
+  const benches = [0.22, 0.3];
+  for (const fx of [...benches, -0.14]) {
+    const a = h.at(fx * L);
+    lbox(w, h, fx * L, a.floor + 0.36, 0, 0.22, 0.07, a.inner * 2, mul3(tone, 1.05));
+  }
+  awning(w, h, -0.3 * L, 0.14 * L);
+  // the hold, amidships
+  const hx0 = -0.17 * L;
+  const hx1 = 0.15 * L;
+  let cargoTop = h.at(0).floor;
+  if (kind === 0) {
+    for (let x = hx0 + 0.4; x < hx1 - 0.3; x += 0.78) {
+      const a = h.at(x);
+      const nz = Math.max(1, Math.floor((a.inner * 1.7) / 0.56));
+      for (let j = 0; j < nz; j++) {
+        const z = -a.inner * 0.85 + (j + 0.5) * ((a.inner * 1.7) / nz);
+        const t: V3 = mul3(SACK, det.range(0.9, 1.06));
+        const p = h.P(x, a.floor, z);
+        w.drum(p[0], p[1], p[2], 0.27, 0.46, t, 0.18, 8); // a filled sack, tied at the neck
+        if ((j + Math.round(x)) % 2 === 0) w.drum(p[0], p[1] + 0.46, p[2], 0.25, 0.4, t, 0.2, 8);
+      }
+      cargoTop = Math.max(cargoTop, a.floor + 0.86);
+    }
+  } else if (kind === 1) {
+    const a = h.at(0);
+    for (let layer = 0; layer < 2; layer++) {
+      const nlog = layer === 0 ? 4 : 3;
+      for (let k = 0; k < nlog; k++) {
+        const z = (k - (nlog - 1) / 2) * 0.42;
+        const yy = a.floor + 0.2 + layer * 0.36;
+        lbeam(w, h, [hx0, yy, z], [hx1, yy, z], 0.18, mul3([0.5, 0.33, 0.2], det.range(0.9, 1.08)));
+      }
+    }
+    cargoTop = a.floor + 0.92;
+  } else {
+    for (let x = hx0 + 0.35; x < hx1 - 0.3; x += 0.62) {
+      const a = h.at(x);
+      for (const z of [-0.45, 0, 0.45]) {
+        if (Math.abs(z) > a.inner * 0.8) continue;
+        const p = h.P(x, a.floor, z * a.inner);
+        const jt: V3 = [0.58 * det.range(0.92, 1.06), 0.42, 0.29];
+        if (det.chance(0.6)) {
+          w.drum(p[0], p[1], p[2], 0.17, 0.4, jt, -0.2, 8);
+          w.drum(p[0], p[1] + 0.4, p[2], 0.25, 0.26, jt, 0.45, 8);
+        } else {
+          w.drum(p[0], p[1], p[2], 0.26, 0.42, mul3(MAT, 0.9), -0.12, 9); // a basket
+        }
+      }
+      cargoTop = Math.max(cargoTop, a.floor + 0.66);
+    }
+  }
+  if (sailing) {
+    bipodMast(w, h, 0.17 * L, true);
+  } else {
+    // the unstepped bipod lies on the cargo with the yard and the furled sail
+    for (const s of [-0.18, 0.18]) lbeam(w, h, [-0.24 * L, cargoTop + 0.08, s], [0.18 * L, cargoTop + 0.08, s * 0.4], 0.07, WOOD);
+    lbeam(w, h, [-0.2 * L, cargoTop + 0.24, 0.05], [0.12 * L, cargoTop + 0.24, 0.05], 0.13, SAILCLOTH, 0.11);
+  }
+  const afloat = Math.abs(y - NILE_WATER_Y) < 0.01;
+  if (mode === 'anchored' && afloat) anchorLine(w, h);
+  if (crew && afloat) {
+    const sx = -0.4 * L;
+    boatman(w, crew, h, sx, 0, h.at(sx).floor, 'stand', 0);
+    if (rowing) {
+      for (const fx of benches) {
+        const a = h.at(fx * L);
+        for (const s of [-1, 1]) {
+          boatman(w, crew, h, fx * L, s * a.inner * 0.5, a.floor + 0.43, 'sit', Math.PI);
+          oar(w, h, fx * L, s);
+        }
+      }
+    } else if (sailing) {
+      const a = h.at(0.3 * L);
+      boatman(w, crew, h, 0.3 * L, 0, a.floor + 0.43, 'sit', 0);
+    } else {
+      const a = h.at(-0.3 * L);
+      boatman(w, crew, h, -0.3 * L, 0.2, a.floor, 'sit', Math.PI / 2);
+    }
+  }
+  w.endBob();
+  return h;
+}
+
+/** a baldachin on slender columns (papyrus-bundle style), flat mat roof */
+function canopy(w: W, h: Hull, x: number, len: number): void {
+  const a = h.at(x);
+  const hw = Math.min(a.inner * 0.85, h.B * 0.3);
+  const f0 = Math.min(h.at(x - len / 2).floor, h.at(x + len / 2).floor) - 0.02;
+  for (const px of [-len / 2, 0, len / 2]) {
+    for (const s of [-1, 1]) {
+      lbox(w, h, x + px, f0, s * hw, 0.12, 2.1, 0.12, mul3(WOOD, 1.1));
+      lbox(w, h, x + px, f0 + 1.96, s * hw, 0.2, 0.14, 0.2, mul3(WOOD, 1.2)); // capital
+    }
+  }
+  lbox(w, h, x, f0 + 2.1, 0, len + 0.4, 0.09, hw * 2 + 0.4, [0.78, 0.74, 0.62]); // linen-covered roof
+}
+
+/**
+ * Ceremonial (royal) barque after the Khufu I vessel (canon IX §9.14;
+ * §9.15: Khufu I is evidence of Fourth Dynasty boatbuilding, NOT a cargo
+ * barge): long and slender (~1:7.4), tall papyriform ends, a deckhouse with
+ * a baldachin forward of it, oars shipped on the thwarts, two pairs of big
+ * steering oars, cedar-toned. Moored along the quay north of the middle pier.
+ */
+function ceremonial(
+  w: W, rng: Rng, det: Rng, cx: number, cz: number, yaw: number, y: number, crew: Rng | null,
+): Hull {
+  bobScope(w, rng, cx, cz, y, 0.03, 0.002);
+  const L = rng.range(30, 34);
+  const B = L * 0.135;
+  const tone: V3 = [0.53 * rng.range(0.95, 1.05), 0.34, 0.22];
+  const sweep = rng.range(2.5, 2.9);
+  const h = plankHull(w, det, {
+    L, B, draft: 0.8, free: 1.35, sweep, sweepExp: 2.2, full: 0.7, bulw: 0.55, post: 3.8, tone,
+  }, cx, cz, yaw, y);
+  papyriformPosts(w, h, 1.7);
+  for (let fx = 0.12; fx <= 0.4; fx += 0.07) {
+    const a = h.at(fx * L);
+    lbox(w, h, fx * L, a.floor + 0.36, 0, 0.24, 0.07, a.inner * 2, mul3(tone, 1.06));
+  }
+  deckhouse(w, h, -0.07 * L, 0.26 * L);
+  canopy(w, h, 0.1 * L, 0.11 * L);
+  steeringOars(w, h, 1.25);
+  stowedOars(w, h, 0.14 * L, 0.42 * L, 10);
+  if (crew && Math.abs(y - NILE_WATER_Y) < 0.01) {
+    for (const s of [-1, 1]) {
+      const a = h.at(0.1 * L);
+      boatman(w, crew, h, 0.1 * L, s * a.inner * 0.45, a.floor, 'stand', s * Math.PI / 2);
+    }
+    boatman(w, crew, h, -0.38 * L, 0, h.at(-0.38 * L).floor, 'stand', 0);
+  }
+  w.endBob();
+  return h;
+}
+
+/**
+ * River ferry: a broad papyrus-bundle raft with a plank deck lashed across
+ * it, poled from both ends (double-ended: it never turns, it reverses), a
+ * few passengers and their loads.
+ */
+function ferry(w: W, rng: Rng, det: Rng, cx: number, cz: number, yaw: number, y: number, crew: Rng | null): Hull {
+  bobScope(w, rng, cx, cz, y, 0.06, 0.008);
+  const tone: V3 = [0.64 * rng.range(0.92, 1.06), 0.6 * rng.range(0.92, 1.04), 0.37];
+  const L = rng.range(8, 9.5);
+  const sweep = rng.range(0.4, 0.6);
+  const h = bundleHull(w, det, { L, B: L * 0.34, draft: 0.25, free: 0.55, sweep, tone }, cx, cz, yaw, y);
+  const d = h.at(0);
+  lbox(w, h, 0, d.floor - 0.02, 0, 0.5 * L, 0.07, h.B * 0.78, mul3(WOOD, 1.15)); // the plank deck
+  const top = d.floor + 0.05;
+  if (crew && Math.abs(y - NILE_WATER_Y) < 0.01) {
+    for (const s of [-1, 1]) {
+      const lx = s * 0.34 * L;
+      const a = h.at(lx);
+      boatman(w, crew, h, lx, 0.15 * s, a.floor, 'stand', s > 0 ? Math.PI : 0);
+      lbeam(w, h, [lx - s * 0.1, a.floor + 1.42, 0.3 * s], [lx + s * 1.5, -1.8, (a.half + 1.0) * s], 0.045, WOOD);
+    }
+    for (let k = 0; k < 3; k++) {
+      boatman(w, crew, h, (k - 1) * 0.9, crew.range(-0.5, 0.5), top, 'stand', crew.float() * Math.PI * 2);
+    }
+    const jp = h.P(0.6, top, -0.7);
+    w.drum(jp[0], jp[1], jp[2], 0.2, 0.42, [0.58, 0.42, 0.29], -0.2, 8);
+    const bp = h.P(-0.7, top, 0.75);
+    w.drum(bp[0], bp[1], bp[2], 0.28, 0.4, mul3(MAT, 0.9), -0.12, 9);
+  }
+  w.endBob();
+  return h;
+}
+
+/** a hull-like frame on land (figures and props outside any boat) */
+function landFrame(x: number, z: number, yaw: number, y: number): Hull {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  return {
+    L: 0, B: 0, yaw, end: 0, tone: WOOD,
+    P: (lx, ly, lz) => [x + lx * c - lz * s, y + ly, z + lx * s + lz * c],
+    at: () => ({ sheer: 0, floor: 0, half: 0, inner: 0 }),
+  };
+}
+
+/**
+ * The Tura limestone arriving (canon IX §9.19 stages 6–8, after the Diary of
+ * Merer — nothing invented beyond what the stages name): at the south-shore
+ * slipway a dressed block sits on its sledge on the ramp with tow ropes run
+ * up to the hauling team; two blocks already wait on timber at the ramp head;
+ * a scribe sits on a mat with his writing board and palette, recording the
+ * delivery, a supervisor with a staff beside him under a mat shade. The barge
+ * itself comes and goes on its own track (moving fleet).
+ */
+function unloadingTableau(w: W, hf: Heightfield, crew: Rng, det: Rng): void {
+  const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
+  const r = slipwayRamp(grd, 2);
+  const yaw = Math.atan2(r.uz, r.ux); // down the ramp, toward the water
+  const along = (t: number, side: number): [number, number] => [
+    r.sx0 + r.ux * t - r.uz * side, r.sz0 + r.uz * t + r.ux * side,
+  ];
+  const west = -r.uz < 0 ? 1 : -1; // the side whose world x is smaller
+  const tura: V3 = [0.84, 0.8, 0.7];
+  // the sledge with its block, on the ramp tread
+  {
+    const [bx, bz] = along(Math.min(10, r.tShore * 0.45), 0);
+    const ty = grd(bx, bz) + 0.25;
+    const f = landFrame(bx, bz, yaw + Math.PI, ty); // nose up the ramp
+    for (const s of [-0.62, 0.62]) lbox(w, f, 0, 0, s, 3.8, 0.22, 0.26, WOOD);
+    for (let k = 0; k < 5; k++) lbox(w, f, -1.4 + k * 0.7, 0.2, 0, 0.16, 0.1, 1.6, mul3(WOOD, 0.9));
+    lbox(w, f, 0, 0.3, 0, 1.9, 1.15, 1.25, mul3(tura, det.range(0.96, 1.02)));
+    // tow ropes up the ramp to the hauling team at the head — the far ends
+    // at the haulers' hands over the RISING ground, not at sledge height
+    const tS = Math.min(10, r.tShore * 0.45);
+    for (const s of [-0.5, -0.17, 0.17, 0.5]) {
+      const [ex, ez] = along(tS - 14, s * 2.2);
+      beam(w, f.P(1.9, 0.28, s), [ex, grd(ex, ez) + 0.95, ez], 0.03, ROPE);
+    }
+  }
+  // two blocks waiting on timber at the ramp head (staging), west side
+  for (const [t, side] of [[-3, 5.2], [-6, 5.4]] as const) {
+    const [x, z] = along(t, side * west);
+    const y = grd(x, z) - 0.05;
+    const f = landFrame(x, z, yaw, y);
+    for (const s of [-0.55, 0.55]) lbox(w, f, s, 0, 0, 0.22, 0.2, 1.6, WOOD);
+    lbox(w, f, 0, 0.2, 0, 1.8, 1.05, 1.2, mul3(tura, det.range(0.95, 1.02)));
+    fpReg({ id: `staging:${t}`, family: 'harbor-works', x, z, hx: 1.2, hz: 1.0, yaw, y0: y, y1: y + 1.3, ground: 'grounded' });
+  }
+  // the scribe and the supervisor under a mat shade, facing the ramp
+  {
+    const [x, z] = along(-1.5, 9.5 * west);
+    const y = grd(x, z) - 0.02;
+    const face = Math.atan2(r.sz0 - z, r.sx0 - x); // toward the ramp head
+    const f = landFrame(x, z, face, y);
+    lbox(w, f, 0, 0, 0, 1.4, 0.03, 1.1, mul3(MAT, 0.9)); // his mat
+    boatman(w, crew, f, 0, 0, 0.03, 'sit', 0);
+    lbox(w, f, 0.36, 0.52, 0, 0.32, 0.03, 0.42, [0.62, 0.55, 0.4]); // writing board on his lap
+    lbox(w, f, 0.22, 0.03, 0.42, 0.24, 0.05, 0.08, [0.5, 0.4, 0.28]); // palette with reed pens
+    const jp = f.P(-0.2, 0.03, -0.55);
+    w.drum(jp[0], jp[1], jp[2], 0.14, 0.3, [0.58, 0.42, 0.29], -0.2, 8); // water jar
+    boatman(w, crew, f, -0.3, 1.0, 0, 'stand', 0); // the supervisor
+    lbeam(w, f, [0.05, 0, 1.25], [0.12, 1.75, 1.22], 0.025, WOOD); // his staff
+    for (const px of [-1.1, 1.1]) for (const pz of [-1.2, 1.5]) lbox(w, f, px, 0, pz, 0.08, 2.2, 0.08, WOOD);
+    lbox(w, f, 0, 2.2, 0.15, 2.5, 0.06, 3.0, mul3(MAT, 0.95));
+    fpReg({ id: 'scribe-shade', family: 'harbor-works', x, z, hx: 1.3, hz: 1.7, yaw: face, y0: y, y1: y + 2.3, ground: 'grounded' });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* the moving fleet (v1.2 I2, canon Vol IX §9.16–9.19)                  */
+/* ------------------------------------------------------------------ */
+
+interface Mover {
+  kind: string;
+  k: number;
+  hull: Hull | null;
+  sink: number;
+  /** 1: one-way track that grows/shrinks in at its ends (world edge) */
+  fade: number;
+  phase: number;
+  lane?: 'N' | 'S';
+  speed?: number;
+  track: TrackPoint[];
+}
+
+let fleetState: {
+  movers: Array<{ kind: string; start: number; count: number; cycle: number; phase: number }>;
+  track: Float32Array;
+} | null = null;
+
+/** moving hulls built in the season's last count — read by the scene HUD */
+export let movingCount = 0;
+
+/** CPU replica of the moving-fleet vertex stage: where each hull is at
+ *  world time t (tooling: tools/closeup.ts --fleet) */
+export function fleetAt(t: number): Array<{ id: string; kind: string; x: number; z: number; a: number; load: number }> {
+  if (!fleetState) return [];
+  const T = fleetState.track;
+  return fleetState.movers.map((m, k) => {
+    const u = (((t / m.cycle + m.phase) % 1) + 1) % 1;
+    const fi = u * (m.count - 1);
+    const i0 = Math.min(Math.max(Math.floor(fi), 0), m.count - 2);
+    const f = fi - i0;
+    const a = (m.start + i0) * 4;
+    const b = a + 4;
+    const lerp = (o: number): number => (T[a + o] as number) + ((T[b + o] as number) - (T[a + o] as number)) * f;
+    return { id: `mover:${k}`, kind: m.kind, x: lerp(0), z: lerp(1), a: lerp(2), load: lerp(3) };
+  });
+}
+
+/**
+ * The moving fleet's material: each vertex carries its hull's index and,
+ * for cargo, the load below which it has gone ashore. The vertex stage reads
+ * the hull's time track (Navigation.ts) — position, heading, load — rotates
+ * the hull-local vertex onto it, sinks the hull by sink·load, hides unloaded
+ * cargo, and grows/shrinks one-way hulls in at the world edge. Normals are
+ * rotated with it (v1.1's static hulls never needed that).
+ */
+function movingMaterial(track: Float32Array, hullA: Float32Array, hullB: Float32Array, gi: ProbeGI | null): MeshPhysicalNodeMaterial {
+  const mat = new MeshPhysicalNodeMaterial();
+  const T = instancedArray(track, 'vec4');
+  const HAb = instancedArray(hullA, 'vec4');
+  const HBb = instancedArray(hullB, 'vec4');
+  const nav = attribute('nav', 'vec2') as unknown as NV2;
+  const hid = nav.x.max(0).toInt();
+  const HA = HAb.element(hid); // track start, sample count, cycle (s), phase
+  const HB = HBb.element(hid); // sink, fade flag
+  const t = uWorldTime;
+  const u = t.div(HA.z).add(HA.w).fract();
+  const fi = u.mul(HA.y.sub(1));
+  const i0 = fi.floor().clamp(0, HA.y.sub(2));
+  const f = fi.sub(i0);
+  const base = HA.x.add(i0);
+  const P0 = T.element(base.toInt());
+  const P1 = T.element(base.add(1).toInt());
+  const px = mix(P0.x, P1.x, f);
+  const pz = mix(P0.y, P1.y, f);
+  const ang = mix(P0.z, P1.z, f);
+  const load = mix(P0.w, P1.w, f);
+  // heave + tilt about the hull's own origin (it was built at 0,0)
+  const A = attribute('bobA', 'vec4') as unknown as NV4;
+  const B = attribute('bobB', 'vec4') as unknown as NV4;
+  const heave = sin(t.mul(B.z).add(A.z)).mul(A.w);
+  const roll = sin(t.mul(B.z.mul(0.63)).add(A.z.mul(1.7))).mul(B.w);
+  const lever = positionLocal.xz.sub(vec2(A.x, A.y)).dot(vec2(B.x, B.y));
+  const lp0 = positionLocal.sub(vec3(0, NILE_WATER_Y, 0)).add(vec3(0, heave.add(lever.mul(roll)), 0));
+  // cargo below its threshold has gone ashore: collapse it inside the hull
+  const shown = load.greaterThan(nav.y).select(float(1), float(0));
+  const lp1 = mix(vec3(0, 0.3, 0), lp0, shown);
+  const lp = lp1.sub(vec3(0, HB.x.mul(load), 0));
+  const k = mix(float(1), smoothstep(0, 0.015, u).mul(smoothstep(1, 0.985, u)), HB.y);
+  const c = cos(ang);
+  const s = sin(ang);
+  const rx = lp.x.mul(c).sub(lp.z.mul(s));
+  const rz = lp.x.mul(s).add(lp.z.mul(c));
+  mat.positionNode = vec3(px.add(rx.mul(k)), lp.y.mul(k).add(NILE_WATER_Y), pz.add(rz.mul(k)));
+  const nl = normalLocal;
+  const nWorld = varying(vec3(nl.x.mul(c).sub(nl.z.mul(s)), nl.y, nl.x.mul(s).add(nl.z.mul(c)))) as unknown as NV3;
+  mat.normalNode = transformNormalToView(nWorld);
+  mat.colorNode = attribute('tone', 'vec3') as unknown as NV3;
+  mat.roughnessNode = float(0.72);
+  mat.metalnessNode = float(0);
+  mat.specularIntensity = 0.35;
+  giLightMap(mat, gi, nWorld, 1.0);
+  return mat;
+}
+
 export function buildHarbor(
   scene: Object3D,
   seed: WorldSeed,
@@ -933,7 +1356,26 @@ export function buildHarbor(
   // hull detail (strake tones, cargo jitter) likewise: v1.2's richer hulls
   // must not re-roll the harbour's layout
   const det = seed.rng('harbor-detail');
+  // the moving fleet's own stream (v1.2 I2): phases and the newcomers
+  const traffic = seed.rng('harbor-traffic');
   crewCount = 0;
+  movingCount = 0;
+  fleetState = null;
+  const wm = new W();
+  const movers: Mover[] = [];
+  /** build a hull at the origin into the moving writer as mover #k */
+  const mover = (kind: string, build: (wm: W) => Hull): Mover => {
+    const k = movers.length;
+    wm.setNav(k);
+    registerHulls = false;
+    const hull = build(wm);
+    registerHulls = true;
+    wm.setNav(-1);
+    const m: Mover = { kind, k, hull, sink: 0, fade: 1, phase: traffic.float(), track: [] };
+    movers.push(m);
+    return m;
+  };
+  const turaOut = { sink: 0 };
   const w = new W();
   let vessels = 0;
   hullSeq = 0;
@@ -1042,6 +1484,27 @@ export function buildHarbor(
     }
   }
 
+  /* --- the royal barque along the quay, north of the middle pier (v1.2 I2) -- */
+  {
+    const royal = seed.rng('harbor-royal');
+    const zc = -80;
+    const bx = quayEdgeX + 32 * 0.135 * 0.5 + 1.2;
+    const h = ceremonial(w, royal, det, bx, zc, -Math.PI / 2, floatY(bx, zc, 0.8), crew);
+    // two lines to the quay bollards and a gangplank to the quay top
+    for (const zb of [-90, -60]) {
+      const lx = zc - zb; // hull-local x runs north (yaw −π/2): local +x = world −z
+      const a = h.at(lx);
+      const A = h.P(lx, a.sheer + 0.05, -a.half * 0.92);
+      beam(w, A, [quayEdgeX - 1.6, NILE_WATER_Y + 1.75, zb], 0.025, ROPE);
+    }
+    const g = h.at(-2);
+    beam(w, h.P(-2, g.sheer, -g.half * 0.9), [quayEdgeX - 0.6, NILE_WATER_Y + 1.12, zc + 2], 0.32, mul3(WOOD, 1.1), 0.04);
+    vessels++;
+  }
+  // the Tura delivery at the south-shore slipway: block on its sledge,
+  // staged blocks, the scribe recording (the barge has its own track)
+  unloadingTableau(w, hf, crew, det);
+
   /* --- anchored in the basin (rejection-sampled: no overlapping hulls) ------ */
   const anchored: Array<[number, number]> = [];
   for (let i = 0; i < 6; i++) {
@@ -1060,24 +1523,28 @@ export function buildHarbor(
     vessels++;
   }
 
-  /* --- on the river: traffic + beached skiffs ------------------------------- */
-  let leg = 0;
-  for (const [x0, z] of [
-    [1985, -650], [1930, 240], [2010, 820], [1950, 1400],
-  ] as const) {
-    // snap to deep water: probe eastward for a spot with real depth so the
-    // meandering channel never leaves a hull sitting on a sandbar
-    let x = x0;
-    for (let p = 0; p < 8 && hf.heightAtCpu(x, z) > NILE_WATER_Y - 2.2; p++) x += 12;
-    // (v1.2) headings ALONG the river (+z is south/upstream): v1.1 pointed
-    // every hull east, across the current. Travellers alternate — south
-    // under sail before the north wind, north rowing down the current;
-    // stone barges come down from the Tura quarries, heading north.
-    const south = leg++ % 2 === 0;
+  /* --- on the river: traffic UNDER WAY (v1.2 I2) + beached skiffs --------- */
+  // The four river hulls now travel their lanes (tracks laid below). The
+  // v1.1 draws are kept in order — type, a heading jitter now unused, then
+  // the builders' own — so nothing later in the harbour stream moves.
+  // Travellers alternate south under sail before the north wind and north
+  // rowing down the current; stone barges come down from Tura, heading north.
+  for (let i = 0; i < 4; i++) {
+    const south = i % 2 === 0;
     if (rng.chance(0.5)) {
-      traveler(w, rng, det, x, z, (south ? Math.PI / 2 : -Math.PI / 2) + rng.range(-0.3, 0.3) * 0.5, floatY(x, z, 0.6), crew, 'underway');
+      rng.range(-0.3, 0.3);
+      const m = mover(south ? 'traveller-south' : 'traveller-north', (wm) =>
+        traveler(wm, rng, det, 0, 0, 0, NILE_WATER_Y, crew, south ? 'sailing' : 'rowing'));
+      m.lane = south ? 'S' : 'N';
+      m.speed = south ? 2.1 : 1.8;
     } else {
-      barge(w, rng, det, x, z, -Math.PI / 2 + rng.range(-0.3, 0.3) * 0.5, floatY(x, z, 0.9), crew, 'underway');
+      rng.range(-0.3, 0.3);
+      const out = { sink: 0 };
+      const m = mover('stone-barge-north', (wm) =>
+        barge(wm, rng, det, 0, 0, 0, NILE_WATER_Y, crew, 'underway', { moving: true, out }));
+      m.sink = out.sink;
+      m.lane = 'N';
+      m.speed = 1.25;
     }
     vessels++;
   }
@@ -1101,6 +1568,144 @@ export function buildHarbor(
   {
     const frng = seed.rng('harbor-fishers');
     for (const z of [-880, 520, 1100]) vessels += seine(w, frng, det, crew, hf, floatY, 1760, z);
+  }
+
+  /* --- the moving fleet: tracks and the moving mesh (v1.2 I2) -------------- */
+  {
+    // newcomers on their own stream (the harbour's layout stays put)
+    const add = (kind: string, build: (wm: W) => Hull, ln?: 'N' | 'S', speed = 1.8): Mover => {
+      const m = mover(kind, build);
+      if (ln) {
+        m.lane = ln;
+        m.speed = speed;
+      }
+      return m;
+    };
+    const tura = add('tura-barge', (wm) => barge(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'underway', { moving: true, unloads: true, out: turaOut }));
+    tura.sink = turaOut.sink;
+    add('cargo-north', (wm) => cargoBoat(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'rowing'), 'N', 1.7);
+    add('cargo-south', (wm) => cargoBoat(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'sailing'), 'S', 2.0);
+    add('traveller-south', (wm) => traveler(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'sailing'), 'S', 2.2);
+    const shuttle = add('harbour-shuttle', (wm) => cargoBoat(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'rowing'));
+    const fer = add('ferry', (wm) => ferry(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew));
+
+    // the river lanes on the PROBED deep channel (meander noise moves the
+    // bank ±40 m off the spline): southbound west of the axis, northbound east
+    const axis = riverAxis(hf, -1800, 2200);
+    const axisX = (z: number): number => {
+      let best = axis[0] as P2;
+      for (const p of axis) if (Math.abs(p[1] - z) < Math.abs(best[1] - z)) best = p;
+      return best[0];
+    };
+    const laneS = lane(axis, -35);
+    const laneN = lane(axis, 35).reverse();
+    for (const m of movers) {
+      if (!m.lane) continue;
+      m.track = new TrackBuilder().travel(m.lane === 'S' ? laneS : laneN, m.speed ?? 1.8, 1).finish();
+    }
+    // the approach canal (GizaControl APPROACH, half-width 55): an inbound
+    // lane on its south side, an outbound lane on its north side
+    const ax = axisX(-80);
+    const canalIn: P2[] = [[ax + 25, -60], [ax + 4, -96], [ax - 30, -110], [1500, -138], [1300, -131]];
+    const canalOut: P2[] = [[1300, -143], [1500, -162], [ax - 22, -134], [ax - 34, -104], [ax - 35, -60]];
+    const basinBox: [number, number, number, number] = [860, -300, 1320, 60];
+
+    // the Tura route (canon IX §9.19, Diary of Merer): down the river laden,
+    // into the canal, across the basin to the south-shore slipway, unloaded
+    // block by block, back off stern-first, out, and home upstream empty
+    {
+      const hT = tura.hull as Hull;
+      const r = slipwayRamp((x, z) => hf.heightAtCpu(x, z), 2);
+      const bowT = r.tShore + 1.5;
+      const dock: P2 = [r.sx0 + r.ux * (bowT + hT.L / 2), r.sz0 + r.uz * (bowT + hT.L / 2)];
+      const appr: P2 = [dock[0] + r.ux * 16, dock[1] + r.uz * 16];
+      const clear = hT.B / 2 + 3;
+      const pin = planWater(hf, [1300, -131], appr, { depth: 1.6, clear, box: basinBox });
+      const pout = planWater(hf, appr, [1300, -143], { depth: 1.6, clear, box: basinBox });
+      const tb = new TrackBuilder();
+      tb.travel(smooth([...laneN.filter((p) => p[1] >= -20), ...canalIn], 2), 1.25, 1);
+      if (pin && pout) {
+        tb.travel(pin, 0.8, 1).travel([appr, dock], 0.4, 1);
+        const dockAt = tb.pts.length;
+        tb.stop(1500, 1, 0).stop(300, 0, 0);
+        tb.travel([dock, appr], 0.4, 0, true).travel(pout, 0.8, 0);
+        tb.travel(smooth([...canalOut, ...laneS.filter((p) => p[1] >= -40)], 2), 0.9, 0);
+        tura.track = tb.finish();
+        // at world time 0 (frozen shots) the barge is half unloaded
+        tura.phase = (dockAt + 400) / (tura.track.length - 1);
+      } else {
+        // no clear water across the basin this seed: it passes downstream
+        tura.track = new TrackBuilder().travel(laneN, 1.25, 1).finish();
+      }
+    }
+    // the harbour shuttle: canal → basin → bow-in at the quay between the
+    // piers → unload → back off → out → U-turn in the river → in again
+    {
+      const hS = shuttle.hull as Hull;
+      const dock: P2 = [quayEdgeX + hS.L / 2 + 1.0, -180];
+      const appr: P2 = [quayEdgeX + hS.L / 2 + 22, -180];
+      const clear = hS.B / 2 + 2.5;
+      const pin = planWater(hf, [1300, -131], appr, { depth: 1.3, clear, box: basinBox });
+      const pout = planWater(hf, appr, [1300, -143], { depth: 1.3, clear, box: basinBox });
+      const tb = new TrackBuilder();
+      const turn = arc([ax + 15, -120], 12, -Math.PI / 2, Math.PI, 12);
+      if (pin && pout) {
+        tb.travel(smooth(canalIn.slice(1), 2), 1.4, 1).travel(pin, 0.9, 1).travel([appr, dock], 0.35, 1);
+        tb.stop(900, 1, 1);
+        tb.travel([dock, appr], 0.35, 1, true).travel(pout, 0.9, 1);
+        tb.travel(smooth([...canalOut.slice(0, 3), [ax + 15, -132], ...turn, ...canalIn.slice(0, 2)], 2), 1.2, 1);
+        shuttle.track = tb.finish();
+        shuttle.fade = 0;
+        shuttle.phase = 0.08;
+      } else {
+        shuttle.track = new TrackBuilder().travel(laneN, 1.6, 1).finish();
+      }
+    }
+    // the ferry across the reach at z ≈ 700: poled over, waits, poled back
+    // (double-ended: it reverses, it never turns)
+    {
+      const hF = fer.hull as Hull;
+      const zf = 700;
+      const axF = axisX(zf);
+      let xw = axF - 220;
+      while (xw < axF && hf.heightAtCpu(xw, zf) > NILE_WATER_Y - 0.9) xw += 2;
+      let xe = axF + 220;
+      while (xe > axF && hf.heightAtCpu(xe, zf) > NILE_WATER_Y - 0.9) xe -= 2;
+      const pw: P2 = [xw + hF.L / 2 + 0.5, zf];
+      const pe: P2 = [xe - hF.L / 2 - 0.5, zf];
+      const tb = new TrackBuilder();
+      tb.travel([pw, [pw[0] + 0.1, zf]], 0.1, 1).stop(150, 1, 1);
+      tb.travel([pw, pe], 1.0, 1).stop(150, 1, 1);
+      tb.travel([pe, pw], 1.0, 1, true);
+      fer.track = tb.finish(1);
+      fer.fade = 0;
+      fer.phase = 0.3;
+    }
+
+    // every mover needs a usable track
+    for (const m of movers) if (m.track.length < 2) m.track = new TrackBuilder().travel(laneN, 1.6, 1).finish();
+    const tracks: number[] = [];
+    const hA = new Float32Array(movers.length * 4);
+    const hB = new Float32Array(movers.length * 4);
+    const meta: Array<{ kind: string; start: number; count: number; cycle: number; phase: number }> = [];
+    for (const m of movers) {
+      const start = tracks.length / 4;
+      for (const p of m.track) tracks.push(p.x, p.z, p.a, p.load);
+      const cycle = Math.max(DT, (m.track.length - 1) * DT);
+      hA.set([start, m.track.length, cycle, m.phase], m.k * 4);
+      hB.set([m.sink, m.fade, 0, 0], m.k * 4);
+      meta.push({ kind: m.kind, start, count: m.track.length, cycle, phase: m.phase });
+    }
+    const trk = new Float32Array(tracks);
+    fleetState = { movers: meta, track: trk };
+    movingCount = movers.length;
+    vessels += movers.length - 4; // the four river hulls were counted where they were built
+    const mm = new Mesh(wm.build(), movingMaterial(trk, hA, hB, gi));
+    mm.name = 'vessels-moving';
+    mm.frustumCulled = false; // positions live on the GPU
+    mm.castShadow = true;
+    mm.receiveShadow = true;
+    scene.add(mm);
   }
 
   const mat = new MeshPhysicalNodeMaterial();

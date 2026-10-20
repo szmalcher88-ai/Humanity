@@ -1,7 +1,7 @@
 # PROJECT AKHET — STATUS (source of truth)
 
 > **Rehydration protocol** (for an agent resuming with no context): read this
-> file fully, then the brief (the operative spec — binding), then
+> file fully, then the brief (`docs/BRIEF.md` — the operative spec, binding), then
 > `canon/MASTER_PROMPT_BIBLE.md` Vols I–VI, `canon/VOL_VII.md`, `VOL_VIII.md`,
 > `VOL_IX.md` (added 2026-10-20), then
 > `reference-repos/fable5-world-demo/docs/THREE-NOTES.md` (verified API
@@ -325,6 +325,75 @@ VERDICT: with recon aimed at a rewrite (constraints, inventory, canon,
 style, accuracy) Haiku is at its best: 78/81. Keep this pattern for any
 module rewrite.
 
+I2 — THE RIVER AT WORK (done; canon Vol IX §9.14–9.22):
+1. BOATS UNDER WAY (`src/water/Navigation.ts` + the moving fleet in
+   `Vessels.ts`). A moving hull is built once at the origin into its own
+   writer; every vertex carries its hull index. Its motion is a TIME TRACK —
+   samples every 2 s of position, heading and load — read in the vertex stage
+   from a storage buffer by a computed index (the Heightfield.sampleHeight
+   pattern), so navigation authority and visual motion are the same data
+   (canon §9.17). River lanes sit on the PROBED deep channel (the meander
+   noise moves the bank ±40 m off the spline): southbound 35 m west of the
+   axis, northbound 35 m east. Harbour legs are planned by A* over water deep
+   enough for the hull and clear of every registered hull, pier and quay;
+   turns are arcs, headings eased; stops are runs of identical samples;
+   backing off a landing is stern-first. One-way river tracks grow/shrink in
+   at the world edge. `fleetAt(t)` is the CPU replica (verified: at t = 120 s
+   the GPU hull sits exactly where the replica says).
+2. TEN MOVERS: the four v1.1 river hulls (same draws, now travelling),
+   travellers sailing south before the north wind and rowing north, stone
+   barges coming down from Tura, a cargo boat each way, a harbour shuttle
+   (canal → basin → bow-in at the quay between the piers → back off → U-turn
+   in the river) and a FERRY across the reach at z ≈ 700 (double-ended
+   papyrus raft with a plank deck: poled over, waits, poled back).
+3. THE TURA ROUTE (canon §9.19, Diary of Merer — nothing invented): a laden
+   barge comes down the river, turns into the canal, crosses the basin to the
+   south-shore slipway and noses up to it; over 25 minutes its blocks go
+   ashore ONE BY ONE (each carries the load at which it leaves; the shader
+   hides it then) and the hull RISES as it empties (sink from the cargo's
+   displacement over the waterplane, canon §9.20); it backs off and goes home
+   upstream empty. At world time 0 (all frozen shots) it is half unloaded. On
+   the slipway: a block on its sledge with tow ropes to a hauling team on the
+   ramp axis, two blocks staged on timber at the head, and a scribe on a mat
+   with writing board and palette, a supervisor with a staff, under a shade.
+4. NEW VESSEL CLASSES (canon §9.14): a general CARGO BOAT (grain sacks,
+   cedar baulks or jars and baskets; reed-mat awning aft; bipod rig set when
+   sailing south, unstepped and lying on the cargo when rowing north) and a
+   CEREMONIAL BARQUE after Khufu I (~32 m, ~1:7.4, tall papyriform ends,
+   deckhouse and baldachin, ten oars shipped, two pairs of steering oars,
+   cedar), moored along the quay north of the middle pier with lines to the
+   quay bollards and a gangplank. Static laden barges now sit lower too.
+5. REED AND PAPYRUS CUTTERS (`src/vegetation/ReedHarvest.ts`): six cutting
+   gangs at reed beds on the river strip (never the harbour latitudes), piles
+   of tied bundles up the bank — round, lashed, off the crop parcels — and
+   fresh green bundles at the margin. `buildShore` now returns its reed
+   spots; the gangs ride the inhabitants' extra share, raised 8 % → 12 %
+   (the threshers alone had used 70 of its 72 places).
+6. `docs/BRIEF.md`: the AKHET brief restored verbatim from the first session.
+Deferred: wakes (an opaque ribbon cannot match the reflected water — they
+belong in the water shader, roadmap I7); boat-to-boat avoidance between
+tracks (the ferry can cross a lane while a hull passes — rare, unsolved).
+Counts: 34 vessels (10 moving), 77 boatmen, 960 figures. Audit clean.
+Battery: first run 18/19 — the slow-adapter gate failed with no reason shown
+(battery.ts kept only "Command failed"; it now prints the probe's last lines);
+run alone the probe passed (Intel UHD, boot 8.3 s, 27.8 fps, no device loss),
+and the full re-run passed it. Re-run: 18/19 + 1 WARN — perf bm1 78 / bm3 65 /
+bm7 44 @1440p (first run 76 / 67 / 62). A/B in ONE sitting, alternated twice,
+`?hide=vessels`: bm3 62–64 with the fleet vs 63–65 without, bm7 46 vs 46 — the
+moving fleet costs nothing measurable; bm7 sits on its known 45–47 baseline
+and the 44 is noise at the threshold.
+
+HAIKU — ITERATION I2 (5 agents, read-only, every finding verified):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon IX requirements vs code | 22 | 22 — quotes verbatim (spot-checked 716, 816, 861); it set this iteration's checklist |
+| B | river geometry for navigation | 20 | 19 — spline, widths, canal, basin, world extents all exact; the water-flow sign remark is unverified |
+| C | TSL patterns for a vertex-stage path shader | 20 | 18 — the clamp→toInt→element recipe worked first time; velocity-MRT and culling notes held |
+| D | harbour placement constraints | 20 | 18 — "slip 2 has no head gang" and "no open water in front of the valley temple" decided where the tableau and the barque went |
+| E | shore workers / inhabitants mechanics | 18 | 18 — the 0.3 m water test, the full extra pool and the counts-only Shore return were all real |
+VERDICT: recon briefed with the build question (constraints, numbers, the
+API recipe) stays at ~95 %. Keep it.
+
 ### CANON VOLS VII–IX (added 2026-10-20) — what they change
 
 Precedence stays: brief > canon > model judgment (brief, "What this
@@ -369,7 +438,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | it. | theme | content |
 |---|---|---|
 | I1 | crews + life on the water | DONE (above) |
-| I2 | the river at work (canon IX §9.14–9.22) | boats UNDERWAY on a navigation graph (spline-following in the vertex stage, wakes); the Tura limestone route as the flagship sequence (loaded barge arriving, unloading to a staging area, a scribe recording — Merer's diary, nothing invented); loaded hulls sitting lower; a general cargo vessel and a ceremonial vessel class; reed and papyrus cutters with bundles; a ferry crossing |
+| I2 | the river at work (canon IX §9.14–9.22) — DONE (above; wakes deferred to I7) | boats UNDERWAY on a navigation graph (spline-following in the vertex stage, wakes); the Tura limestone route as the flagship sequence (loaded barge arriving, unloading to a staging area, a scribe recording — Merer's diary, nothing invented); loaded hulls sitting lower; a general cargo vessel and a ceremonial vessel class; reed and papyrus cutters with bundles; a ferry crossing |
 | I3 | town life (canon VIII) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
 | I4 | the land | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
 | I5 | the necropolis + the monument | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
