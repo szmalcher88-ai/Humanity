@@ -265,6 +265,61 @@ exhaustive code reading against a NAMED class with evidence (agents 1-3,
 MEASUREMENT (perf 0/12). Next iterations: keep 1-3 style tasks; give perf
 recon only together with a measured pass table, or not at all.
 
+I1b — BOAT QUALITY PASS (done; the human: "boats are poor quality — be more
+precise and detailed, within the project's style"):
+1. HULLS (`src/water/Vessels.ts`, "hulls" block): v1.1 lofted 9 stations with
+   one chine and a flat lid — from above every boat was a solid wedge. Now
+   18 stations; outside a wet band at the waterline, two strakes and a dark
+   heavy wale; a gunwale cap; an OPEN hull — bulwarks, three floor boards,
+   floor timbers every ~1.7 m, thwarts. Every face goes through `face()`,
+   wound by a hint vector (the v1.1 see-through-boat class cannot recur).
+2. TRAVELLERS: papyriform prow post with a flared papyrus-umbel finial,
+   stern post curling inboard (Khufu-ship form); mat deckhouse on a pole
+   frame with a flat roof and a dark doorway forward; Old Kingdom BIPOD mast
+   (two legs, four lashed rungs, forestay, two backstays). Heading south
+   (upstream, before the north wind) the sail is SET — tall and narrow
+   between yard and boom, bellied forward, sheets to the quarters; heading
+   north the crew rows (bladed oars over the gunwale, rowers facing the
+   stern) with the sail furled; at rest the oars lie shipped on the thwarts.
+3. STEERING OARS: a big oar over each quarter, loom resting in a crutch
+   standing where it actually crosses the gunwale, blade edge-on in the
+   water (v1.1: two vertical posts hanging in the air, 0.55 m above water).
+4. BARGES: ~1:4 instead of ~1:3 (read as round tubs from above); hue jitter
+   coupled (some hulls went salmon pink); stem heads; tie beams fore and
+   aft of the hold; Tura blocks on timber sleepers and packed jars, laid end
+   to end (v1.1 let cargo interpenetrate and sink 0.14 m into the deck);
+   polers on the floor working poles that clear the gunwale; hands sitting
+   on the stone.
+5. SKIFFS are papyrus BUNDLES now: an oval bundle flattened on top,
+   tapering into upturned tied tips, rope lashings every ~0.5 m, sheaves
+   toned apart, dried-papyrus colour (v1.1: a plank shell in timber tone).
+6. HARBOUR: mooring lines from bow and stern quarters to bollards on the
+   pier edge; anchor cables off the bow of anchored hulls; pier clutter
+   jars as jars; river traffic heads ALONG the river (v1.1 pointed every
+   hull east, across the current); the middle pier springs from the quay
+   face (its deck ran through the quay body — same family, so the audit
+   never compared them); crew kilts 2 cm wider than torsos (coplanar
+   strip z-fight).
+7. Layout preserved: every new draw comes from a `harbor-detail` stream;
+   the fleet's `harbor` draws keep their v1.1 order and count, so no hull,
+   pier or skiff moved. Audit clean, bookmarks pass.
+Battery 19/19: bm1 51 / bm3 72 / bm7 46 @1440p. The I1 run's bm1 81 was a
+one-off: an A/B in ONE sitting at bm1 1440p (`?hide=vessels`, alternated
+twice) reads 53 fps with the fleet, 52 without — the whole fleet is ~0.1M
+tris in one draw. (The vessel mesh is now named `vessels` for that switch.)
+
+HAIKU — ITERATION I1b (5 agents, read-only, every finding verified):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon requirements for vessels (verbatim quotes, built?) | 18 | 18 accurate — quotes spot-checked verbatim; the motion/traffic gaps ("Boats continue sailing", "transport vessels arrive continuously", "dense forest of masts") feed roadmap I2 |
+| B | vessel geometry inventory (named defect classes) | 13 flagged | 11 — incl. two the main agent had missed: the middle pier through the quay, the kilt/torso coplanar strip; "dramatic end rise" is taste, the seatY clamp is by design |
+| C | constraints a hull rewrite must keep | 19 | 19 — the afloat rule, draft duplication, the RNG-stream re-roll trap and the bob-attribute contract shaped the design directly |
+| D | project style conventions for props | 20 | 20 accurate (palettes, roughness, flat shading, budgets) |
+| E | Old Kingdom accuracy of the boats | 11 | 10 — single box under a "bipod mast" comment, vertical steering oars, blade-less oars, plank-shell "papyrus" skiff, no papyriform posts; 1 false ("papyriform" names the form, a timber hull is right) |
+VERDICT: with recon aimed at a rewrite (constraints, inventory, canon,
+style, accuracy) Haiku is at its best: 78/81. Keep this pattern for any
+module rewrite.
+
 ### ROADMAP v1.2+ (written 2026-10-20 — the old 10-iteration roadmap is done)
 
 Each iteration: 5 read-only Haiku recon agents (distinct tasks) → verify →
