@@ -319,6 +319,19 @@ blocks; gaps between walls; see-through boats. Every one was real:
    Seated on the lowest corner now.
 Battery on an idle GPU (53 °C): 19/19, bm1 53 / bm3 70 / bm7 45.
 
+M7 — HAIKU QA PILOT (5 read-only agents, distinct tasks; all findings
+verified by the main agent before any change):
+| agent | task | reported | confirmed |
+|---|---|---|---|
+| 1 | centre-height seating / water thresholds (code) | 15 | 14 correct readings, 3 visible defects (beached hulls ×2, mastaba chapels) — it ignored that most pieces stand on flat ground |
+| 2 | canon / anachronism audit (code + canon quotes) | 3 | 2.5 — shaduf crane (New Kingdom) replaced; potter's "wheel" → tournette; lamp posts declared D-13 |
+| 3 | winding / coplanar / V-gaps (code) | 6 | 6 — GeoWriter.box had NO BOTTOM FACE (see-through lintels and roofs from below), debris chips wound inward, valley-temple floor z-fight, temenos west-run wedge, two coplanar strips |
+| 4 | visual QA, 10 frames | 8 | 0 (perspective, occlusion and intended content read as defects) |
+| 5 | visual QA, 9 frames | 5 | 0 (+1 valid design note: field rows too contrasty up close → softened) |
+VERDICT: Haiku is strong at targeted code reasoning on a NAMED bug class with
+evidence required (agents 2-3), weak at open visual QA of 3D frames (0/13).
+Keep 1-3 style recon; do not use it for screenshot review.
+
 PERF CAVEAT (2026-10-20 evening): after hours of captures the RTX 3050 sat
 at 86 °C with SW thermal slowdown (clock 1410/2100 MHz) and 100 % utilisation
 from OTHER processes (Edge, Docker, other agents) — the sweep read 20/22/16

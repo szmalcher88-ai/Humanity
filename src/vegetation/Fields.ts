@@ -236,7 +236,9 @@ export function buildFields(
   const carpetD = positionWorld.sub(cameraPosition).length();
   const rowF = fract(wxz.y.div(0.85));
   const rowLine = smoothstep(0.0, 0.18, rowF).mul(smoothstep(1.0, 0.82, rowF));
-  const rowK = smoothstep(140, 45, carpetD).mul(0.3);
+  // 0.18 (was 0.3): at a few metres the rows read as ruled stripes on a
+  // flat plane (Haiku visual-QA note, verified)
+  const rowK = smoothstep(140, 45, carpetD).mul(0.18);
   const rows = float(1).sub(rowLine.oneMinus().mul(rowK));
   const stand = fbm2(wxz.div(6.5), 3).mul(0.5).add(0.5);
   const patchy = mix(float(0.78), float(1.14), smoothstep(0.25, 0.75, stand));
