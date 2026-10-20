@@ -63,6 +63,7 @@ import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER, WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
 import { NILE_WATER_Y } from '../world/WorldConst';
 import { fpAll, type Footprint } from '../debug/Footprints';
+import { townToWorld } from '../world/TownFrame';
 
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
@@ -249,6 +250,16 @@ function obstacleField(): (x: number, z: number, y: number) => boolean {
   };
 }
 
+/** a work line given in the worker town's own frame */
+function townLine(
+  u0: number, v0: number, u1: number, v1: number,
+  n: number, spread: number, carry: number, still: number,
+): Gang[] {
+  const [x0, z0] = townToWorld(u0, v0);
+  const [x1, z1] = townToWorld(u1, v1);
+  return [{ x0, z0, x1, z1, n, spread, carry, still }];
+}
+
 function workLines(): Gang[] {
   const qx = QUARRY_KHUFU_CENTER.x;
   const qz = QUARRY_KHUFU_CENTER.z;
@@ -292,6 +303,13 @@ function workLines(): Gang[] {
     { x0: tx - 95, z0: tz + 34, x1: tx + 10, z1: tz + 40, n: 60, spread: 9, carry: 0.2, still: 0.6 },
     // the Wall of the Crow gate — the whole town funnels through it
     { x0: tx - 168, z0: tz - 230, x1: tx - 168, z1: tz - 190, n: 55, spread: 5, carry: 0.3, still: 0.15 },
+    // industrial quarter (v1.1): moulders on the drying field, brick porters
+    // up to the town, potters, copper smiths, rope makers walking the walk
+    ...townLine(104, 104, 140, 188, 46, 16, 0.2, 0.82),
+    ...townLine(96, 110, 40, 60, 30, 3.5, 0.85, 0.05),
+    ...townLine(-20, 126, 20, 140, 18, 10, 0.25, 0.8),
+    ...townLine(-12, 172, 8, 190, 14, 7, 0.15, 0.85),
+    ...townLine(60, 98, 60, 206, 10, 1.2, 0.1, 0.1),
   ];
 }
 

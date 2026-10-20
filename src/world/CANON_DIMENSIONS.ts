@@ -257,6 +257,10 @@ export const WORKER_TOWN_PADS: readonly (readonly [number, number, number, numbe
   [-103, 25, 4, 48, -36.6], // bakery rows
   [70, 26, 122, 68, -41.9], // Royal Administrative Building
   [-116, 52, -30, 72, -36.6], // animal pens + woodpiles
+  // industrial quarter (v1.1, monuments/IndustryDistrict.ts) — the
+  // brickyard stands on the dead-flat alluvium and needs no terrace
+  [-30, 108, 30, 152, -39.7], // pottery yard
+  [-30, 162, 20, 202, -42.0], // copper works
 ];
 
 /** Khufu valley temple / harbor basin (under Nazlet el-Samman). */

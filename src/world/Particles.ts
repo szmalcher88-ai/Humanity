@@ -39,6 +39,8 @@ import { QUARRY_KHUFU_CENTER, WORKER_TOWN_CENTER } from './CANON_DIMENSIONS';
 import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { WIND_X, WIND_Z } from './WorldConst';
+import { townToWorld } from './TownFrame';
+import { INDUSTRY_SMOKE } from '../monuments/IndustryDistrict';
 
 const BUDGET = { safe: 6_000, low: 22_000, high: 131_072, ultra: 160_000 } as const;
 
@@ -78,15 +80,27 @@ export class WorkParticles {
       { x: 185, z: 180, r: 35, w: 0.8 }, // masons' yards
       { x: tx - 60, z: tz - 210, r: 50, w: 0.7 }, // town lanes
     ];
-    // SMOKE — bakery chimneys + town hearths (thin, rising columns)
+    // SMOKE — bakery chimneys + town hearths (thin, rising columns).
+    // (v1.1) anchors in the town's OWN frame: laid out on world axes they
+    // missed the rotated bakery row by up to 13 m — smoke from bare ground
     const smokeSrc: Src[] = [];
     for (let i = 0; i < 9; i++) {
-      smokeSrc.push({ x: tx - 95 + i * 11.5, z: tz + 32 + (i % 2) * 9, r: 1.2, w: 1 });
+      const [x, z] = townToWorld(-95 + i * 11.5, 32 + (i % 2) * 9);
+      smokeSrc.push({ x, z, r: 1.2, w: 1 });
     }
     for (let i = 0; i < 6; i++) {
-      smokeSrc.push({
-        x: tx + 60 + rng.range(0, 60), z: tz - 120 + rng.range(0, 70), r: 1.5, w: 0.6,
-      });
+      const [x, z] = townToWorld(60 + rng.range(0, 60), -120 + rng.range(0, 70));
+      smokeSrc.push({ x, z, r: 1.5, w: 0.6 });
+    }
+    // kilns and copper furnaces of the industrial quarter
+    for (const [u, v] of INDUSTRY_SMOKE) {
+      const [x, z] = townToWorld(u, v);
+      smokeSrc.push({ x, z, r: 0.9, w: 0.9 });
+    }
+    {
+      // brickyard: dust off the drying field and the straw heaps
+      const [x, z] = townToWorld(122, 145);
+      dustSrc.push({ x, z, r: 40, w: 0.35 });
     }
 
     this.spawn(scene, rng.fork('dust'), hf, dustSrc, Math.floor(total * 0.86), {
