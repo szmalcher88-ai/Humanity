@@ -26,8 +26,11 @@ export const MARKS: Mark[] = [
   { name: 'dawn from the harbor', p: [1160, -41, -80], yaw: 1.64, pitch: 0.1 },
   { name: 'noon court', p: [265, 7, 265], yaw: 0.785, pitch: 0.2 },
   { name: 'causeway descent', p: [620, 0, -190], yaw: 2.25, pitch: -0.06 },
-  { name: 'town gate', p: [491, -30, 668], yaw: -2.94, pitch: -0.12 },
-  { name: 'gallery street', p: [462, -36, 722], yaw: 3.1, pitch: 0 },
+  // 5 + 6 were framed before the town ground settled ~4 m higher and had sunk
+  // 3.2 / 3.8 m UNDER the terrain (v1.1: the debris "floating over the town"
+  // was the ground seen from below). Re-seated at eye height over the probe.
+  { name: 'town gate', p: [491, -25, 668], yaw: -2.94, pitch: -0.12 },
+  { name: 'gallery street', p: [462, -30.4, 722], yaw: 3.1, pitch: 0 },
   { name: 'quarry', p: [0, 15, 560], yaw: -0.738, pitch: -0.2 },
   { name: 'queens & temple', p: [140, 30, -20], yaw: -2.678, pitch: -0.26 },
   { name: 'river shore', p: [1800, -42, 250], yaw: -2.6, pitch: -0.12 },
@@ -43,6 +46,18 @@ export const MARKS: Mark[] = [
 /** tour order: harbor → river → town → quarry → plateau → causeway → back */
 const TOUR = [0, 1, 8, 5, 4, 6, 2, 7, 3];
 const LEG_SECONDS = 11;
+
+/** a bookmark never puts the eye below this height over ground or water */
+export const MARK_CLEARANCE = 1.5;
+/** the flythrough flies higher: its straight legs cross knolls and walls */
+const TOUR_CLEARANCE = 4;
+
+/** lift a pose so the eye clears the terrain (and the water) under it */
+function clearGround(p: [number, number, number], min: number): [number, number, number] {
+  const g = window.__akhet.groundProbe?.(p[0], p[2]);
+  if (!g) return p;
+  return [p[0], Math.max(p[1], Math.max(g.ground, g.water) + min), p[2]];
+}
 
 function lerpAngle(a: number, b: number, t: number): number {
   let d = b - a;
@@ -61,7 +76,7 @@ export function attachBookmarks(engine: Engine): void {
 
   const jump = (m: Mark): void => {
     if (m.t !== undefined) window.__akhet.setTimeOfDay?.(m.t);
-    setPose({ p: [...m.p], yaw: m.yaw, pitch: m.pitch });
+    setPose({ p: clearGround([...m.p], MARK_CLEARANCE), yaw: m.yaw, pitch: m.pitch });
   };
 
   window.addEventListener('keydown', (e) => {
@@ -118,11 +133,11 @@ export function attachBookmarks(engine: Engine): void {
         (3 * b - a - 3 * c + d) * t3);
     };
     setPose({
-      p: [
+      p: clearGround([
         cr(p0.p[0], p1.p[0], p2.p[0], p3.p[0], ease),
         cr(p0.p[1], p1.p[1], p2.p[1], p3.p[1], ease),
         cr(p0.p[2], p1.p[2], p2.p[2], p3.p[2], ease),
-      ],
+      ], TOUR_CLEARANCE),
       yaw: lerpAngle(p1.yaw, p2.yaw, ease),
       pitch: p1.pitch + (p2.pitch - p1.pitch) * ease,
     });

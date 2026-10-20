@@ -184,6 +184,43 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
+### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
+
+Brief from the human: extend the world, add detail, fix bugs. Baseline
+before touching anything: battery 19/19, and a NEW tool — `tools/tour.ts`
+boots once and captures all eleven bookmarks (~1 min instead of eleven
+40 s boots; `--only 5,6`, `--q "cull=0&hide=debris"` for ablations).
+`?hide=<name prefixes>` hides scene objects by name (ablation switch).
+
+M1 — THE TOWN WAS UNDERGROUND (done):
+1. "Debris floating over the worker town" (bm5/bm6) was not debris: the two
+   cameras stood 3.2 / 3.8 m UNDER the terrain (groundProbe), so the world
+   rendered from below. Bookmarks re-seated; `jump()` and the flythrough
+   now clamp the eye above ground/water; `tools/test-bookmarks.ts` fails on
+   any authored mark with < 1.2 m clearance.
+2. Lifting the camera exposed the real defect: the galleries had sand at
+   ROOF level. Flat-based 78 × 36 m blocks sat on their lowest corner on a
+   2-3 % slope, the uphill side buried. The audit passed it because
+   `buried` only fires when the WHOLE top is below the lowest ground
+   sample. NEW audit rule `sunk`: terrain on the uphill side above 60 % of
+   a footprint's height (from `yFloor` when y0 is a buried foundation).
+   First run: 10 issues (galleries, east town, bakeries, Wall of the Crow,
+   3 causeway runs, 2 mastabas).
+3. Fixes: per-district flat terraces in GizaControl at the MEAN natural
+   level (`WORKER_TOWN_PADS`, town-local frame, 6 m blend; levels measured
+   with groundProbe); `masksB.w` = new `worked` mask (G1 court, queens'
+   terrace, town pads) — SandTransport sweeps sand off prepared surfaces
+   (the mortuary temple's basalt court is visible again for the first
+   time); long walls built by `gwall()` in ~14 m runs grounded one by one,
+   battering the THICKNESS only (`GeoWriter.box` batterZ — battered ends
+   would notch every joint, the causeway V-gap lesson again); mastaba plots
+   whose corners fall > 45 % of a nucleus are left unbuilt (RNG draws kept
+   in order so the grid does not re-lay); causeway runs where the grade
+   crosses the crest are declared `cutting` (walls full height inside,
+   hillside to the roof on the uphill shoulder only).
+4. ALSO FOUND: README gallery images live in `shots/`, which is gitignored
+   — every image is broken on GitHub. To fix with tracked docs/gallery.
+
 ### v1.0.1 — BLACK SCREEN AFTER LAUNCH (fixed 2026-07-25)
 
 User report: "a few seconds after launch the monitor goes black, and it wants

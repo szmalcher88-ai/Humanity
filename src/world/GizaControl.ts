@@ -40,6 +40,8 @@ import {
   QUARRY_KHUFU_CENTER,
   VALLEY_TEMPLE_CENTER,
   WORKER_TOWN_CENTER,
+  WORKER_TOWN_PADS,
+  WORKER_TOWN_YAW,
 } from './CANON_DIMENSIONS';
 import { FLOODPLAIN_Y, NILE_BED_Y, HARBOR_BED_Y, aslToY } from './WorldConst';
 
@@ -230,6 +232,9 @@ export interface GizaMasks {
   bedrockExposure: NF;
   /** analytic moisture proxy 0..1 (distance to water, low ground) */
   moisture: NF;
+  /** 1 on prepared surfaces (G1 court, queens' terrace, town platforms):
+   *  swept of aeolian sand by SandTransport */
+  worked: NF;
 }
 
 export interface GizaNodes extends GizaMasks {
@@ -447,6 +452,24 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
   const dQ = p.sub(vec2(190, 104)).abs();
   const qPad = smoothstep(34, 25, dQ.x).mul(smoothstep(102, 84, dQ.y));
   h = mix(h, float(-1.2), qPad.mul(g1Pad.oneMinus()));
+  // worker-town building platforms (v1.1): one flat terrace per district in
+  // the town-local frame, 6 m blend — see WORKER_TOWN_PADS for why
+  const tcy = Math.cos(WORKER_TOWN_YAW);
+  const tsy = Math.sin(WORKER_TOWN_YAW);
+  const tdx = p.x.sub(WORKER_TOWN_CENTER.x);
+  const tdz = p.y.sub(WORKER_TOWN_CENTER.z);
+  const tu = tdx.mul(tcy).add(tdz.mul(tsy));
+  const tv = tdz.mul(tcy).sub(tdx.mul(tsy));
+  let townPad: NF = float(0);
+  for (const [u0, v0, u1, v1, level] of WORKER_TOWN_PADS) {
+    const du = abs(tu.sub((u0 + u1) / 2));
+    const dv = abs(tv.sub((v0 + v1) / 2));
+    const hu = (u1 - u0) / 2;
+    const hv = (v1 - v0) / 2;
+    const pad = smoothstep(hu + 6, hu, du).mul(smoothstep(hv + 6, hv, dv));
+    h = mix(h, float(level), pad);
+    townPad = townPad.max(pad);
+  }
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */
   if (!full) {
@@ -496,6 +519,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     quarry: quarryMask,
     bedrockExposure,
     moisture,
+    worked: clamp(g1Pad.max(qPad).max(townPad), 0, 1),
   };
 }
 

@@ -26,11 +26,12 @@ import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { edPos } from '../debug/EditOverrides';
 import { fpReg } from '../debug/Footprints';
-import { WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
+import { WORKER_TOWN_CENTER, WORKER_TOWN_YAW } from '../world/CANON_DIMENSIONS';
 import { GeoWriter, limestoneMaterial } from './KhufuComplex';
 
-/** town-local frame: +u east-ish, +v south-ish, rotated by YAW about center */
-const YAW = -0.14; // real HeG street grid sits slightly off cardinal
+/** town-local frame: +u east-ish, +v south-ish, rotated by YAW about center
+ *  (the real HeG street grid sits slightly off cardinal) */
+const YAW = WORKER_TOWN_YAW;
 
 /* per-vertex tone language on the shared mud material:
  *   ~0.55 wall brick · ~0.66 roof plaster · 0.28 wood · 0.12 openings
@@ -60,21 +61,49 @@ export function buildWorkerTown(
   const lbox = (
     w: GeoWriter, u: number, y: number, v: number,
     lu: number, h: number, lv: number, tone: number, batter = 0, yawExtra = 0,
+    batterV = batter,
   ): void => {
-    w.box(wx(u, v), y, wz(u, v), lu, h, lv, tone, batter, YAW + yawExtra);
+    w.box(wx(u, v), y, wz(u, v), lu, h, lv, tone, batter, YAW + yawExtra, batterV);
   };
   /** grounded box (lowest footprint corner − sink); returns base y */
   const gbox = (
     w: GeoWriter, u: number, v: number, lu: number, h: number, lv: number,
-    tone: number, batter = 0, sink = 0.35,
+    tone: number, batter = 0, sink = 0.35, batterV = batter,
   ): number => {
     const y =
       Math.min(
         grd(u - lu / 2, v - lv / 2), grd(u + lu / 2, v - lv / 2),
         grd(u - lu / 2, v + lv / 2), grd(u + lu / 2, v + lv / 2),
       ) - sink;
-    lbox(w, u, y, v, lu, h + sink, lv, tone, batter);
+    lbox(w, u, y, v, lu, h + sink, lv, tone, batter, 0, batterV);
     return y;
+  };
+  /** long axis-aligned wall that FOLLOWS the ground: split into ~`seg` m
+   *  runs, each grounded on its own lowest corner, so the base and the
+   *  coping step down the slope (v1.1 — one flat-based 205 m box on a 10 m
+   *  fall buried the Wall of the Crow's west end 6 m deep). Returns the
+   *  per-run base heights, west/north first. */
+  const gwall = (
+    w: GeoWriter, u0: number, v0: number, u1: number, v1: number,
+    h: number, th: number, tone: number, batter = 0, sink = 0.35, seg = 14,
+  ): { u: number; v: number; len: number; y: number }[] => {
+    const alongU = Math.abs(u1 - u0) >= Math.abs(v1 - v0);
+    const L = alongU ? Math.abs(u1 - u0) : Math.abs(v1 - v0);
+    const n = Math.max(1, Math.round(L / seg));
+    const runs: { u: number; v: number; len: number; y: number }[] = [];
+    for (let k = 0; k < n; k++) {
+      const f = (k + 0.5) / n;
+      const u = u0 + (u1 - u0) * f;
+      const v = v0 + (v1 - v0) * f;
+      // 4 cm overlap so neighbouring runs never open a daylight slit
+      const len = L / n + 0.04;
+      // batter the thickness only: battered ends would notch every joint
+      const y = alongU
+        ? gbox(w, u, v, len, h, th, tone, 0, sink, batter)
+        : gbox(w, u, v, th, h, len, tone, batter, sink, 0);
+      runs.push({ u, v, len, y });
+    }
+    return runs;
   };
   /** doorway illusion on a wall face: dark slab proud of the face by 4 cm.
    *  faces: 0=north(−v) 1=east(+u) 2=south(+v) 3=west(−u) */
@@ -96,20 +125,24 @@ export function buildWorkerTown(
     const h = 9;
     const gateU = -45;
     const gateHalf = 3.4;
-    const runW = gateU - gateHalf - (-L / 2);
-    const runE = L / 2 - (gateU + gateHalf);
-    gbox(stone, -L / 2 + runW / 2, v, runW, h, th, 0.85, 0.055, 0.6);
-    gbox(stone, gateU + gateHalf + runE / 2, v, runE, h, th, 0.83, 0.055, 0.6);
+    const runs = [
+      ...gwall(stone, -L / 2, v, gateU - gateHalf, v, h, th, 0.85, 0.055, 0.6),
+      ...gwall(stone, gateU + gateHalf, v, L / 2, v, h, th, 0.83, 0.055, 0.6),
+    ];
     // gate: massive lintel + slightly proud jambs (reveals)
     const gy = Math.min(grd(gateU, v - th / 2), grd(gateU, v + th / 2));
     stone.box(wx(gateU, v), gy + 4.6, wz(gateU, v), gateHalf * 2 + 2.4, 1.7, th, 0.8, 0, YAW);
     for (const s of [-1, 1]) {
       lbox(stone, gateU + s * (gateHalf + 0.35), gy - 0.3, v, 0.7, 4.9, th + 0.5, 0.78, 0.01);
     }
-    fpReg({
-      id: 'wall-of-crow', family: 'worker-town', x: wx(0, v), z: wz(0, v),
-      hx: L / 2, hz: th / 2, y0: gy - 0.6, y1: gy + h, yaw: YAW,
-      ground: 'grounded', editGroup: 'worker-town',
+    // one footprint per run: each carries its own base, so the audit can
+    // see a run that the slope swallows
+    runs.forEach((r, k) => {
+      fpReg({
+        id: `wall-of-crow:${k}`, family: 'worker-town', x: wx(r.u, v), z: wz(r.u, v),
+        hx: r.len / 2, hz: th / 2, y0: r.y, y1: r.y + h + 0.6, yaw: YAW,
+        ground: 'grounded', editGroup: 'worker-town',
+      });
     });
   }
 
@@ -252,10 +285,12 @@ export function buildWorkerTown(
         rooms++;
       }
     }
-    const gy = grd(90, -92);
+    // footprint = the rooms' real extent (u 56-125, v -133..-55); the old
+    // 84 × 92 m box reached past its platform into the gallery's level
+    const gy = grd(90.5, -94);
     fpReg({
-      id: 'east-town', family: 'worker-town', x: wx(90, -92), z: wz(90, -92),
-      hx: 42, hz: 46, y0: gy - 0.6, y1: gy + 3.8, yaw: YAW,
+      id: 'east-town', family: 'worker-town', x: wx(90.5, -94), z: wz(90.5, -94),
+      hx: 35, hz: 40, y0: gy - 0.6, y1: gy + 3.8, yaw: YAW,
       ground: 'grounded', editGroup: 'worker-town',
     });
   }
@@ -354,9 +389,11 @@ export function buildWorkerTown(
     const L = 240;
     const h = 2.6;
     const th = 1.1;
-    gbox(mud, 0, L / 2 - 118, W, h, th, 0.56, 0.03);
-    gbox(mud, -W / 2, -50, th, h, L - 108, 0.57, 0.03);
-    gbox(mud, W / 2, -50, th, h, L - 108, 0.55, 0.03);
+    // (v1.1) the 250 m south run falls ~8 m east-west: as one box its
+    // west half was entirely underground
+    gwall(mud, -W / 2, L / 2 - 118, W / 2, L / 2 - 118, h, th, 0.56, 0.03);
+    gwall(mud, -W / 2, -50 - (L - 108) / 2, -W / 2, -50 + (L - 108) / 2, h, th, 0.57, 0.03);
+    gwall(mud, W / 2, -50 - (L - 108) / 2, W / 2, -50 + (L - 108) / 2, h, th, 0.55, 0.03);
   }
 
   /* --- materialize ------------------------------------------------------------ */

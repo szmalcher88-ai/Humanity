@@ -5,6 +5,9 @@
  *             siblings) intersect in 3D beyond tolerance
  *   float   — a grounded footprint's base hangs above the terrain everywhere
  *   buried  — a grounded footprint is swallowed by terrain (top below ground)
+ *   sunk    — a grounded footprint's uphill side is swallowed past 60 % of its
+ *             height: a flat-based building on a slope (v1.1 — the worker
+ *             town's galleries had sand at roof level and passed `buried`)
  *   afloat  — a hull neither rides the waterline nor sits its keel on the bed
  *
  * Pure function over (footprints, heightfield): runs once at boot (console +
@@ -17,7 +20,7 @@ import { NILE_WATER_Y } from '../world/WorldConst';
 import { fpAabb, fpAll, type Footprint } from './Footprints';
 
 export interface CollisionIssue {
-  kind: 'overlap' | 'float' | 'buried' | 'afloat';
+  kind: 'overlap' | 'float' | 'buried' | 'sunk' | 'afloat';
   a: string;
   b?: string;
   /** worst penetration / gap in meters */
@@ -36,6 +39,10 @@ function allowed(a: Footprint, b: Footprint): boolean {
     !!list && (list.includes(o.family) || list.includes(o.id));
   return hit(a.allow, b) || hit(b.allow, a);
 }
+
+/** share of a grounded footprint's height the terrain may climb on its
+ *  uphill side before the structure reads as dug into the slope */
+const SUNK_FRAC = 0.6;
 
 function groundSamples(f: Footprint, hf: Heightfield): number[] {
   const c = Math.cos(f.yaw ?? 0);
@@ -117,6 +124,9 @@ export function runCollisionAudit(hf: Heightfield): CollisionIssue[] {
         issues.push({ kind: 'float', a: f.id, depth: f.y0 - gMax, x: f.x, z: f.z, y: f.y0 });
       } else if (f.y1 < gMin - 0.3) {
         issues.push({ kind: 'buried', a: f.id, depth: gMin - f.y1, x: f.x, z: f.z, y: f.y1 });
+      } else if (!f.cutting && gMax > (f.yFloor ?? f.y0) + SUNK_FRAC * (f.y1 - (f.yFloor ?? f.y0))) {
+        const floor = f.yFloor ?? f.y0;
+        issues.push({ kind: 'sunk', a: f.id, depth: gMax - floor, x: f.x, z: f.z, y: gMax });
       }
     } else if (f.ground === 'afloat') {
       const bed = hf.heightAtCpu(f.x, f.z);

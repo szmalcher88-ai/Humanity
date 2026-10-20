@@ -184,6 +184,15 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   // Phase 7: bookmark keys 1-9 + F flythrough (?bm=N for tooling)
   attachBookmarks(engine);
 
+  // ?hide=debris,particles — ablation: hide scene objects by name prefix
+  const hide = new URLSearchParams(window.location.search).get('hide');
+  if (hide) {
+    const prefixes = hide.split(',').filter((p) => p.length > 0);
+    scene.traverse((o) => {
+      if (prefixes.some((p) => o.name.startsWith(p))) o.visible = false;
+    });
+  }
+
   // PERF I: rebuild the indirect-draw offset lists from the FINAL camera pose
   if (cullingActive()) {
     engine.onPreRender(() => {

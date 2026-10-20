@@ -231,6 +231,34 @@ export const WORKER_TOWN_CENTER: CanonPlacement = {
   source: 'AERA site maps (29.9715N 31.1400E vs G1 center)',
 };
 
+/** HeG street grid rotation (rad about +Y): the town-local frame shared by
+ *  the settlement builder and the terrain's building platforms */
+export const WORKER_TOWN_YAW = -0.14;
+
+/**
+ * Worker-town building platforms, in the town-local frame (+u east-ish,
+ * +v south-ish): [u0, v0, u1, v1, level]. The town sits on the 2-3 % fall
+ * from the Wadi mouth to the plain, and its blocks are flat-based — a
+ * gallery is a 78 × 36 m roofed hall — so on the raw slope the uphill side
+ * sank to roof level (v1.1). Each district stands on its own dead-flat
+ * terrace at the MEAN of the natural surface under it (cut ≈ fill ≈ 1.5 m).
+ * Levels measured 2026-10-20 with groundProbe over the pre-platform surface;
+ * the collision audit's `sunk` rule is the guard if the terrain moves.
+ */
+export const WORKER_TOWN_PADS: readonly (readonly [number, number, number, number, number])[] = [
+  // north rows reach 4 m past the blocks: their street porticos stand there
+  [-120, -143, -36, -97, -34.2], // galleries NW
+  [-32, -143, 52, -97, -35.4], // galleries NE
+  [-120, -94, -36, -52, -35.0], // galleries SW
+  [-32, -94, 52, -52, -36.5], // galleries SE
+  // starts 6.5 m (one blend width) east of the NE galleries: overlapping,
+  // its lower level dragged the gallery's east corners down 2.1 m
+  [56, -138, 132, -46, -37.5], // eastern town
+  [-103, 25, 4, 48, -36.6], // bakery rows
+  [70, 26, 122, 68, -41.9], // Royal Administrative Building
+  [-116, 52, -30, 72, -36.6], // animal pens + woodpiles
+];
+
 /** Khufu valley temple / harbor basin (under Nazlet el-Samman). */
 export const VALLEY_TEMPLE_CENTER: CanonPlacement = {
   x: 817, z: -115, confidence: 'C',

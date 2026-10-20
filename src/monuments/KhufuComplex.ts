@@ -79,11 +79,14 @@ export class GeoWriter {
     tone: number,
     batter = 0,
     yaw = 0,
+    /** batter across z only (default: same as x) — a wall built in runs
+     *  must batter its THICKNESS, never its ends, or every joint opens a V */
+    batterZ = batter,
   ): void {
     const hx = lx / 2;
     const hz = lz / 2;
     const ix = Math.max(0.05, hx - batter * h);
-    const iz = Math.max(0.05, hz - batter * h);
+    const iz = Math.max(0.05, hz - batterZ * h);
     const cy = Math.cos(yaw);
     const sy = Math.sin(yaw);
     const P = (x: number, y: number, z: number): [number, number, number] => [
@@ -391,12 +394,13 @@ export function buildKhufuComplex(
       // Sample both ends and both shoulders, seat 2 m below the lowest.
       const ex = Math.cos(yaw);
       const ez = Math.sin(yaw);
-      const gMin = Math.min(
+      const gs = [
         grd(xm - ex * (L / 2), zm - ez * (L / 2)),
         grd(xm + ex * (L / 2), zm + ez * (L / 2)),
         grd(xm - ez * (w / 2 + 1.2), zm + ex * (w / 2 + 1.2)),
         grd(xm + ez * (w / 2 + 1.2), zm - ex * (w / 2 + 1.2)),
-      );
+      ];
+      const gMin = Math.min(...gs);
       const embBase = Math.min(ym - 1, gMin - 2);
       // Near-zero batter: GeoWriter batter insets BOTH axes with height —
       // at 28 m of pedestal a 0.05 batter tapered each segment ~1.4 m
@@ -423,10 +427,21 @@ export function buildKhufuComplex(
         );
       }
       if (i % 6 === 0) {
+        const fhx = (segL * 6) / 2;
+        const fhz = (w + 2.4) / 2;
+        // the footprint's own corners (it spans six segments), sampled the
+        // way the audit samples them
+        const corner = (lx: number, lz: number): number =>
+          grd(xm + lx * ex - lz * ez, zm + lx * ez + lz * ex);
+        const gTop = Math.max(corner(-fhx, -fhz), corner(fhx, -fhz), corner(fhx, fhz), corner(-fhx, fhz));
         fpReg({
           id: `causeway:${i}`, family: 'causeway', x: xm, z: zm,
-          hx: (segL * 6) / 2, hz: (w + 2.4) / 2, y0: embBase, y1: ym + wallH + 0.7,
+          hx: fhx, hz: fhz, y0: embBase, y1: ym + wallH + 0.7, yFloor: ym,
           yaw, ground: 'grounded', allow: ['temple', 'temenos', 'pavement'],
+          // where the grade crosses the escarpment crest the corridor runs in
+          // a cutting: walls stand full height inside, the hillside reaches
+          // the roof only on the uphill shoulder (v1.1 `sunk` audit)
+          cutting: Math.max(gTop, ...gs) > ym + 1.5,
         });
       }
     }
@@ -533,21 +548,30 @@ export function buildKhufuComplex(
         const H = MASTABA_NUCLEUS_HEIGHT.value * t.range(0.8, 1.15);
         // seat on the LOWEST corner of the footprint, sunk 0.5 m — a fixed
         // Y floated whole rows over dips and buried them on rises
-        const gy =
-          Math.min(
-            grd(x - W / 2, z - L / 2), grd(x + W / 2, z - L / 2),
-            grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
-          ) - 0.5;
-        local.box(x, gy, z, W, H + 0.5, L, t.range(0.82, 1.0), 0.16);
+        const corners = [
+          grd(x - W / 2, z - L / 2), grd(x + W / 2, z - L / 2),
+          grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
+        ];
+        const gy = Math.min(...corners) - 0.5;
+        // every draw below happens whether or not the tomb is built, so a
+        // skipped plot never re-lays the rest of the grid
+        const tone = t.range(0.82, 1.0);
+        const chapel = t.chance(0.4);
+        const chapelDz = chapel ? t.range(-L / 3, L / 3) : 0;
+        // (v1.1) a plot straddling the court's leveling edge falls more
+        // than ~45% of a nucleus across its corners: the uphill face sank
+        // to the coping. Such ground was left unbuilt, not dug into.
+        if (Math.max(...corners) - Math.min(...corners) > 0.45 * H) continue;
+        local.box(x, gy, z, W, H + 0.5, L, tone, 0.16);
         fpReg({
           id: `mastaba:w:${col}:${row}`, family: 'mastabas-west', x, z,
           hx: W / 2, hz: L / 2, y0: gy, y1: gy + H + 0.5, ground: 'grounded',
           editGroup: 'mastabas-west',
         });
         // ~40%: small offering chapel on the east face
-        if (t.chance(0.4)) {
+        if (chapel) {
           const cx2 = x + W / 2 + 1.6;
-          const cz2 = z + t.range(-L / 3, L / 3);
+          const cz2 = z + chapelDz;
           local.box(cx2, grd(cx2, cz2) - 0.4, cz2, 3.2, 3.0, 4.2, 0.9, 0.06);
         }
       }

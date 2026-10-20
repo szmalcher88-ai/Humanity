@@ -97,7 +97,9 @@ export async function runSandTransport(
       .mul(quarry.mul(0.85).oneMinus())
       .mul(plain.mul(0.95).oneMinus())
       .mul(river.oneMinus())
-      .mul(harbor.oneMinus());
+      .mul(harbor.oneMinus())
+      // prepared surfaces (court, terraces, town platforms) are swept
+      .mul(mB.w.mul(0.92).oneMinus());
     sandA.element(i).assign(clamp(s, 0, 2.5));
   })().compute(N);
   initK.setName('sandInit');
@@ -182,6 +184,9 @@ export async function runSandTransport(
       // water strips sand (river/harbor stay silt/bed)
       const mA = masksA.element(i);
       s = s.mul(mA.y.oneMinus()).mul(mA.z.oneMinus());
+      // ...and so are worked surfaces: drift that reaches a platform is
+      // carried off (v1.1 — 1 m sheets used to bank against the town)
+      s = s.mul(masksB.element(i).w.mul(0.5).oneMinus());
       dst.element(i).assign(clamp(s, 0, 4));
     })().compute(N);
     k.setName('sandStep');

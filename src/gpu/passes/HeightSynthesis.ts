@@ -70,7 +70,7 @@ export async function runHeightSynthesis(
     quarryDepth.element(i).assign(g.quarryDepth);
     if (withMasks) {
       masksA.element(i).assign(vec4(g.floodplain, g.river, g.harbor, g.wadi));
-      masksB.element(i).assign(vec4(g.quarry, g.bedrockExposure, g.moisture, 0));
+      masksB.element(i).assign(vec4(g.quarry, g.bedrockExposure, g.moisture, g.worked));
     }
   });
   const total = res * res;

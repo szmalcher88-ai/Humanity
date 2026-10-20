@@ -182,6 +182,7 @@ export class WorkParticles {
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.renderOrder = 5;
+    mesh.name = `particles-${this.meshes.length}`;
     scene.add(mesh);
     this.meshes.push(mesh);
     if (this.cull) {

@@ -29,12 +29,19 @@ export interface Footprint {
   /** world-Y span */
   y0: number;
   y1: number;
+  /** visible base for the audit's `sunk` rule when y0 is a deliberately
+   *  buried foundation (the causeway's pedestal); defaults to y0 */
+  yFloor?: number;
   yaw?: number;
   ground: GroundPolicy;
   /** afloat only: hull draft (m) */
   draft?: number;
   /** families/ids this footprint may legitimately touch */
   allow?: string[];
+  /** deliberately cut into the slope (the causeway through the escarpment
+   *  crest): the uphill ground standing above the floor is the design, so
+   *  the audit's `sunk` rule does not apply */
+  cutting?: boolean;
   /** passive surfaces (pavement, terraces) — others may overlap them */
   passive?: boolean;
   /** check collisions against same-family siblings too (vessels) */
