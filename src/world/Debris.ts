@@ -135,8 +135,16 @@ export function buildDebris(
       const y = hf.heightAtCpu(x, z);
       if (y < -44) continue; // not in the water/floodplain mud
       const s = rng.range(cls.s0, cls.s1);
+      // (v1.1) the low side of the chip's footprint, not its centre: big
+      // rubble straddling a bench edge or a slope floated on one side
+      const reach = s * 0.9;
+      const low = Math.min(
+        y,
+        hf.heightAtCpu(x + reach, z), hf.heightAtCpu(x - reach, z),
+        hf.heightAtCpu(x, z + reach), hf.heightAtCpu(x, z - reach),
+      );
       data[i * 4 + 0] = x;
-      data[i * 4 + 1] = y - s * cls.sink;
+      data[i * 4 + 1] = low - s * cls.sink;
       data[i * 4 + 2] = z;
       data[i * 4 + 3] = rng.float() * Math.PI * 2;
       dataB[i * 4 + 0] = s;
@@ -208,8 +216,19 @@ export function buildDebris(
       const y = hf.heightAtCpu(x, z);
       if (y < -44) continue;
       const L = t.range(1.2, 2.6);
-      w.box(x, y - 0.15, z, L, t.range(0.7, 1.25), L * t.range(0.55, 0.8),
-        t.range(0.88, 1.0), 0.01, t.float() * Math.PI);
+      const bh = t.range(0.7, 1.25);
+      const W2 = L * t.range(0.55, 0.8);
+      const tone = t.range(0.88, 1.0);
+      const yaw = t.float() * Math.PI;
+      // (v1.1) seat on the LOWEST corner: centre-height seating left blocks
+      // on the 1.12 m bench edges hanging half in the air
+      const c = Math.cos(yaw);
+      const s = Math.sin(yaw);
+      let low = y;
+      for (const [lx, lz] of [[-L / 2, -W2 / 2], [L / 2, -W2 / 2], [L / 2, W2 / 2], [-L / 2, W2 / 2]] as const) {
+        low = Math.min(low, hf.heightAtCpu(x + lx * c - lz * s, z + lx * s + lz * c));
+      }
+      w.box(x, low - 0.12, z, L, bh + (y - low), W2, tone, 0.01, yaw);
     }
     for (let row = 0; row < 12; row++) {
       const th = t.float() * Math.PI * 2;

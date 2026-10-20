@@ -283,6 +283,38 @@ M4 — THE PUBLIC GALLERY WAS BROKEN (done):
 README pointed every image into gitignored `shots/`. New `tools/gallery.ts`
 renders nine curated frames (one boot, `?clean=1` hides the fps chip and
 notices — new HUD switch) into TRACKED `docs/gallery/*.jpg` (~0.14 MB each).
+M5 — BUGS THE HUMAN FOUND IN THE BROWSER (done):
+The human walked the build and reported: figures walking through walls,
+floating or sinking into the sand, walking unnaturally fast; floating
+blocks; gaps between walls; see-through boats. Every one was real:
+1. GAIT: figures drifted along their file at ~11 m/s (40 km/h) while the
+   legs swung once per ~3 s, and the "triangle" ping-pong ran −2..1 — a 2·half
+   teleport at every wrap and half of every beat walked BACKWARDS. Now a
+   speed in m/s (1.0 loaded / ~1.3 free), legs locked to a 1.45 m stride,
+   a true −1..1 triangle, idle workers shifting weight instead of marching.
+2. FLOAT/SINK: height was sampled once at the beat centre; walkers covering
+   ±26 m of rippled sand or ramp waded and hovered. The vertex stage now
+   samples `hf.sampleHeight` at the figure's CURRENT position.
+3. THROUGH WALLS: files crossed the temenos wall, gallery blocks and the
+   causeway (its porters walked down the embankment's axis). New footprint
+   obstacle field (24 m hash): spots inside structures are re-drawn on the
+   same file (own RNG stream), beats stop 1.2 m short of the first wall or
+   waterline. 828 figures (182 re-seated off structures, 53 dropped). The
+   causeway porters walk its south flank.
+4. SEE-THROUGH BOATS: all four hull side strips were wound INWARD — from
+   outside they were back faces, so every boat showed the inside of its far
+   side. Re-wound outward.
+5. WALL GAPS: `GeoWriter.box` battered BOTH axes, so every jamb, corner and
+   lintel bearing opened a V. WALL RULE: a box ≥3× longer than thick batters
+   its thickness only (explicit batterZ overrides). End walls of the temples
+   and temenos batter all faces so their ends lean WITH the side walls' outer
+   faces; side runs reach half-way into the corners; lintels as thick as the
+   jambs at their height. The valley temple's corners read clean.
+6. FLOATING BLOCKS: abandoned quarry blocks and big rubble were seated at
+   their CENTRE height — on the 1.12 m bench edges they hung half in the air.
+   Seated on the lowest corner now.
+Battery on an idle GPU (53 °C): 19/19, bm1 53 / bm3 70 / bm7 45.
+
 PERF CAVEAT (2026-10-20 evening): after hours of captures the RTX 3050 sat
 at 86 °C with SW thermal slowdown (clock 1410/2100 MHz) and 100 % utilisation
 from OTHER processes (Edge, Docker, other agents) — the sweep read 20/22/16

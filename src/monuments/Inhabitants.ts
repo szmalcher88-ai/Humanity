@@ -49,6 +49,7 @@ import {
   smoothstep,
   transformNormalToView,
   varying,
+  vec2,
   vec3,
 } from 'three/tsl';
 import type { Rng, WorldSeed } from '../core/Seed';
@@ -61,6 +62,7 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER, WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
 import { NILE_WATER_Y } from '../world/WorldConst';
+import { fpAll, type Footprint } from '../debug/Footprints';
 
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
@@ -205,6 +207,48 @@ interface Gang {
   still: number;
 }
 
+/**
+ * Solid structures a figure may neither stand in nor walk through (v1.1 —
+ * files crossed the temenos wall, gallery blocks and the causeway). Built
+ * from the footprint registry, which every structure fills before the
+ * inhabitants are placed; a 24 m spatial hash keeps ~900 figures × their
+ * beat samples cheap. A footprint whose top is below the figure's feet is
+ * ground it may walk ON, not an obstacle.
+ */
+function obstacleField(): (x: number, z: number, y: number) => boolean {
+  const CELL = 24;
+  const grid = new Map<number, Footprint[]>();
+  const key = (gx: number, gz: number): number => gx * 73856093 + gz * 19349663;
+  for (const f of fpAll()) {
+    if (f.passive) continue;
+    const r = Math.hypot(f.hx, f.hz) + 1;
+    for (let gx = Math.floor((f.x - r) / CELL); gx <= Math.floor((f.x + r) / CELL); gx++) {
+      for (let gz = Math.floor((f.z - r) / CELL); gz <= Math.floor((f.z + r) / CELL); gz++) {
+        const k = key(gx, gz);
+        const list = grid.get(k);
+        if (list) list.push(f);
+        else grid.set(k, [f]);
+      }
+    }
+  }
+  const PAD = 0.45; // a body's half-width plus a little air
+  return (x, z, y) => {
+    const list = grid.get(key(Math.floor(x / CELL), Math.floor(z / CELL)));
+    if (!list) return false;
+    for (const f of list) {
+      if (f.y1 < y + 0.3 || f.y0 > y + 1.8) continue; // walked on, or overhead
+      const c = Math.cos(-(f.yaw ?? 0));
+      const s = Math.sin(-(f.yaw ?? 0));
+      const dx = x - f.x;
+      const dz = z - f.z;
+      const lx = dx * c - dz * s;
+      const lz = dx * s + dz * c;
+      if (Math.abs(lx) < f.hx + PAD && Math.abs(lz) < f.hz + PAD) return true;
+    }
+    return false;
+  };
+}
+
 function workLines(): Gang[] {
   const qx = QUARRY_KHUFU_CENTER.x;
   const qz = QUARRY_KHUFU_CENTER.z;
@@ -225,8 +269,10 @@ function workLines(): Gang[] {
     // the temple's unfinished SE corner — the gang working the falsework and
     // the ramp. Scaffolding with nobody on it reads as abandoned, not mid-job.
     { x0: 150, z0: 33, x1: 176, z1: 41, n: 26, spread: 5, carry: 0.35, still: 0.62 },
-    // the causeway: a file of porters climbing to the plateau
-    { x0: vx - 40, z0: vz - 6, x1: 200, z1: -32, n: 90, spread: 3.2, carry: 0.6, still: 0.04 },
+    // the causeway: a file of porters climbing to the plateau — on the
+    // construction road along its SOUTH flank (v1.1: the file ran down the
+    // causeway's own axis, i.e. inside its walled, roofed embankment)
+    { x0: vx - 38, z0: vz + 9, x1: 202, z1: -18, n: 90, spread: 3.2, carry: 0.6, still: 0.04 },
     // the quay: unloading, and the road up from the harbour.
     // (v1.1) both lines used to lie IN the basin — one along its east edge,
     // one straight across it — and the water test dropped every figure:
@@ -280,7 +326,13 @@ export function buildInhabitants(
     carry: boolean;
   }
   const figs: Fig[] = [];
-  for (const g of gangs) {
+  const blocked = obstacleField();
+  let reseated = 0;
+  let dropped = 0;
+  for (const [gi, g] of gangs.entries()) {
+    // retries draw from their own stream, so a figure moved off a wall
+    // never re-lays the rest of the file
+    const retry = rng.fork(`reseat-${gi}`);
     const n = Math.round(g.n * scale);
     const len = Math.hypot(g.x1 - g.x0, g.z1 - g.z0);
     const ux = (g.x1 - g.x0) / (len || 1);
@@ -291,20 +343,45 @@ export function buildInhabitants(
     for (let i = 0; i < n; i++) {
       const t = rng.float();
       const off = rng.gauss() * g.spread * 0.5;
-      const x = g.x0 + ux * len * t + px * off;
-      const z = g.z0 + uz * len * t + pz * off;
-      const y = hf.heightAtCpu(x, z);
+      let x = g.x0 + ux * len * t + px * off;
+      let z = g.z0 + uz * len * t + pz * off;
+      let y = hf.heightAtCpu(x, z);
+      // a spot inside a structure is re-drawn elsewhere on the same file
+      // (v1.1: a quarter of all figures stood inside walls and footprints)
+      for (let k = 0; k < 6 && Number.isFinite(y) && blocked(x, z, y); k++) {
+        const t2 = retry.float();
+        const off2 = retry.gauss() * g.spread * 0.5;
+        x = g.x0 + ux * len * t2 + px * off2;
+        z = g.z0 + uz * len * t2 + pz * off2;
+        y = hf.heightAtCpu(x, z);
+        if (!blocked(x, z, y)) reseated++;
+      }
       // not in the water. (v1.1: this was `y < -44` — but the whole
       // floodplain lies at −44.5, so every figure on the plain, the harbour
       // included, was silently dropped)
       if (!Number.isFinite(y) || y < NILE_WATER_Y + 0.3) continue;
       const still = rng.chance(g.still);
       let half = still ? 0 : rng.range(9, 26);
-      // a walker's beat must stay on dry ground at both ends
+      // nobody stands inside a wall (the draws above are made either way,
+      // so a dropped figure never re-lays the rest of its file)
+      if (blocked(x, z, y)) {
+        dropped++;
+        continue;
+      }
+      // a walker's beat must stay on dry, open ground: walk it out in 1 m
+      // steps each way and stop short of the first wall or waterline
       if (half > 0) {
-        const wet = (s: number): boolean =>
-          hf.heightAtCpu(x + ux * half * s, z + uz * half * s) < NILE_WATER_Y + 0.3;
-        if (wet(1) || wet(-1)) half = 0;
+        const clear = (sgn: number): number => {
+          for (let d = 1; d <= half; d += 1) {
+            const px2 = x + ux * d * sgn;
+            const pz2 = z + uz * d * sgn;
+            const py2 = hf.heightAtCpu(px2, pz2);
+            if (py2 < NILE_WATER_Y + 0.3 || blocked(px2, pz2, py2)) return d - 1.2;
+          }
+          return half;
+        };
+        half = Math.min(clear(1), clear(-1));
+        if (half < 3) half = 0;
       }
       figs.push({
         x, z,
@@ -318,6 +395,8 @@ export function buildInhabitants(
       });
     }
   }
+
+  console.log(`[akhet] inhabitants: ${figs.length} placed, ${reseated} moved off structures, ${dropped} dropped`);
 
   /* --- instancing: two variant classes (free-handed / carrying) ----------- */
   const VARIANTS = 4;
@@ -354,12 +433,20 @@ export function buildInhabitants(
     const B = bufB.element(instanceIndex);
     const C = bufC.element(instanceIndex);
 
-    // --- gait: ping-pong along the file, limbs swinging about their pivots --
-    const cadence = C.w.mul(2.1);
-    const tt = uWorldTime.mul(cadence).add(B.w.mul(11.3));
-    // triangle wave −1..1 for the walk, and its sign for the facing
-    const cyc = tt.mul(0.08).add(B.w).fract(); // 0..1 slow beat along the file
-    const tri = cyc.mul(4).sub(1).abs().oneMinus(); // /\/\ in −1..1
+    // --- gait (v1.1): a SPEED in m/s, the legs locked to it -----------------
+    // The first gait drifted figures along their file at ~11 m/s (40 km/h)
+    // while the legs swung once every ~3 s — skating — and its "triangle"
+    // wave ran −2..1, so every walker teleported 2·half at the wrap and
+    // walked backwards for half its beat. Old Kingdom porters: ~1.3 m/s
+    // free, ~1.0 m/s under a load, one full leg cycle per ~1.45 m.
+    const speed = C.w.mul(carrying ? 1.0 : 1.22); // C.w ∈ 0.85..1.2
+    const STRIDE = 1.45;
+    const legRate = speed.div(STRIDE).mul(Math.PI * 2);
+    const tt = uWorldTime.mul(legRate).add(B.w.mul(11.3));
+    // ping-pong lap = out and back = 4·half metres; tri −1 → +1 → −1
+    const lap = B.z.max(0.5).mul(4);
+    const cyc = uWorldTime.mul(speed).div(lap).add(B.w).fract();
+    const tri = float(1).sub(cyc.sub(0.5).abs().mul(4));
     const forward = cyc.lessThan(0.5);
     const swing = sin(tt);
 
@@ -373,9 +460,13 @@ export function buildInhabitants(
     // standing figures (half = 0) only sway; walkers swing a full stride
     const walkK = smoothstep(0.5, 6, B.z);
     const pivot = legSgn.abs().mul(0.82).add(armSgn.abs().mul(1.34));
+    // walkers swing a full stride; standing workers only shift their weight
+    // slowly (at stride rate they read as marching on the spot)
+    const idle = sin(uWorldTime.mul(0.7).add(B.w.mul(23.1)));
     const ang = swing
-      .mul(legSgn.mul(0.52).add(armSgn.mul(0.4)))
-      .mul(walkK.mul(0.85).add(0.15));
+      .mul(walkK)
+      .add(idle.mul(walkK.oneMinus()).mul(0.12))
+      .mul(legSgn.mul(0.52).add(armSgn.mul(0.4)));
 
     const lp0 = positionLocal.mul(C.x);
     const dy = lp0.y.sub(pivot);
@@ -400,13 +491,20 @@ export function buildInhabitants(
     const camD = A.xyz.sub(cameraPosition).length();
     const fade = smoothstep(FIG_FADE[0], FIG_FADE[1], camD);
     const travel = tri.mul(B.z).mul(walkK);
-    // vertical bob at twice the cadence — the give in the knees
-    const bob = sin(tt.mul(2)).abs().mul(0.022).mul(walkK);
+    // vertical bob twice per leg cycle — the give in the knees
+    const bob = sin(tt).abs().mul(0.026).mul(walkK);
     void forward;
+    // FEET ON THE GROUND (v1.1): the height was sampled once at the beat's
+    // centre, so a walker covering ±26 m of rippled sand or a ramp waded
+    // into it on the rises and floated over the dips. Sample the same
+    // height buffer the terrain is built from, at the figure's position NOW.
+    const gx = A.x.add(B.x.mul(travel));
+    const gz = A.z.add(B.y.mul(travel));
+    const ground = hf.sampleHeight(vec2(gx, gz));
     mat.positionNode = vec3(
-      A.x.add(rx.mul(fade)).add(B.x.mul(travel)),
-      A.y.add(lp.y.mul(fade)).add(bob),
-      A.z.add(rz.mul(fade)).add(B.y.mul(travel)),
+      gx.add(rx.mul(fade)),
+      ground.add(lp.y.mul(fade)).add(bob),
+      gz.add(rz.mul(fade)),
     );
     const nl = normalLocal;
     const nWorld = varying(

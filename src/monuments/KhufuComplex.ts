@@ -80,14 +80,26 @@ export class GeoWriter {
     tone: number,
     batter = 0,
     yaw = 0,
-    /** batter across z only (default: same as x) — a wall built in runs
-     *  must batter its THICKNESS, never its ends, or every joint opens a V */
-    batterZ = batter,
+    /** batter across z (default: the WALL RULE below) — a wall built in
+     *  runs must batter its THICKNESS, never its ends, or every joint opens
+     *  a V */
+    batterZ?: number,
   ): void {
     const hx = lx / 2;
     const hz = lz / 2;
-    const ix = Math.max(0.05, hx - batter * h);
-    const iz = Math.max(0.05, hz - batterZ * h);
+    let bX = batter;
+    let bZ = batterZ ?? batter;
+    // WALL RULE (v1.1): a run at least 3× longer than it is thick is a wall
+    // — it batters its thickness only, with plumb ends. Battering the ends
+    // opened a V-gap at every corner, every jamb and every lintel bearing
+    // (the valley temple's pylons showed daylight between them and their
+    // lintel). Blocky masses (mastabas, pedestals) keep all four faces.
+    if (batterZ === undefined && batter > 0) {
+      if (lx >= 3 * lz) bX = 0;
+      else if (lz >= 3 * lx) bZ = 0;
+    }
+    const ix = Math.max(0.05, hx - bX * h);
+    const iz = Math.max(0.05, hz - bZ * h);
     const cy = Math.cos(yaw);
     const sy = Math.sin(yaw);
     const P = (x: number, y: number, z: number): [number, number, number] => [
@@ -298,8 +310,11 @@ export function buildKhufuComplex(
     const r = half + temenosD + court;
     const h = G1_TEMENOS_HEIGHT.value;
     const th = 3.0;
-    local.box(0, 0, -r, 2 * r + th, h, th, 0.98, 0.06); // north
-    local.box(0, 0, r, 2 * r + th, h, th, 0.97, 0.06); // south
+    // N/S runs batter their ENDS too (explicit batterZ): at the corners
+    // their ends must lean with the side walls' outer faces, or a plumb end
+    // stands proud of a battered face — a wedge up every corner (v1.1)
+    local.box(0, 0, -r, 2 * r + th, h, th, 0.98, 0.06, 0, 0.06); // north
+    local.box(0, 0, r, 2 * r + th, h, th, 0.97, 0.06, 0, 0.06); // south
     local.box(-r, 0, 0, th, h, 2 * r + th, 0.99, 0.06); // west
     const wall = (id: string, x: number, z: number, hx: number, hz: number): void =>
       fpReg({
@@ -330,15 +345,19 @@ export function buildKhufuComplex(
     // basalt court floor
     basalt.box(mtX, 0.02, 0, mtW - th * 2, 0.16, mtL - th * 2, 1.0);
     // perimeter walls with west + east doorways on the axis
-    local.box(mtX, 0, -mtL / 2 + th / 2, mtW, h, th, 1.0, 0.04);
-    local.box(mtX, 0, mtL / 2 - th / 2, mtW, h, th, 0.99, 0.04);
+    // end walls batter all four faces so their ends lean with the side
+    // walls' outer faces (corner wedges — see the temenos)
+    local.box(mtX, 0, -mtL / 2 + th / 2, mtW, h, th, 1.0, 0.04, 0, 0.04);
+    local.box(mtX, 0, mtL / 2 - th / 2, mtW, h, th, 0.99, 0.04, 0, 0.04);
     const doorHalf = 2.2;
-    const sideRun = mtL / 2 - doorHalf - th;
-    for (const xw of [mtX - mtW / 2 + th / 2, mtX + mtW / 2 - th / 2]) {
+    // side runs reach half-way into the end walls (corner slits — see the
+    // valley temple)
+    const sideRun = mtL / 2 - doorHalf - th / 2;
+    for (const xw of [mtX - mtW / 2 + th / 2 + 0.02, mtX + mtW / 2 - th / 2 - 0.02]) {
       local.box(xw, 0, -(doorHalf + sideRun / 2), th, h, sideRun, 1.0, 0.04);
       local.box(xw, 0, doorHalf + sideRun / 2, th, h, sideRun, 1.0, 0.04);
       // lintels over the doorways
-      local.box(xw, h - 1.4, 0, th, 1.4, doorHalf * 2, 0.98, 0);
+      local.box(xw, h - 1.4, 0, th - 2 * 0.04 * (h - 1.4), 1.4, doorHalf * 2 + 0.04, 0.98, 0.04, 0, 0);
     }
     // inner statue-court pillars (two rows, granite-toned via dark tone)
     const t = rng.fork('mt-pillars');
@@ -487,14 +506,21 @@ export function buildKhufuComplex(
     local.box(vx, vy - 5, vz, W + 10, 5.2, L + 10, 0.92, 0.04);
     tura.box(vx, vy + 0.02, vz, W + 8, 0.18, L + 8, 0.97);
     // heavy walls, west door (to causeway) + two east doors (from harbor)
-    local.box(vx, vy, vz - L / 2 + th / 2, W, h, th, 0.99, 0.05);
-    local.box(vx, vy, vz + L / 2 - th / 2, W, h, th, 0.98, 0.05);
+    // end walls batter all four faces (corner wedges — see the temenos)
+    local.box(vx, vy, vz - L / 2 + th / 2, W, h, th, 0.99, 0.05, 0, 0.05);
+    local.box(vx, vy, vz + L / 2 - th / 2, W, h, th, 0.98, 0.05, 0, 0.05);
     const dHalf = 2.0;
-    const sRun = L / 2 - dHalf - th;
-    for (const xw of [vx - W / 2 + th / 2, vx + W / 2 - th / 2]) {
+    // (v1.1) side runs reach HALF-WAY into the end walls: stopping at the end
+    // wall's inner face left a daylight slit up every corner once that
+    // battered face receded 0.4 m at the top. Inset 2 cm so no faces lie
+    // coplanar with the end walls' plumb ends.
+    const sRun = L / 2 - dHalf - th / 2;
+    for (const xw of [vx - W / 2 + th / 2 + 0.02, vx + W / 2 - th / 2 - 0.02]) {
       local.box(xw, vy, vz - (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
       local.box(xw, vy, vz + (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
-      local.box(xw, vy + h - 1.5, vz, th, 1.5, dHalf * 2, 0.97, 0);
+      // lintel battered on its faces only, and as thick as the jambs ARE at
+      // that height — a plumb lintel stood proud of the leaning wall face
+      local.box(xw, vy + h - 1.5, vz, th - 2 * 0.05 * (h - 1.5), 1.5, dHalf * 2 + 0.04, 0.97, 0.05, 0, 0);
     }
     fpReg({
       id: 'valley-temple', family: 'temple', x: vx, z: vz,

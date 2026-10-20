@@ -154,10 +154,13 @@ function loftHull(
       gr: P(x, yd, hb * 0.92),
     };
     if (prev) {
-      w.quad(prev.kl, cur.kl, cur.pl, prev.pl, p.tone); // port lower
-      w.quad(prev.pl, cur.pl, cur.gl, prev.gl, p.tone); // port upper
-      w.quad(cur.kr, prev.kr, prev.pr, cur.pr, p.tone); // starboard lower
-      w.quad(cur.pr, prev.pr, prev.gr, cur.gr, p.tone); // starboard upper
+      // (v1.1) wound OUTWARD: all four side strips used to face into the
+      // hull, so from outside they were back faces and got culled — every
+      // boat showed the inside of its far side through a missing near side
+      w.quad(prev.pl, cur.pl, cur.kl, prev.kl, p.tone); // port lower
+      w.quad(prev.gl, cur.gl, cur.pl, prev.pl, p.tone); // port upper
+      w.quad(cur.pr, prev.pr, prev.kr, cur.kr, p.tone); // starboard lower
+      w.quad(cur.gr, prev.gr, prev.pr, cur.pr, p.tone); // starboard upper
       // deck strip between gunwales — wound UPWARD (the first winding faced
       // down and was backface-culled: open hulls showed the water plane
       // inside, reading as swamped boats)
