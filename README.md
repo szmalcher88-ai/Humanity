@@ -221,3 +221,8 @@ Engine patterns, the froxel volumetrics, the CDLOD terrain, the post stack, the
 depth-prepass technique and the Playwright harness are ported and adapted from
 **PROJECT LAAS** (MIT) — see [LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY). three.js
 is pinned to 0.184.0 to match its verified API notes.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Ported third-party code keeps its own MIT notice
+in [LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY).
