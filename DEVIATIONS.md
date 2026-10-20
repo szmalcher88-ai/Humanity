@@ -127,3 +127,19 @@ are a cinematic convention, flagged by the v1.1 canon audit, kept and declared.
 **Alternatives:** torches held by figures; hearths and braziers on the ground.
 **Confidence:** n/a (art direction, declared).
 **Code:** `src/monuments/Torches.ts`.
+
+## D-14 — Harbour quay and piers vs. canon Vol IX
+**Conflict:** the brief §2 requires "harbor basin with stone docks and wooden
+piers (individual piles)"; canon Vol IX §9.12 (added 2026-10-20) says the
+agent "must not automatically generate a long continuous stone quay or forest
+of timber piers simply because these features are familiar from later
+harbors", and that the Fourth Dynasty harbour plan is incompletely established.
+**Chosen:** the brief wins on scope (docks and piers stay); the canon governs
+their form. Currently built: one 180 m continuous stone quay and three timber
+piers — closer to the later-harbour cliché than Vol IX allows. To be reworked
+in roadmap I6 into shorter stone landing surfaces, earthen embankments, timber
+ramps and cargo yards, each tagged with a confidence level.
+**Alternatives:** keep the continuous quay (rejected by Vol IX); drop the piers
+(rejected by the brief floor).
+**Confidence:** D (reasoned reconstruction; the plan is not excavated).
+**Code:** `src/water/Vessels.ts` (quay and piers in `buildHarbor`).

@@ -2,7 +2,8 @@
 
 > **Rehydration protocol** (for an agent resuming with no context): read this
 > file fully, then the brief (the operative spec — binding), then
-> `canon/MASTER_PROMPT_BIBLE.md` Vols I–VI, then
+> `canon/MASTER_PROMPT_BIBLE.md` Vols I–VI, `canon/VOL_VII.md`, `VOL_VIII.md`,
+> `VOL_IX.md` (added 2026-10-20), then
 > `reference-repos/fable5-world-demo/docs/THREE-NOTES.md` (verified API
 > gotchas for the pinned three.js). Never re-plan from scratch; continue from
 > "Next actions". Update this file after every meaningful step. Commit per
@@ -63,7 +64,11 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
   BEFORE re-deriving any of those fixes.
 - Canon found at `../Ancient_Egipt/Ancient_Egipt.md` → copied to
   `canon/MASTER_PROMPT_BIBLE.md` (Vols I–VI; no Vol VII — Tier 2 blocked as
-  expected).
+  expected). 2026-10-20: the human added `canon/VOL_VII.md` (Sphinx + Khafre
+  complex), `VOL_VIII.md` (workers' city, administration, logistics) and
+  `VOL_IX.md` (Nile, royal harbour, transport). Vol I–VI line numbers quoted
+  in this file and in code comments refer to MASTER_PROMPT_BIBLE.md, which is
+  left unchanged on purpose.
 - `/reference` was EMPTY at start (DEVIATIONS D-1) — human to provide frames.
 - Dev server: `npm run dev` (port 5173 strict). Shots:
   `npx tsx tools/shoot.ts --scene X --out shots/x.png [--hud 1]`.
@@ -320,6 +325,40 @@ VERDICT: with recon aimed at a rewrite (constraints, inventory, canon,
 style, accuracy) Haiku is at its best: 78/81. Keep this pattern for any
 module rewrite.
 
+### CANON VOLS VII–IX (added 2026-10-20) — what they change
+
+Precedence stays: brief > canon > model judgment (brief, "What this
+document is"). Read against the build:
+1. Vol VII (Sphinx, Khafre complex) unblocks Tier 2 — but Vol IX §9.3/Rule 4
+   forbids showing Khafre's works in Khufu's reign. Tier 2 therefore needs the
+   epoch presets first (KHUFU_EARLY / KHUFU_LATE / KHUFU_COMPLETION /
+   KHAFRE_PERIOD / MENKAURE_PERIOD / EVIDENCE_VIEW); the brief files `?epoch=`
+   under Tier 3. The current Khufu-only scene does not conflict (no Khafre,
+   Menkaure or Sphinx is built; Khafre/Menkaure appear only as bedrock sites in
+   `GizaControl.ts`).
+2. Vol IX §9.3 "critical correction": Heit el-Ghurab belongs mainly to the
+   Khafre/Menkaure periods — already declared as D-6 (Khufu-era extent).
+3. Vol IX §9.12: "must not automatically generate a long continuous stone
+   quay or forest of timber piers". We have a 180 m continuous quay and three
+   piers. The brief §2 REQUIRES "stone docks and wooden piers (individual
+   piles)", and the brief wins on scope — but the canon governs form. Logged as
+   D-14; the rework (shorter stone landing surfaces, earthen embankments,
+   timber ramps, cargo yards, confidence tags) goes to roadmap I6.
+4. Vol IX §9.10.1: "Do not create a single giant water plane" — the river is
+   one 700×4600 plane and the harbour one 950×560 plane (its rectangular edge
+   is already OPEN item 3). Shoreline-polygon water meshes → I7.
+5. Vol IX §9.14–9.20 — vessel library and cargo: our three classes cover
+   heavy stone transport (barge), administrative/travel (traveller), small
+   river and fishing craft (skiff). Missing: general cargo transport and a
+   ceremonial vessel; loaded hulls should sit lower; boats MOVE along a
+   navigation graph; the Tura limestone route (Merer's diary) is the flagship
+   logistics sequence → I2. The north wind / northward current rule (§9.16)
+   is already what the I1b rigging follows.
+6. Vol VIII: breweries, medical buildings, textile production, scribal
+   offices, waste management, families and children, donkeys/goats/geese —
+   most are roadmap I3; profession schedules / ECS NPCs are brief Tier 3.
+7. Vol IX §9.5.1 axis convention (X east, Y up, +Z south) matches ours.
+
 ### ROADMAP v1.2+ (written 2026-10-20 — the old 10-iteration roadmap is done)
 
 Each iteration: 5 read-only Haiku recon agents (distinct tasks) → verify →
@@ -330,12 +369,13 @@ GitHub Pages stays OFF until the human calls the project ready.
 | it. | theme | content |
 |---|---|---|
 | I1 | crews + life on the water | DONE (above) |
-| I2 | the river at work | boats UNDERWAY (a barge and two travel boats moving on the reach, path-following in the vertex stage, wake), reed and papyrus cutters with bundles on the bank, a ferry crossing |
-| I3 | town life | a brewery beside the bakeries (vats, mash jars), a weaving terrace in the industry district (ground looms), a stone-carving shed, a public court in the eastern town |
+| I2 | the river at work (canon IX §9.14–9.22) | boats UNDERWAY on a navigation graph (spline-following in the vertex stage, wakes); the Tura limestone route as the flagship sequence (loaded barge arriving, unloading to a staging area, a scribe recording — Merer's diary, nothing invented); loaded hulls sitting lower; a general cargo vessel and a ceremonial vessel class; reed and papyrus cutters with bundles; a ferry crossing |
+| I3 | town life (canon VIII) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
 | I4 | the land | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
 | I5 | the necropolis + the monument | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
-| I6 | harbour administration | a customs/scribes' office and checkpoint on the quay (RAB plan language), tally scenes at the magazines |
-| I7 | polish + perf | OPEN items 1 and 3 (iGPU caster allow-list, the red escarpment rim at night, the harbour water sheet's edge), crop-tuft card LOD, a bookmark for the scaffolding tableau |
+| I6 | the harbour per canon IX §9.11–9.13 | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
+| I7 | polish + perf | water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
+| T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

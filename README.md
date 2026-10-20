@@ -224,6 +224,11 @@ the discrete GPU as above.
   string per figure — geometry *and* the audit read the same constants.
 * Scope is deliberately Tier 1: the **Khufu complex only**. There is no Khafre,
   no Menkaure and no Sphinx, because in 2550 BCE they do not exist yet.
+* The content canon is the *Ancient Egypt Master Prompt Bible* in `canon/`:
+  Vols I–VI in `MASTER_PROMPT_BIBLE.md`, Vol VII (the Sphinx and the Khafre
+  complex — the Tier 2 brief), Vol VIII (the workers' city and construction
+  logistics) and Vol IX (the Nile, the royal harbour and transport) as
+  `VOL_VII.md`–`VOL_IX.md`.
 * Every interpretive choice — the ramp system, the harbour position, the moon's
   phase, the pyramidion — is recorded in [DEVIATIONS.md](DEVIATIONS.md) rather
   than smoothed over.
