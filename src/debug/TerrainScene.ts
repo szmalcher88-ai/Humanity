@@ -26,15 +26,16 @@ import { buildFields } from '../vegetation/Fields';
 import { buildFarmsteads } from '../vegetation/FarmDistrict';
 import { buildPalms } from '../vegetation/Palms';
 import { buildShore } from '../vegetation/Shore';
+import { buildBirds } from '../vegetation/Birds';
 import { NileWater } from '../water/NileWater';
-import { buildHarbor } from '../water/Vessels';
+import { buildHarbor, crewCount } from '../water/Vessels';
 import { setWorldTime } from '../render/WorldClock';
 import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
 import { WorkParticles } from '../world/Particles';
 import { TerrainTiles } from '../world/TerrainTiles';
 import { attachBookmarks } from './Bookmarks';
-import { fpClear } from './Footprints';
+import { fpAll, fpClear } from './Footprints';
 import { Inspector } from './Inspector';
 import type { WorldContext } from './Scenes';
 
@@ -101,6 +102,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     sites = buildMonuments(structures, seed, gi);
     buildKhufuComplex(structures, seed, hf, gi);
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
+    engine.stats.counters['harbor.crew'] = crewCount;
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
     engine.stats.counters['harbor.district'] = buildHarborDistrict(structures, seed, hf, gi);
     engine.stats.counters['industry'] = buildIndustryDistrict(structures, seed, hf, gi);
@@ -141,6 +143,10 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const shore = buildShore(scene, seed, hf, gi, engine.params.preset, perf.cull);
   engine.stats.counters['veg.reeds'] = shore.clumps;
   engine.stats.counters['veg.trees'] = shore.trees;
+  // marsh birds on the reed margin (v1.2): waders in the shallows, flocks
+  const birds = buildBirds(scene, seed, hf, gi, engine.params.preset);
+  engine.stats.counters['birds.waders'] = birds.waders;
+  engine.stats.counters['birds.flyers'] = birds.flyers;
 
   ctx.progress(0.908, 'works: stone debris fields');
   engine.stats.counters['debris'] = buildDebris(
@@ -167,6 +173,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   ctx.progress(0.9095, 'night: torches and hearth fires');
   const torches = new Torches(scene, seed, hf, gi);
   torches.setNight(sunSky.nightAmount);
+  birds.setNight(sunSky.nightAmount);
   gi.gain.value = 1 - sunSky.nightAmount * 0.98;
   engine.stats.counters['torches'] = torches.count;
 
@@ -197,6 +204,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['collision.issues'] = issues.length;
     return issues;
   };
+  window.__akhet.footprints = () =>
+    fpAll().map((f) => ({ id: f.id, x: f.x, z: f.z, y0: f.y0, y1: f.y1, hx: f.hx, hz: f.hz }));
   window.__akhet.editNudge = (id, dx, dz) => inspector.nudge(id, dx, dz);
   window.__akhet.editExport = () => inspector.exportPatch();
 
@@ -269,6 +278,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.params.timeOfDay = t;
     void sunSky.setTimeOfDay(t).then(() => {
       torches.setNight(sunSky.nightAmount);
+      birds.setNight(sunSky.nightAmount);
       gi.gain.value = 1 - sunSky.nightAmount * 0.98;
       return clouds.refreshShadow(renderer);
     });

@@ -72,6 +72,8 @@ export interface AkhetHooks {
   surfaceProbe: ((x: number, z: number, feetY: number) => number) | null;
   /** run the footprint collision/consistency audit (harness gate) */
   collisionAudit: (() => CollisionIssue[]) | null;
+  /** registered footprints (id, centre, extent) — tooling (tools/closeup.ts) */
+  footprints: (() => Array<{ id: string; x: number; z: number; y0: number; y1: number; hx: number; hz: number }>) | null;
   /** Inspector: nudge an editable placement by (dx, dz) and rebuild */
   editNudge: ((id: string, dx: number, dz: number) => void) | null;
   /** Inspector: export pending edit deltas as a canon patch string */
@@ -104,6 +106,7 @@ export function initHooks(): AkhetHooks {
     setWalk: null,
     surfaceProbe: null,
     collisionAudit: null,
+    footprints: null,
     editNudge: null,
     editExport: null,
   };

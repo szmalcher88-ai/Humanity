@@ -6,7 +6,8 @@
  * over the canonical placements — exported as a patch (X key) to be applied
  * to CANON_DIMENSIONS / builder constants; nothing persists in the scene.
  *
- *   E      — toggle edit mode (or boot with ?edit=1)
+ *   I      — toggle edit mode (or boot with ?edit=1). Not E: E is the fly
+ *            camera's "up", and every climb toggled the inspector.
  *   click  — select footprint under cursor (red = collision issue)
  *   arrows — move ±1 m (Shift ×5, Alt ×0.2) along world X/Z
  *   R      — reset selected delta      X — export patch (console+clipboard)
@@ -191,7 +192,7 @@ export class Inspector {
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (e.code === 'KeyE' && !e.repeat) {
+    if (e.code === 'KeyI' && !e.repeat) {
       this.setEnabled(!this.enabled);
       return;
     }

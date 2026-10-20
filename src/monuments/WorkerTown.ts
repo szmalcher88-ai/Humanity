@@ -346,8 +346,11 @@ export function buildWorkerTown(
       ] as const;
       let ty = y;
       for (const [d, th2] of tiers) {
-        lbox(mud, su, ty, sv, d, th2, d, 0.74 + t.range(-0.03, 0.03), 0.12);
-        lbox(mud, su, ty, sv, d, th2, d, 0.74 + t.range(-0.03, 0.03), 0.12, Math.PI / 4);
+        // round tiers (v1.2: drums, not two boxes crossed into a star); the
+        // second tone draw is kept so the town's random stream is unchanged
+        const tone = 0.74 + t.range(-0.03, 0.03);
+        t.range(-0.03, 0.03);
+        mud.drum(wx(su, sv), ty, wz(su, sv), d / 2, th2, tone, 0.12, 14);
         ty += th2;
       }
       lbox(mud, su, ty, sv, 0.6, 0.35, 0.6, 0.4, 0.1);

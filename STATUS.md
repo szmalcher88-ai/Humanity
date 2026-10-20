@@ -188,6 +188,100 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Next actions (always keep current)
 
+### v1.2 — DETAIL PASS II (branch `v1.2-detail`, from 2026-10-20)
+
+v1.1 merged to main (fast-forward, `bd05a3d`). Brief from the human: boat
+crews, more detail, "is there a roadmap?" (there was not past v1.0 — see
+ROADMAP v1.2+ below), and FIVE read-only Haiku agents on distinct tasks in
+EVERY iteration (code recon, not screenshot review — see M7 of v1.1).
+New tool: `tools/closeup.ts --id stall:,kiln: --n 2` boots once and shoots
+every footprint whose id starts with a prefix through a telephoto lens
+(`window.__akhet.footprints()` is the new tooling hook).
+
+I1 — CREWS, FISHERS, MARKET, BIRDS + THE HAIKU GROUNDING SWEEP (done):
+1. BOAT CREWS (`src/water/Vessels.ts`): built inside each hull's bob scope,
+   so they heave with it; own RNG stream (`harbor-crews`) so the fleet is
+   not re-laid. Barges: a poler at bow and stern working a pole into the
+   bed + 0-2 hands sitting by the cargo; travel boats: three benches of
+   paired rowers sitting FACING THE STERN (as Egyptian rowers did) with
+   oars into the water, a steersman on the raised stern; moored hulls keep
+   a skeleton crew; skiffs one poler or paddler. `beam()` — a slanted
+   4-sided spar between two points (poles, oars, haul lines). 64 boatmen.
+2. SEINE FISHERS (canon "fishermen" on the reach): three pairs of skiffs
+   on the river drawing a net between them — floats in a downstream arc,
+   a sagging skirt into the water, haul lines from the haulers' hands.
+3. MARKET (canon District 5 "markets"; Saqqara market reliefs): 19 stalls
+   in two rows on the north-shore road, reed-mat shades on poles, flat
+   baskets of fish, onions/leeks, loaves, linen; potters' jars and bowls;
+   a lane gang of 36 sellers and buyers between them.
+4. BIRDS (`src/vegetation/Birds.ts`, canon "bird colonies"): 7 colonies on
+   the river margin — 118 egrets, herons and ibis standing in the ankle-deep
+   shallows (static), 154 egrets/ibis/geese wheeling over the reeds with a
+   vertex-stage wing beat; the flocks roost (hide) at night.
+5. ROUND THINGS WERE STARS: every kiln, furnace, silo, well, basket and
+   threshing floor was two boxes crossed at 45° — the union is an
+   eight-pointed star, a cog from above. `GeoWriter.drum()` (true polygonal
+   frustum, outward-wound, capped) replaces all of them; the RAB silos keep
+   their RNG draw count so the town is not re-laid.
+6. SLIPWAYS: the runs were a straight line from road to bed — over the flat
+   shore that line ran UNDERGROUND (pale slabs in mid-plain, never meeting
+   the water) and the level skid rails floated 2 m over the lower runs.
+   Runs now follow the ground down the dredged edge into the water, rails
+   on every tread.
+7. Haiku grounding sweep, all confirmed and fixed: the copper court was one
+   solid box (half the smiths dropped) → walls registered, court a floor;
+   furnace #4 stood OUTSIDE the east wall and #3 inside the charcoal heap →
+   re-laid; kiln/well footprints smaller than the geometry; farmstead house
+   footprint 2 m south of the house; rope makers walking IN the post row and
+   the rope → beside it; stone yard one solid box + a 4th block row through
+   the granite beams → three registered rows, granite clear; slipway gangs
+   on the ramp axis → flanks; potters in the solid jar block → the lane;
+   threshing piles and oxen unregistered; the threshers' `extra` lines shared
+   the canon scale, so every new farmstead re-laid every gang on the site →
+   canon lines keep their own scale, extras get an 8 % share on top.
+8. Docs drift fixed: README URL params (`?clean`, `?hide`, `?seed`, `?edit`,
+   `?debug=collisions`, fov in `?cam`), the iGPU preset (low, or safe when
+   the bench is slow), gallery chalk frames marked archival, counts; D-6
+   code pointer; D-7 marked PARTIAL (south-face ramp remnants not built);
+   D-12 reflectances are luminance; Vessels header. The placement inspector
+   moved from `E` to `I` — `E` is the fly camera's "up", and every climb
+   toggled the inspector.
+Counts: 939 figures (161 moved off structures, 24 dropped), 27 vessels,
+64 boatmen, 118 waders + 154 in flight. Collision audit clean.
+Battery on an idle GPU: 19/19, bm1 81 / bm3 72 / bm7 46 (the v1.1 idle baseline
+was 50-53 / 70-73 / 45-47: the new life costs nothing measurable).
+
+HAIKU — ITERATION 1 (5 agents, read-only, every finding verified):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| 1 | canon gaps (code grep vs canon lines) | 15 | 15 real gaps — 3 built this iteration (fishers, market, birds), the rest are the v1.2+ roadmap |
+| 2 | vessel crew data (deck heights, axes, cabin/mast spans, bob-scope RNG) | 8 | 8 — the crews were placed straight from it |
+| 3 | grounding / obstacles in the v1.1 code | 12 | 12 (+4 more of the same classes found while fixing: level slipway rails, buried slipway runs, well footprint, furnace inside the charcoal heap) |
+| 4 | GPU/CPU perf hotspots from code constants | 12 | 0 material — estimates, not measurements: 271 live terrain tiles not 2048; probe GI is 0.85 ms here (its 14.6 ms is the iGPU figure in the code comment); froxels 0.18 ms. The shadow-caster items duplicate OPEN item 1 |
+| 5 | docs vs code drift | 14 | 11 (1 false: "3.5k shore clumps" is the runtime count — 3532 — not the 7000 target; 2 non-defects) |
+VERDICT: unchanged from v1.1 M7 and sharper — Haiku is excellent at
+exhaustive code reading against a NAMED class with evidence (agents 1-3,
+35/35), fine at drift (11/14), and unreliable where the answer needs a
+MEASUREMENT (perf 0/12). Next iterations: keep 1-3 style tasks; give perf
+recon only together with a measured pass table, or not at all.
+
+### ROADMAP v1.2+ (written 2026-10-20 — the old 10-iteration roadmap is done)
+
+Each iteration: 5 read-only Haiku recon agents (distinct tasks) → verify →
+build → closeup/tour/audit → battery (no src edits while it runs) → commit +
+push the work branch. Merge to main and any deploy only on the human's word;
+GitHub Pages stays OFF until the human calls the project ready.
+
+| it. | theme | content |
+|---|---|---|
+| I1 | crews + life on the water | DONE (above) |
+| I2 | the river at work | boats UNDERWAY (a barge and two travel boats moving on the reach, path-following in the vertex stage, wake), reed and papyrus cutters with bundles on the bank, a ferry crossing |
+| I3 | town life | a brewery beside the bakeries (vats, mash jars), a weaving terrace in the industry district (ground looms), a stone-carving shed, a public court in the eastern town |
+| I4 | the land | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
+| I5 | the necropolis + the monument | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
+| I6 | harbour administration | a customs/scribes' office and checkpoint on the quay (RAB plan language), tally scenes at the magazines |
+| I7 | polish + perf | OPEN items 1 and 3 (iGPU caster allow-list, the red escarpment rim at night, the harbour water sheet's edge), crop-tuft card LOD, a bookmark for the scaffolding tableau |
+
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 
 Brief from the human: extend the world, add detail, fix bugs. Baseline

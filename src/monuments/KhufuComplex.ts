@@ -136,6 +136,46 @@ export class GeoWriter {
     quad(b0, b1, b2, b3); // bottom
   }
 
+  /**
+   * (v1.2) A regular polygonal drum — silos, kilns, furnaces, wells,
+   * baskets, threshing floors. Round things used to be two boxes crossed at
+   * 45°, whose union is an eight-pointed STAR, not a circle: every kiln,
+   * silo and threshing floor read as a cog from above. `batter` narrows the
+   * top radius by batter·h, like box(); negative widens it (baskets, bowls).
+   */
+  drum(
+    cx: number, y0: number, cz: number, r: number, h: number, tone: number,
+    batter = 0, sides = 12, yaw = 0,
+  ): void {
+    const rt = Math.max(0.03, r - batter * h);
+    type P3 = [number, number, number];
+    const ring = (rad: number, y: number): P3[] =>
+      Array.from({ length: sides }, (_, i): P3 => {
+        const a = yaw + (i / sides) * Math.PI * 2;
+        return [cx + Math.cos(a) * rad, y0 + y, cz + Math.sin(a) * rad];
+      });
+    const B = ring(r, 0);
+    const T = ring(rt, h);
+    const ct: P3 = [cx, y0 + h, cz];
+    const cb: P3 = [cx, y0, cz];
+    const push = (...vs: P3[]): void => {
+      for (const v of vs) {
+        this.pos.push(...v);
+        this.col.push(tone, tone, tone);
+      }
+    };
+    for (let i = 0; i < sides; i++) {
+      const j = (i + 1) % sides;
+      const bi = B[i] as P3;
+      const bj = B[j] as P3;
+      const ti = T[i] as P3;
+      const tj = T[j] as P3;
+      push(bj, bi, ti, bj, ti, tj); // side, wound outward
+      push(ct, tj, ti); // top cap, facing up
+      push(cb, bi, bj); // bottom cap, facing down
+    }
+  }
+
   build(): BufferGeometry {
     const g = new BufferGeometry();
     g.setAttribute('position', new BufferAttribute(new Float32Array(this.pos), 3));

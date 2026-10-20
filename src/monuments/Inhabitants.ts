@@ -65,6 +65,9 @@ import { NILE_WATER_Y } from '../world/WorldConst';
 import { fpAll, type Footprint } from '../debug/Footprints';
 import { townToWorld } from '../world/TownFrame';
 
+/** figures allowed ON TOP of the budget for lines contributed by other
+ *  systems (the farmsteads' threshers) */
+const EXTRA_SHARE = 0.08;
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
 const FIG_FADE = [760, 560] as const;
@@ -294,9 +297,13 @@ function workLines(): Gang[] {
     { x0: 905, z0: -318, x1: vx + 40, z1: vz - 40, n: 35, spread: 5, carry: 0.5, still: 0.06 },
     // harbor district (v1.1): stone yard, slipway heads, boatyard
     { x0: 893, z0: -292, x1: 940, z1: -262, n: 34, spread: 12, carry: 0.2, still: 0.72 },
-    { x0: 1036, z0: -312, x1: 1046, z1: -290, n: 16, spread: 5, carry: 0.5, still: 0.4 },
-    { x0: 1157, z0: -302, x1: 1153, z1: -282, n: 16, spread: 5, carry: 0.5, still: 0.4 },
+    // slipway heads: hauling teams on the FLANKS of the ramps (v1.2: on the
+    // ramp axis, inside the runs' footprint, most were shoved or dropped)
+    { x0: 1033.6, z0: -310.7, x1: 1038.1, z1: -289.2, n: 16, spread: 3, carry: 0.5, still: 0.4 },
+    { x0: 1165.8, z0: -299.1, x1: 1156.0, z1: -279.4, n: 16, spread: 3, carry: 0.5, still: 0.4 },
     { x0: 992, z0: 58, x1: 1116, z1: 74, n: 44, spread: 10, carry: 0.25, still: 0.75 },
+    // the market lane on the north-shore road (v1.2): sellers and buyers
+    { x0: 926, z0: -334, x1: 992, z1: -334, n: 36, spread: 3.4, carry: 0.35, still: 0.65 },
     { x0: 1035, z0: 90, x1: 1085, z1: 96, n: 14, spread: 4, carry: 0.6, still: 0.2 },
     // town: the gallery street and the bakery yard
     { x0: tx - 110, z0: tz - 96, x1: tx + 60, z1: tz - 92, n: 90, spread: 6, carry: 0.25, still: 0.3 },
@@ -307,9 +314,13 @@ function workLines(): Gang[] {
     // up to the town, potters, copper smiths, rope makers walking the walk
     ...townLine(104, 104, 140, 188, 46, 16, 0.2, 0.82),
     ...townLine(96, 110, 40, 60, 30, 3.5, 0.85, 0.05),
-    ...townLine(-20, 126, 20, 140, 18, 10, 0.25, 0.8),
+    // potters in the lane between the kilns and the jar rows (v1.2: the
+    // line ran through the solid jar block)
+    ...townLine(-20, 127, 20, 128, 18, 3, 0.25, 0.8),
     ...townLine(-12, 172, 8, 190, 14, 7, 0.15, 0.85),
-    ...townLine(60, 98, 60, 206, 10, 1.2, 0.1, 0.1),
+    // rope makers walk BESIDE the laid rope, east of the post row (v1.2:
+    // on the walk's axis they stood in the posts and the rope itself)
+    ...townLine(61.3, 98, 61.3, 206, 10, 0.3, 0.1, 0.1),
   ];
 }
 
@@ -331,10 +342,16 @@ export function buildInhabitants(
 ): InhabitantCounts {
   const rng = seed.rng('inhabitants');
   const budget = FIGURE_BUDGET[preset];
-  // extra lines go LAST so the canon lines keep their random draws
-  const gangs = [...workLines(), ...extra];
-  const wanted = gangs.reduce((a, g) => a + g.n, 0);
-  const scale = Math.min(1, budget / wanted);
+  // extra lines go LAST and are scaled from their OWN share of the budget,
+  // so the canon lines keep their counts and random draws however many
+  // extras arrive (v1.2: one shared scale meant adding a farmstead
+  // re-laid every gang on the site)
+  const canon = workLines();
+  const gangs = [...canon, ...extra];
+  const canonWanted = canon.reduce((a, g) => a + g.n, 0);
+  const extraWanted = extra.reduce((a, g) => a + g.n, 0);
+  const canonScale = Math.min(1, budget / canonWanted);
+  const extraScale = extraWanted > 0 ? Math.min(1, (budget * EXTRA_SHARE) / extraWanted) : 0;
 
   /* --- gather the figures ------------------------------------------------- */
   interface Fig {
@@ -354,7 +371,7 @@ export function buildInhabitants(
     // retries draw from their own stream, so a figure moved off a wall
     // never re-lays the rest of the file
     const retry = rng.fork(`reseat-${gi}`);
-    const n = Math.round(g.n * scale);
+    const n = Math.round(g.n * (gi < canon.length ? canonScale : extraScale));
     const len = Math.hypot(g.x1 - g.x0, g.z1 - g.z0);
     const ux = (g.x1 - g.x0) / (len || 1);
     const uz = (g.z1 - g.z0) / (len || 1);

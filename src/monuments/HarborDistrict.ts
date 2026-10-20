@@ -17,6 +17,10 @@
  *                 a single sheer strake) and a second half-planked, timber
  *                 and plank stacks, a sawing frame, reed-mat shades
  *   scattered   — wells (low mudbrick rings with water jars)
+ *   north-west  — (v1.2) a market on the shore road: two rows of stalls
+ *                 under reed-mat shades facing a lane — fish, onions and
+ *                 leeks, loaves, pots, linen — after the Saqqara market
+ *                 scenes (Niankhkhnum & Khnumhotep, Tepemankh)
  *
  * Every piece is grounded on the CPU height mirror and placed only where all
  * of its footprint is DRY (the basin edges are dredged steep); each one
@@ -51,6 +55,10 @@ export function buildHarborDistrict(
   const tura = new GeoWriter();
   const granite = new GeoWriter();
   const wood = new GeoWriter();
+  const reed = new GeoWriter();
+  const ware = new GeoWriter();
+  const produce = new GeoWriter();
+  const fish = new GeoWriter();
   let pieces = 0;
 
   /** every corner of an (axis-aligned, yawed) footprint is dry land */
@@ -147,11 +155,11 @@ export function buildHarborDistrict(
         const sx = gx - W / 2 + 5 + (s % 4) * 8;
         const sz = gz - L / 4 + Math.floor(s / 4) * 11;
         const sy = grd(sx, sz) - 0.2;
-        // three shrinking octagonal tiers (crossed boxes at 45°) + a cap
+        // three shrinking round tiers + a cap (v1.2: drums — the crossed
+        // boxes at 45° made eight-pointed stars)
         for (const [d, th, tone] of [[5.6, 2.4, 0.72], [4.6, 2.0, 0.74], [3.2, 1.6, 0.76], [1.4, 0.9, 0.7]] as const) {
           const base = sy + (d === 5.6 ? 0 : d === 4.6 ? 2.3 : d === 3.2 ? 4.2 : 5.7);
-          mud.box(sx, base, sz, d, th, d, tone, 0.06);
-          mud.box(sx, base, sz, d, th, d, tone, 0.06, Math.PI / 4);
+          mud.drum(sx, base, sz, d / 2, th, tone, 0.06, 16);
         }
         // filling hatch near the top
         mud.box(sx, sy + 4.9, sz + 1.25, 0.6, 0.6, 0.2, 0.12, 0);
@@ -167,8 +175,11 @@ export function buildHarborDistrict(
     const hw = 30;
     const hd = 18;
     if (dry(yx, yz, hw, hd, 0, 0.5)) {
-      for (let row = 0; row < 4; row++) {
+      // three rows of casing blocks (v1.2: a fourth row at z -262 ran
+      // straight through the granite beams)
+      for (let row = 0; row < 3; row++) {
         const rz = yz - hd + 5 + row * 9;
+        reg(`stone-row:${row}`, yx, rz, hw - 2, 0.9, grd(yx, rz) - 0.1, grd(yx, rz) + 2.6);
         let x = yx - hw + 3;
         while (x < yx + hw - 3) {
           const bl = rng.range(1.3, 1.9);
@@ -186,7 +197,7 @@ export function buildHarborDistrict(
       // Aswan granite: long beams (roofing-beam class) on timber sleepers
       for (let g = 0; g < 4; g++) {
         const gxx = yx - 12 + g * 7.5;
-        const gzz = yz + hd - 3.5;
+        const gzz = yz + hd - 5;
         const gy = grd(gxx, gzz);
         for (const s of [-2.2, 2.2]) wood.box(gxx + s, gy - 0.05, gzz, 0.35, 0.3, 2.1, 0.9, 0);
         const L = rng.range(5.2, 7.4);
@@ -201,7 +212,15 @@ export function buildHarborDistrict(
       for (const s of [-0.7, 0.7]) wood.box(sx, sy - 0.02, sz + s, 4.4, 0.24, 0.28, 0.85, 0.02);
       for (let k = 0; k < 5; k++) wood.box(sx - 1.6 + k * 0.8, sy + 0.2, sz, 0.18, 0.12, 1.8, 0.8, 0);
       for (let k = 0; k < 4; k++) wood.box(sx + 3.5, sy + 0.02 + k * 0.1, sz - 1 + k * 0.55, 3.6, 0.12, 0.14, 0.75, 0, rng.range(-0.2, 0.2));
-      reg('stone-yard', yx, yz, hw, hd, grd(yx, yz) - 0.2, grd(yx, yz) + 2.6);
+      reg('granite', yx - 0.75, yz + hd - 5, 13.6, 3.9, grd(yx, yz + hd - 5) - 0.1, grd(yx, yz + hd - 5) + 1.9);
+      reg('sledge-levers', yx + hw - 6.5, yz - 2, 4.2, 1.2, grd(yx + hw - 8, yz - 2) - 0.1, grd(yx + hw - 8, yz - 2) + 0.6);
+      // the yard itself is open ground between the rows (v1.2: one solid box
+      // over all of it pushed the yard gang out of the yard)
+      fpReg({
+        id: 'stone-yard', family: FAMILY, x: yx, z: yz, hx: hw, hz: hd,
+        y0: grd(yx, yz) - 0.2, y1: grd(yx, yz) + 0.1, ground: 'none', passive: true,
+      });
+      pieces++;
     }
   }
 
@@ -224,23 +243,33 @@ export function buildHarborDistrict(
       const cx = sx0 + ux * ramp / 2;
       const cz = sz0 + uz * ramp / 2;
       const yTop = grd(sx0, sz0);
-      const yBot = NILE_WATER_Y - 1.2;
-      // stepped stone runs: 8 segments descending from the road to the bed
-      const n = 8;
+      // stepped stone runs that FOLLOW THE GROUND from the road, down the
+      // dredged edge and on under the water — a paved slip, not a cutting.
+      // (v1.2: the runs were a straight line from road to bed; over the flat
+      // shore that line ran underground, so the ramp showed as a few pale
+      // slabs in mid-plain and never met the water. Each run now sits on its
+      // lowest bed sample with its tread a hand above the centre ground: on
+      // the edge's ~0.3 slope that is a ~0.5 m riser per 3.6 m run.)
+      const n = Math.max(6, Math.round(ramp / 3.6));
+      let yMin = Infinity;
       for (let i = 0; i < n; i++) {
         const f = (i + 0.5) / n;
-        const yy = yTop + (yBot - yTop) * f;
-        const bed = grd(sx0 + ux * ramp * f, sz0 + uz * ramp * f);
-        const base = Math.min(bed, yy) - 0.6;
-        tura.box(sx0 + ux * ramp * f, base, sz0 + uz * ramp * f, ramp / n + 0.08, yy - base + 0.25, 6.5, 0.86, 0.02, yaw);
-      }
-      // timber skid rails laid along the ramp (sledges were dragged on them)
-      for (const s of [-1.3, 1.3]) {
-        wood.box(cx - uz * s, (yTop + yBot) / 2 + 0.2, cz + ux * s, ramp, 0.16, 0.26, 0.8, 0, yaw);
+        const sx = sx0 + ux * ramp * f;
+        const sz = sz0 + uz * ramp * f;
+        const hl = ramp / n / 2;
+        const bed = Math.min(grd(sx, sz), grd(sx + ux * hl, sz + uz * hl), grd(sx - ux * hl, sz - uz * hl));
+        const tread = grd(sx, sz) + 0.25;
+        const base = bed - 0.6;
+        yMin = Math.min(yMin, base);
+        tura.box(sx, base, sz, ramp / n + 0.08, tread - base, 6.5, 0.86, 0.02, yaw);
+        // timber skid rails on each run's tread (sledges were dragged on them)
+        for (const s2 of [-1.3, 1.3]) {
+          wood.box(sx - uz * s2, tread, sz + ux * s2, ramp / n + 0.02, 0.16, 0.26, 0.8, 0, yaw);
+        }
       }
       fpReg({
         id: `slipway:${k}`, family: FAMILY, x: cx, z: cz, hx: ramp / 2, hz: 3.25,
-        y0: yBot - 0.6, y1: yTop + 0.5, yaw, ground: 'none',
+        y0: yMin, y1: yTop + 0.5, yaw, ground: 'none',
       });
       pieces++;
     }
@@ -358,20 +387,72 @@ export function buildHarborDistrict(
     }
   }
 
+  /* --- market on the north-shore road (v1.2) --------------------------------
+   * canon Vol. IV District 5 lists "markets"; the Old Kingdom evidence is the
+   * Saqqara market reliefs — sellers on the ground behind flat baskets of
+   * fish, onions, loaves and sandals, buyers bartering grain or linen. Two
+   * rows of stalls face a lane between the stone yard and the first
+   * magazine range; each stall is solid, so the crowd keeps to the lane. */
+  {
+    const lane = -334;
+    let k = 0;
+    for (const side of [-1, 1]) {
+      for (let x = 928 + (side > 0 ? 3 : 0); x < 992; x += rng.range(6.2, 7.6)) {
+        const sz = lane + side * 4.6;
+        if (!dry(x, sz, 2.3, 1.9)) continue;
+        const y = low(x, sz, 1.95, 1.6) - 0.05;
+        // reed-mat shade on four poles, a mat on the ground
+        for (const [px, pz] of [[-1.7, -1.4], [1.7, -1.4], [-1.7, 1.4], [1.7, 1.4]] as const) {
+          wood.box(x + px, y, sz + pz, 0.12, 2.15, 0.12, 0.8, 0);
+        }
+        reed.box(x, y + 2.15, sz, 3.9, 0.06, 3.3, rng.range(0.92, 1.08), 0);
+        reed.box(x, y, sz, 3.2, 0.06, 2.6, rng.range(0.78, 0.9), 0);
+        // the wares, in a row of flat baskets on the lane side
+        const kind = rng.int(5);
+        const gz = sz - side * 0.75;
+        for (let b = 0; b < 3; b++) {
+          const bx = x - 1.05 + b * 1.05 + rng.range(-0.1, 0.1);
+          const by = y + 0.06;
+          if (kind === 3) {
+            // potter: jars and bowls straight on the mat
+            const jh = rng.range(0.55, 0.8);
+            ware.drum(bx, by, gz, 0.2, jh * 0.6, rng.range(0.9, 1.1), -0.25, 10); // belly
+            ware.drum(bx, by + jh * 0.6, gz, 0.29, jh * 0.4, 1.0, 0.45, 10); // shoulder + neck
+            ware.drum(bx + 0.3, by, gz - side * 0.45, 0.14, 0.14, 1.05, -0.6, 10); // bowl
+            continue;
+          }
+          reed.drum(bx, by, gz, 0.39, 0.2, 0.72, -0.12, 9);
+          const top = by + 0.2;
+          for (let j = 0; j < 4; j++) {
+            const jx = bx + rng.range(-0.2, 0.2);
+            const jz = gz + rng.range(-0.2, 0.2);
+            if (kind === 0) fish.box(jx, top, jz, 0.38, 0.07, 0.11, rng.range(0.85, 1.1), 0, rng.float() * Math.PI);
+            else if (kind === 1) produce.box(jx, top, jz, 0.14, 0.24, 0.14, rng.range(0.8, 1.15), 0.2);
+            else if (kind === 2) ware.box(jx, top, jz, 0.2, 0.2, 0.2, rng.range(1.15, 1.3), 0.35); // conical loaves
+            else tura.box(jx, top, jz, 0.42, 0.1, 0.24, rng.range(0.95, 1.02), 0, rng.float() * Math.PI); // linen, sandals
+          }
+        }
+        // the seller's water jar and stool-mat at the back
+        ware.drum(x + 1.3, y + 0.06, sz + side * 0.9, 0.18, 0.55, 0.95, 0.12, 10);
+        reg(`stall:${k++}`, x, sz, 1.95, 1.7, y, y + 2.25);
+      }
+    }
+  }
+
   /* --- wells --------------------------------------------------------------- */
   for (const [k, wx, wz] of [[0, 1225, -302], [1, 955, 52], [2, 1236, 46], [3, 1062, -402]] as const) {
     if (!dry(wx, wz, 2.2, 2.2)) continue;
     const wy = grd(wx, wz) - 0.2;
-    // octagonal mudbrick ring: crossed boxes, with a dark water disc inside
-    mud.box(wx, wy, wz, 3.2, 0.95, 3.2, 0.58, 0.02);
-    mud.box(wx, wy, wz, 3.2, 0.95, 3.2, 0.58, 0.02, Math.PI / 4);
-    mud.box(wx, wy + 0.92, wz, 2.1, 0.06, 2.1, 0.1, 0);
-    mud.box(wx, wy + 0.92, wz, 2.1, 0.06, 2.1, 0.1, 0, Math.PI / 4);
+    // round mudbrick ring with a dark water disc inside
+    mud.drum(wx, wy, wz, 1.6, 0.95, 0.58, 0.02, 14);
+    mud.drum(wx, wy + 0.92, wz, 1.05, 0.06, 0.1, 0, 14);
     for (let j = 0; j < 4; j++) {
       const a = (j / 4) * Math.PI * 2 + 0.4;
       mud.box(wx + Math.cos(a) * 2.4, wy + 0.2, wz + Math.sin(a) * 2.4, 0.5, 0.7, 0.5, 0.62, 0.14);
     }
-    reg(`well:${k}`, wx, wz, 1.9, 1.9, wy, wy + 1.1);
+    // jars stand on a 2.4 m ring: the footprint covers them (v1.2: 1.9 m
+    // left the jars and the 45°-turned ring's corners outside it)
+    reg(`well:${k}`, wx, wz, 2.7, 2.7, wy, wy + 1.1);
   }
 
   /* --- materialize ------------------------------------------------------------ */
@@ -382,6 +463,12 @@ export function buildHarborDistrict(
     // than anything else in the frame, honed but not polished
     new Mesh(granite.build(), limestoneMaterial([0.6, 0.39, 0.34], gi, 0.5, 1.15, { rough: 0.6, spec: 0.45 })),
     new Mesh(wood.build(), limestoneMaterial([0.36, 0.27, 0.17], gi, 0.24, 0.32, { rough: 0.8 })),
+    // market (v1.2): reed matting coursed like weave, red-brown ware,
+    // green produce, silvery fish
+    new Mesh(reed.build(), limestoneMaterial([0.7, 0.6, 0.41], gi, 0.08, 0.3, { rough: 0.92 })),
+    new Mesh(ware.build(), limestoneMaterial([0.6, 0.41, 0.29], gi, 0.5, 1.15, { rough: 0.85 })),
+    new Mesh(produce.build(), limestoneMaterial([0.33, 0.42, 0.2], gi, 0.5, 1.15, { rough: 0.75 })),
+    new Mesh(fish.build(), limestoneMaterial([0.55, 0.56, 0.54], gi, 0.5, 1.15, { rough: 0.45, spec: 0.6 })),
   ];
   for (const m of meshes) {
     m.castShadow = true;

@@ -56,7 +56,8 @@ at the epoch of the newly completed pyramid. The excavated gallery phases
 date mainly to Khafre/Menkaure; we render a Khufu-era extent (smaller gallery
 blocks + bakeries + enclosures) at the documented location.
 **Confidence:** D.
-**Code:** Phase 6 settlement generator (pending).
+**Code:** `src/monuments/WorkerTown.ts` (galleries, eastern town, bakeries, RAB, Wall of
+the Crow), on the terraces of `WORKER_TOWN_PADS` in `CANON_DIMENSIONS.ts`.
 
 ## D-7 — Remnant construction ramp
 **Chosen (Phase 3/6):** partially dismantled ramp remnants against the SOUTH
@@ -66,6 +67,9 @@ ramp: the monument is complete; only staged dismantling debris remains.
 **Alternatives:** straight east ramp; internal ramp (Houdin) — rejected as
 speculative for surface rendering.
 **Confidence:** D.
+**Code:** PARTIAL — the one standing construction ramp is the rubble-and-brick ramp at
+the mortuary temple's SE corner (`src/monuments/Inhabitants.ts`). The south-face
+remnants this entry chooses are NOT built yet (v1.2 roadmap).
 
 ## D-8 — three.js pinned at 0.184.0
 The brief says "three.js (current)". LAAS's THREE-NOTES.md verifies the TSL/
@@ -105,6 +109,9 @@ The colour script's night keyframe assumes a readable moonlit blue silhouette.
 **Chosen (Phase 7 DELTA):** terrain albedos are set to PHYSICAL reflectances
 (dry desert sand 0.35-0.45, weathered limestone 0.30-0.50, fresh-cut Tura
 0.55-0.60) rather than to the brighter studio values used through Phases 1-6.
+The figures are LUMINANCE (Rec. 709 weights), not per channel: the sand pair
+`SAND_WARM`/`SAND_LIGHT` sits at 0.40/0.46 — the light tone is the brightest
+dune crest and runs 0.01 over the range by design.
 **Why:** measured, the old values put sunlit sand at luminance 194.9 against
 the casing's 198.1 — the monument and its ground were the same tone.
 **Confidence:** B (published reflectance ranges for the materials).

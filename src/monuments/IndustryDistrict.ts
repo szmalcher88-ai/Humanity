@@ -40,7 +40,9 @@ const YAW = WORKER_TOWN_YAW;
 /** kiln and furnace mouths, town-local — the smoke sources */
 export const INDUSTRY_SMOKE: readonly (readonly [number, number])[] = [
   [-18, 120], [0, 118], [18, 121], // pottery kilns
-  [-16, 176], [-6, 182], [4, 176], [12, 186], // copper furnaces
+  // copper furnaces — all inside the court (v1.2: #4 stood outside the east
+  // wall at u 12, #3 inside the charcoal heap)
+  [-16, 176], [-7, 178], [2, 176], [-2, 186],
 ];
 
 export function buildIndustryDistrict(
@@ -78,9 +80,11 @@ export function buildIndustryDistrict(
     w.box(x, y, z, lu, h, lv, tone, batter, YAW + yawExtra, batterV);
   };
   /** octagonal prism: two crossed boxes */
+  /** round masonry of diameter d (v1.2: a true drum — two crossed boxes
+   *  made an eight-pointed star of every kiln and furnace) */
   const octo = (w: GeoWriter, u: number, y: number, v: number, d: number, h: number, tone: number, batter = 0): void => {
-    box(w, u, y, v, d, h, d, tone, batter, 0, batter);
-    box(w, u, y, v, d, h, d, tone, batter, Math.PI / 4, batter);
+    const [x, z] = W(u, v);
+    w.drum(x, y, z, d / 2, h, tone, batter, d > 2 ? 14 : 10);
   };
   /** `open`: a surface people work ON (pits, the drying field, the rope
    *  walk) — passive for the audit and the inhabitants' obstacle field */
@@ -152,7 +156,9 @@ export function buildIndustryDistrict(
       octo(mud, ku, y + 2.15, kv, 2.6, 0.9, 0.58, 0.12); // dome
       octo(dark, ku, y + 2.95, kv, 1.3, 0.22, 0.4); // soot-black vent
       box(dark, ku, y + 0.2, kv + 1.82, 0.8, 0.75, 0.12, 0.3); // fire-mouth
-      reg(`kiln:${k}`, ku, kv, 1.9, 1.9, y, y + 3.2);
+      // chamber radius 1.8, the fire-mouth reaching 1.88 (v1.1 registered
+      // 1.9 for a crossed-box star whose points reached 2.55)
+      reg(`kiln:${k}`, ku, kv, 1.95, 1.95, y, y + 3.2);
     }
     // jars drying in rows on the yard
     for (let r = 0; r < 4; r++) {
@@ -201,18 +207,21 @@ export function buildIndustryDistrict(
     box(mud, cu - hu / 2 - 1.6, y, cv + hv, hu - 3.2, wh, 0.7, 0.55, 0.03);
     box(mud, cu + hu / 2 + 1.6, y, cv + hv, hu - 3.2, wh, 0.7, 0.55, 0.03);
     // bowl furnaces: low clay rings, charred inside, a tuyère stone by each
-    for (const [fu, fv] of INDUSTRY_SMOKE.slice(3)) {
+    for (const [k, [fu, fv]] of INDUSTRY_SMOKE.slice(3).entries()) {
       const fy = grd(fu, fv) - 0.1;
       octo(mud, fu, fy, fv, 1.4, 0.55, 0.5, 0.08);
       octo(dark, fu, fy + 0.5, fv, 0.8, 0.07, 0.2);
       box(clay, fu + 1.1, fy, fv, 0.45, 0.35, 0.3, 0.8, 0.1);
+      reg(`furnace:${k}`, fu + 0.2, fv, 1.2, 1.0, fy, fy + 0.6);
     }
     // charcoal heap and malachite ore
     {
-      const hy = grd(cu + 9, cv - 5) - 0.1;
-      box(dark, cu + 9, hy, cv - 5, 3.6, 1.0, 2.8, 0.25, 0.42);
+      const hy = grd(cu + 11, cv - 5) - 0.1;
+      box(dark, cu + 11, hy, cv - 5, 3.6, 1.0, 2.8, 0.25, 0.42);
+      reg('charcoal', cu + 11, cv - 5, 1.8, 1.4, hy, hy + 1.0);
       const oy = grd(cu + 9, cv + 4) - 0.1;
       box(ore, cu + 9, oy, cv + 4, 2.4, 0.6, 2.0, 1.0, 0.4);
+      reg('ore', cu + 9, cv + 4, 1.2, 1.0, oy, oy + 0.6);
     }
     // anvil stones
     for (let k = 0; k < 3; k++) {
@@ -220,7 +229,13 @@ export function buildIndustryDistrict(
       const av = cv + 5;
       box(clay, au, grd(au, av) - 0.05, av, 0.6, 0.45, 0.5, 0.7, 0.03);
     }
-    reg('copper-works', cu, cv, hu + 0.4, hv + 0.4, y, y + wh);
+    // the WALLS are solid, the court is a floor the smiths work on (v1.2:
+    // one solid box over the whole court kept half the smiths out of it)
+    reg('copper-n', cu, cv - hv, hu + 0.35, 0.35, y, y + wh);
+    reg('copper-w', cu - hu, cv, 0.35, hv + 0.35, y, y + wh);
+    reg('copper-e', cu + hu, cv, 0.35, hv + 0.35, y, y + wh);
+    for (const s of [-1, 1]) reg(`copper-s${s}`, cu + s * (hu / 2 + 1.6), cv + hv, (hu - 3.2) / 2, 0.35, y, y + wh);
+    reg('copper-court', cu, cv, hu, hv, y, y + 0.1, true);
   }
 
   /* --- rope walk --------------------------------------------------------------- */

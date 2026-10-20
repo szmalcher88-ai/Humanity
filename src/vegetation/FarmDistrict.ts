@@ -52,9 +52,10 @@ export function buildFarmsteads(
     Math.min(grd(x - hx, z - hz), grd(x + hx, z - hz), grd(x + hx, z + hz), grd(x - hx, z + hz));
   const dryAt = (x: number, z: number, hx: number, hz: number): boolean =>
     lowAt(x, z, hx, hz) > NILE_WATER_Y + 0.6;
+  /** round work of diameter d — a true drum (v1.2: crossed boxes made
+   *  star-shaped threshing floors and granaries) */
   const octo = (w: GeoWriter, x: number, y: number, z: number, d: number, h: number, tone: number, b = 0): void => {
-    w.box(x, y, z, d, h, d, tone, b, 0, b);
-    w.box(x, y, z, d, h, d, tone, b, Math.PI / 4, b);
+    w.drum(x, y, z, d / 2, h, tone, b, d > 4 ? 20 : 12);
   };
   const ox = (x: number, z: number, yaw: number): void => {
     const y = grd(x, z);
@@ -98,8 +99,10 @@ export function buildFarmsteads(
         octo(mud, gx, gy, hz0 + 3.2, 2.3, 1.7, 0.72, 0.06);
         octo(mud, gx, gy + 1.65, hz0 + 3.2, 1.5, 0.8, 0.74, 0.14);
       }
+      // the compound runs from the roof's north eave (hz0-4.7) to the yard's
+      // south wall (hz0+5.83) — v1.2: the box started 2 m south of the house
       fpReg({
-        id: `farm:${info.farms}:house`, family: FAMILY, x: hx0, z: hz0 + 1.6, hx: 7.3, hz: 4.3,
+        id: `farm:${info.farms}:house`, family: FAMILY, x: hx0, z: hz0 + 0.57, hx: 7.3, hz: 5.3,
         y0: y, y1: y + 3.1, ground: 'grounded',
       });
     }
@@ -116,10 +119,20 @@ export function buildFarmsteads(
         grain.box(fx + 3.6, y, fz - 3.4, 2.0, 0.85, 1.8, 0.92, 0.42); // grain
         grain.box(fx - 4.2, y, fz + 3.2, 3.2, 1.5, 2.6, 1.22, 0.38); // straw
         info.floors.push([fx, fz]);
+        const fid = `farm:${info.farms}`;
+        // piles and cattle are solid to the threshers' obstacle field (v1.2)
+        fpReg({ id: `${fid}:grain`, family: FAMILY, x: fx + 3.6, z: fz - 3.4, hx: 1.0, hz: 0.9, y0: y, y1: y + 0.85, ground: 'grounded' });
+        fpReg({ id: `${fid}:straw`, family: FAMILY, x: fx - 4.2, z: fz + 3.2, hx: 1.6, hz: 1.3, y0: y, y1: y + 1.5, ground: 'grounded' });
         // the cattle that tread it out, driven round the floor
         for (let k = 0; k < 2; k++) {
           const a = rng.float() * Math.PI * 2;
-          ox(fx + Math.cos(a) * 2.2, fz + Math.sin(a) * 2.2, a + Math.PI / 2);
+          const ox0 = fx + Math.cos(a) * 2.2;
+          const oz0 = fz + Math.sin(a) * 2.2;
+          ox(ox0, oz0, a + Math.PI / 2);
+          fpReg({
+            id: `${fid}:ox${k}`, family: FAMILY, x: ox0 + Math.cos(a + Math.PI / 2) * 0.2, z: oz0 + Math.sin(a + Math.PI / 2) * 0.2,
+            hx: 1.5, hz: 0.42, yaw: a + Math.PI / 2, y0: grd(ox0, oz0), y1: grd(ox0, oz0) + 1.4, ground: 'grounded',
+          });
         }
         fpReg({
           id: `farm:${info.farms}:floor`, family: FAMILY, x: fx, z: fz, hx: 4.7, hz: 4.7,
