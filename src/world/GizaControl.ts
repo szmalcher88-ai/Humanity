@@ -111,6 +111,8 @@ const NILE_HALF_WIDTH = 130;
 const HARBOR_C: [number, number] = [VALLEY_TEMPLE_CENTER.x + 260, VALLEY_TEMPLE_CENTER.z - 20];
 const HARBOR_RX = 210;
 const HARBOR_RZ = 150;
+/** (v1.2 I6) the basin's ellipse, for its evidence outline */
+export const HARBOR_BASIN = { x: HARBOR_C[0], z: HARBOR_C[1], rx: HARBOR_RX, rz: HARBOR_RZ };
 
 /** harbor↔river approach channel */
 const APPROACH: [number, number][] = [

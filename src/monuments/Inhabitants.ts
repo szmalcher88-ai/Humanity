@@ -294,12 +294,13 @@ function workLines(): Gang[] {
     // construction road along its SOUTH flank (v1.1: the file ran down the
     // causeway's own axis, i.e. inside its walled, roofed embankment)
     { x0: vx - 38, z0: vz + 9, x1: 202, z1: -18, n: 90, spread: 3.2, carry: 0.6, still: 0.04 },
-    // the quay: unloading, and the road up from the harbour.
+    // the landings: unloading, and the road up from the harbour.
     // (v1.1) both lines used to lie IN the basin — one along its east edge,
     // one straight across it — and the water test dropped every figure:
-    // the busiest place on the site was empty. Now on the west shore behind
-    // the stone quay, and round the north shore past the magazines.
-    { x0: 872, z0: -232, x1: 884, z1: -46, n: 70, spread: 7, carry: 0.55, still: 0.35 },
+    // the busiest place on the site was empty. (v1.2 I6) the west-shore line
+    // ran along the old quay's lagoon and lost figures to it: now on the bank
+    // top behind the landings; the second goes round the north shore.
+    { x0: 856, z0: -228, x1: 860, z1: -62, n: 70, spread: 7, carry: 0.55, still: 0.35 },
     { x0: 1215, z0: -332, x1: 905, z1: -318, n: 55, spread: 5, carry: 0.5, still: 0.08 },
     { x0: 905, z0: -318, x1: vx + 40, z1: vz - 40, n: 35, spread: 5, carry: 0.5, still: 0.06 },
     // harbor district (v1.1): stone yard, slipway heads, boatyard

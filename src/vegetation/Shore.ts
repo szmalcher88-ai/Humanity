@@ -43,6 +43,7 @@ import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
+import { harborWorksRects } from '../water/Vessels';
 
 const CLUMP_TARGET = { safe: 900, low: 2600, high: 7000, ultra: 8500 } as const;
 const TREE_TARGET = { safe: 60, low: 150, high: 380, ultra: 460 } as const;
@@ -423,6 +424,14 @@ export function buildShore(
         break;
       }
     }
+  }
+
+  // (v1.2 I6) no reed or papyrus rooted inside a landing, stage or ramp:
+  // dropped after the sampling loop, so the trees' draws below stay put
+  for (let c = 0; c < classes.length; c++) {
+    clumpSpots[c] = (clumpSpots[c] as [number, number, number][]).filter(
+      ([x, z]) => !harborWorksRects.some((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1),
+    );
   }
 
   let clumps = 0;

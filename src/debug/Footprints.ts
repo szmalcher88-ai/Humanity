@@ -9,6 +9,8 @@
  *   Inspector       — click-select + move + export patch (?edit=1)
  */
 
+import type { Confidence } from '../world/CANON_DIMENSIONS';
+
 export type GroundPolicy =
   | 'grounded' // must rest on terrain (mastabas, temples, walls…)
   | 'platform' // sits on a leveled pad — checked against terrain too
@@ -51,6 +53,11 @@ export interface Footprint {
   /** selecting this footprint edits the named placement instead (e.g. a
    *  single mastaba maps to its whole field's grid origin) */
   editGroup?: string;
+  /** (v1.2 I6) evidence: the confidence of the FORM AND PLACE shown (the
+   *  lower of the two; Bible Levels A–E), its basis, the epoch it holds for */
+  conf?: Confidence;
+  basis?: string;
+  epoch?: string;
 }
 
 const store: Footprint[] = [];

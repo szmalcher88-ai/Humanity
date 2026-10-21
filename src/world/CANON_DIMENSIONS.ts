@@ -2,21 +2,26 @@
  * CANON_DIMENSIONS — single source of truth for every load-bearing dimension
  * on the plateau (brief: "consumed by both the geometry and the audit tests").
  *
- * Confidence levels follow canon Vol. II:
+ * Confidence levels follow the Bible's Levels A–E ("Every reconstructed
+ * asset should internally include a confidence classification" — the
+ * MASTER_PROMPT_BIBLE's levels; v1.1 cited a "Vol. II" that does not exist):
  *   A = direct archaeological evidence (survey measurement)
  *   B = strong scholarly consensus
  *   C = evidence-based reconstruction
  *   D = reasoned extrapolation (documented in DEVIATIONS.md)
+ *   E = clearly marked speculative reconstruction (v1.2 I6)
  *
  * World frame: origin = center of the Great Pyramid at its base level.
  *   +X = true east, +Z = true south, +Y = up. Units: meters.
  *   Elevations in comments are meters ASL; world Y = ASL − G1_BASE_ASL.
  */
 
+export type Confidence = 'A' | 'B' | 'C' | 'D' | 'E';
+
 export interface CanonEntry {
   value: number;
   unit: 'm' | 'deg' | 'cubit' | 'count' | 'm_asl';
-  confidence: 'A' | 'B' | 'C' | 'D';
+  confidence: Confidence;
   source: string;
 }
 

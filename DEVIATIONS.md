@@ -137,21 +137,28 @@ are a cinematic convention, flagged by the v1.1 canon audit, kept and declared.
 **Confidence:** n/a (art direction, declared).
 **Code:** `src/monuments/Torches.ts`.
 
-## D-14 — Harbour quay and piers vs. canon Vol IX
+## D-14 — The harbour's west shore vs. canon Vol IX
 **Conflict:** the brief §2 requires "harbor basin with stone docks and wooden
-piers (individual piles)"; canon Vol IX §9.12 (added 2026-10-20) says the
-agent "must not automatically generate a long continuous stone quay or forest
-of timber piers simply because these features are familiar from later
-harbors", and that the Fourth Dynasty harbour plan is incompletely established.
-**Chosen:** the brief wins on scope (docks and piers stay); the canon governs
-their form. Currently built: one 180 m continuous stone quay and three timber
-piers — closer to the later-harbour cliché than Vol IX allows. To be reworked
-in roadmap I6 into shorter stone landing surfaces, earthen embankments, timber
-ramps and cargo yards, each tagged with a confidence level.
-**Alternatives:** keep the continuous quay (rejected by Vol IX); drop the piers
-(rejected by the brief floor).
-**Confidence:** D (reasoned reconstruction; the plan is not excavated).
-**Code:** `src/water/Vessels.ts` (quay and piers in `buildHarbor`).
+piers (individual piles)"; canon Vol IX §9.12 says the agent "must not
+automatically generate a long continuous stone quay or forest of timber
+piers simply because these features are familiar from later harbors", and
+that the Fourth Dynasty harbour plan is incompletely established.
+**Chosen (v1.2 I6):** no continuous quay. The v1.2 quay — one 180 m stone box
+— turned out to be a mole closing a lagoon (the bank curves; mid-run it stood
+35–45 m off the land, measured). The west shore is now the dredged earthen
+bank, rammed, staked, wet at the waterline, with two short stone landings at
+the deep-water line — a ROYAL landing on the valley temple's axis (the royal
+barque lies at it) and a CARGO landing with a timber stage (the harbour
+shuttle lies alongside) — two plank ramps with skiffs, a cargo yard with bays
+by material and an administrative shelter with scribes; the three pile piers
+are kept for the brief floor, tagged E.
+**Alternatives (§9.13 — documented, not yet selectable; the switch belongs to
+the Tier 3 epoch/evidence work):** the v1.2 continuous quay/mole (E); an
+all-earth shore without stone (C/D); unloading by slipway and sledge (built,
+the Tura barge) vs. straight from the bank over planks (built, at the ramps).
+**Confidence:** D overall; per piece in `src/water/HarbourEvidence.ts` (D-18).
+**Code:** `src/water/Vessels.ts` (west shore, piers, fleet), `src/monuments/HarborDistrict.ts`
+(cargo yard, administrative shelter).
 
 ## D-15 — Irrigation of the west-bank belt in the low-water season
 **Conflict:** the brief §2 asks for "irrigation basins and canals obeying
@@ -219,3 +226,19 @@ Kingdom scene — C).
 perf-gated quarry bookmark, needs a terrace).
 **Confidence:** D (siting), B–C (contents).
 **Code:** `src/monuments/SouthWorks.ts`.
+
+## D-18 — Confidence tags
+**Chosen (v1.2 I6):** the Bible's Levels A–E ("Every reconstructed asset
+should internally include a confidence classification": A direct evidence,
+B strong consensus, C evidence-based reconstruction, D reasoned
+extrapolation, E clearly marked speculative), with canon IX's Phase-4 gate
+("a declared confidence level and temporal applicability"). The letter is the
+confidence of the FORM AND PLACE shown — the lower of the two. Tags live as
+data in `src/water/HarbourEvidence.ts` (keyed by footprint id; vessels by
+class), are stamped onto the footprints after the harbour is built (conf,
+basis, epoch), audited (`evidence.untagged` must be 0), and shown by
+`?debug=confidence` (A green … E red outlines) and the Inspector's selection
+line. Scope now: the harbour and its fleet (canon IX's gate); the rest of the
+world follows in T2/Tier 3 once the scheme is proven.
+**Confidence:** n/a (method).
+**Code:** `src/water/HarbourEvidence.ts`, `src/debug/Footprints.ts`, `src/debug/Inspector.ts`.

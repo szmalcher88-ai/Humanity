@@ -38,13 +38,24 @@ import type { WorldSeed } from '../core/Seed';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { Heightfield } from '../world/Heightfield';
 import { NILE_WATER_Y } from '../world/WorldConst';
-import { fpReg } from '../debug/Footprints';
+import { fpReg, type GroundPolicy } from '../debug/Footprints';
+import { ColorWriter, addTownsfolk, donkey, person, reedRoof, townsfolkMesh, type C3 } from './Townsfolk';
+import { earthMaterial } from '../vegetation/Basins';
+import type { Gang } from './Inhabitants';
 import { GeoWriter, limestoneMaterial } from './KhufuComplex';
 
 const FAMILY = 'harbor-district';
 
 /** cargo slipway heads [k, x, z] on the dry road, each running toward the
  *  basin centre (shared with the moving fleet, which docks at them) */
+/** (v1.2 I6) gangs at the cargo yard (Inhabitants extras, appended last) */
+export const harborLines: Gang[] = [
+  // handlers at work in the bays
+  { x0: 806, z0: -228, x1: 846, z1: -170, n: 8, spread: 4, carry: 0.3, still: 0.7 },
+  // carriers between the cargo landing and the yard
+  { x0: 870, z0: -188, x1: 848, z1: -200, n: 6, spread: 1.5, carry: 0.8, still: 0.1 },
+];
+
 export const SLIPWAY_STARTS = [[0, 1040, -312], [1, 1160, -302], [2, 1045, 44]] as const;
 const BASIN_C = { x: 1077, z: -135 };
 
@@ -103,8 +114,11 @@ export function buildHarborDistrict(
     }
     return m;
   };
-  const reg = (id: string, x: number, z: number, hx: number, hz: number, y0: number, y1: number, yaw = 0): void => {
-    fpReg({ id, family: FAMILY, x, z, hx, hz, y0, y1, yaw, ground: 'grounded' });
+  const reg = (
+    id: string, x: number, z: number, hx: number, hz: number, y0: number, y1: number, yaw = 0,
+    ground: GroundPolicy = 'grounded', passive = false,
+  ): void => {
+    fpReg({ id, family: FAMILY, x, z, hx, hz, y0, y1, yaw, ground, passive });
     pieces++;
   };
 
@@ -191,7 +205,7 @@ export function buildHarborDistrict(
     }
   }
 
-  /* --- stone yard by the quay: dressed casing blocks + granite --------------- */
+  /* --- stone yard on the south shore road: dressed casing blocks + granite --- */
   {
     const yx = 915;
     const yz = -276;
@@ -469,6 +483,163 @@ export function buildHarborDistrict(
     reg(`well:${k}`, wx, wz, 2.7, 2.7, wy, wy + 1.1);
   }
 
+  /* --- (v1.2 I6) the CARGO YARD behind the cargo landing (canon IX §9.12
+   *      "cargo yards sufficiently large for temporary material storage and
+   *      handling", "Dedicated locations for stone, rope, timber, food, and
+   *      equipment"; VIII "Storage architecture should separate materials"):
+   *      four bays walled apart, and the ADMINISTRATIVE SHELTER at its corner
+   *      on the road from the landing — §9.21 "Scribes — Record cargo
+   *      movements, supplies, and assignments", §9.23 "Clay sealings and
+   *      recording materials suggest administrative control". Its own
+   *      streams: the district's draws above are untouched. Plan §3.2. ------ */
+  const yr = seed.rng('harbor-yard');
+  const yf = seed.rng('harbor-folk');
+  const yardProps = new ColorWriter();
+  const yardFolk = new ColorWriter();
+  const paths = new ColorWriter();
+  {
+    const X0 = 802;
+    const X1 = 848;
+    const bays = [-235, -217, -198, -179, -165]; // bay edges (z), north → south
+    const yLow = (x: number, z: number, hx: number, hz: number): number =>
+      Math.min(grd(x - hx, z - hz), grd(x + hx, z - hz), grd(x + hx, z + hz), grd(x - hx, z + hz));
+    // the back wall and the walls between the bays (open at the east end)
+    const wall = (id: string, ax: number, az: number, bx: number, bz: number): void => {
+      const along = Math.abs(bz - az) > Math.abs(bx - ax);
+      const len = Math.hypot(bx - ax, bz - az);
+      const mx = (ax + bx) / 2;
+      const mz = (az + bz) / 2;
+      const y = yLow(mx, mz, along ? 0.45 : len / 2, along ? len / 2 : 0.45) - 0.1;
+      mud.box(mx, y, mz, along ? 0.9 : len, 1.3, along ? len : 0.9, yr.range(0.92, 1.04), 0.03);
+      reg(`cargo-yard:wall:${id}`, mx, mz, along ? 0.45 : len / 2, along ? len / 2 : 0.45, y, y + 1.3);
+    };
+    wall('w', X0 - 1, bays[0]!, X0 - 1, bays[4]!);
+    for (let k = 1; k <= 3; k++) wall(`${k}`, X0 - 0.55, bays[k]!, X1 - 4, bays[k]!);
+    reg('cargo-yard:ground', (X0 + X1) / 2, -200, (X1 - X0) / 2 + 1, 35, grd(825, -200) - 0.2, grd(825, -200) + 0.2, 0, 'none', true);
+
+    // FOOD: grain sacks on mats, rows of sealed jars, baskets
+    for (let r = 0; r < 3; r++) {
+      const z = -231 + r * 4.5;
+      const y = yLow(815, z, 11, 1.2);
+      reed.box(815, y - 0.02, z, 22, 0.04, 2.4, 0.95); // the mat
+      for (let x = 805; x < 825; x += yr.range(0.85, 1.05)) {
+        reed.box(x, y + 0.02, z + yr.range(-0.4, 0.4), 0.7, yr.range(0.5, 0.65), 0.5, yr.range(0.88, 1.08), 0.12);
+      }
+      reg(`cargo-yard:food:${r}`, 815, z, 11, 1.2, y, y + 0.7);
+    }
+    for (let r = 0; r < 2; r++) {
+      const z = -230 + r * 6;
+      for (let x = 830; x < 845; x += 0.75) {
+        const y = grd(x, z);
+        ware.drum(x, y, z, 0.3, 0.55, yr.range(0.9, 1.05), -0.2, 9);
+        ware.drum(x, y + 0.55, z, 0.19, 0.12, 0.7, 0, 9); // the mud stopper
+      }
+      reg(`cargo-yard:jars:${r}`, 837.5, z, 7.6, 0.35, grd(837.5, z), grd(837.5, z) + 0.7);
+    }
+    // ROPE: coils stacked in twos, a dark core, two rope-makers coiling
+    for (let k = 0; k < 10; k++) {
+      const x = 806 + (k % 5) * 3.2;
+      const z = -212 + Math.floor(k / 5) * 3.4;
+      const y = grd(x, z);
+      for (let l = 0; l < 2; l++) {
+        reed.drum(x, y + l * 0.26, z, 0.95 - l * 0.08, 0.24, 0.78, 0, 16);
+        yardProps.box(x, y + l * 0.26 + 0.22, z, 0.5, 0.03, 0.5, [0.22, 0.18, 0.12], k);
+      }
+      reg(`cargo-yard:rope:${k}`, x, z, 0.95, 0.95, y, y + 0.55);
+    }
+    for (const [k, [x, z]] of ([[824, -210], [826.5, -206]] as const).entries()) {
+      person(yardFolk, yf, x, grd(x, z), z, k === 0 ? Math.PI : 0, 'squat');
+      reed.drum(x + (k === 0 ? -0.9 : 0.9), grd(x, z), z, 0.6, 0.18, 0.82, 0, 14); // a coil under way
+    }
+    // EQUIPMENT: sledges, levers, mallets, water jars for the sledge paths
+    for (let k = 0; k < 2; k++) {
+      const x = 810 + k * 7;
+      const z = -190;
+      const y = grd(x, z);
+      for (const dz of [-0.6, 0.6]) wood.box(x, y - 0.02, z + dz, 3.6, 0.22, 0.28, 0.9);
+      wood.box(x, y + 0.2, z, 3.3, 0.12, 1.5, 0.95);
+      reg(`cargo-yard:sledge:${k}`, x, z, 1.8, 0.8, y, y + 0.35);
+    }
+    for (let k = 0; k < 8; k++) {
+      const y = grd(826, -192);
+      wood.box(826, y + Math.floor(k / 4) * 0.16, -194 + (k % 4) * 0.35, 4.2, 0.15, 0.16, yr.range(0.85, 1.0), 0, yr.range(-0.04, 0.04));
+    }
+    reg('cargo-yard:levers', 826, -193.5, 2.1, 0.8, grd(826, -193.5), grd(826, -193.5) + 0.35);
+    for (let k = 0; k < 6; k++) {
+      const x = 832 + k * 0.8;
+      const y = grd(x, -186);
+      ware.drum(x, y, -186, 0.32, 0.62, yr.range(0.92, 1.05), -0.2, 9);
+    }
+    reg('cargo-yard:water', 834, -186, 2.4, 0.4, grd(834, -186), grd(834, -186) + 0.7);
+    // TIMBER: cedar baulks on sleepers
+    for (let r = 0; r < 2; r++) {
+      const z = -175 + r * 4;
+      const y = grd(815, z);
+      for (const dx of [-5, 0, 5]) wood.box(815 + dx, y - 0.02, z, 0.3, 0.2, 2.6, 0.8);
+      for (let l = 0; l < 3; l++) {
+        for (let c = 0; c < 4 - l; c++) {
+          wood.box(815 + yr.range(-0.3, 0.3), y + 0.18 + l * 0.42, z - 0.9 + c * 0.6 + l * 0.3, 12.5, 0.4, 0.5, yr.range(1.05, 1.22));
+        }
+      }
+      reg(`cargo-yard:timber:${r}`, 815, z, 6.4, 1.3, y, y + 1.5);
+    }
+
+    // the ADMINISTRATIVE SHELTER: a mud-brick room, a reed portico over a
+    // bench, three scribes with their boards, an overseer, sealed jars and a
+    // basket of clay sealings, a donkey waiting with panniers
+    {
+      const cx = 842;
+      const cz = -172;
+      const y = yLow(cx, cz, 2.3, 2.8) - 0.1;
+      mud.box(cx - 2, y, cz, 0.5, 2.6, 5.5, 1.0, 0.02);
+      mud.box(cx, y, cz - 2.5, 4.5, 2.6, 0.5, 1.0, 0.02);
+      mud.box(cx, y, cz + 2.5, 4.5, 2.6, 0.5, 1.0, 0.02);
+      mud.box(cx + 2, y, cz - 1.55, 0.5, 2.6, 2.4, 1.0, 0.02); // east wall, the doorway south of it
+      mud.box(cx + 2, y + 2.0, cz + 1.35, 0.5, 0.6, 1.8, 1.0, 0); // over the door
+      mud.box(cx + 2, y, cz + 2.0, 0.5, 2.0, 0.5, 1.0, 0);
+      mud.box(cx, y + 2.6, cz, 4.9, 0.18, 5.9, 1.08); // the roof
+      reg('admin', cx, cz, 2.45, 2.95, y, y + 2.8);
+      // the portico east of it, over a mud bench
+      const px = cx + 4.4;
+      for (const [dx, dz] of [[-1.8, -2.6], [1.8, -2.6], [-1.8, 2.6], [1.8, 2.6]] as const) {
+        yardProps.box(px + dx, y, cz + dz, 0.12, 2.3, 0.12, [0.4, 0.31, 0.2]);
+      }
+      reedRoof(yardProps, [px - 2.0, y + 2.3, cz - 2.8], [px + 2.0, y + 2.3, cz - 2.8], [px + 2.0, y + 2.3, cz + 2.8], [px - 2.0, y + 2.3, cz + 2.8], [0.62, 0.55, 0.37]);
+      mud.box(px - 1.2, y, cz, 0.6, 0.45, 4.2, 1.05, 0); // the bench
+      for (let k = 0; k < 3; k++) {
+        const sz = cz - 1.4 + k * 1.4;
+        person(yardFolk, yf, px - 0.3, y + 0.04, sz, 0, 'sit'); // facing the landing
+        yardFolk.box(px + 0.05, y + 0.42, sz, 0.26, 0.03, 0.36, [0.72, 0.66, 0.52]); // writing board
+        yardFolk.box(px + 0.1, y + 0.46, sz + 0.12, 0.1, 0.02, 0.24, [0.3, 0.26, 0.2]); // palette
+      }
+      person(yardFolk, yf, px + 1.4, y, cz + 1.8, Math.PI - 0.5, 'stand', 1, [0.9, 0.87, 0.78]);
+      yardFolk.beam([px + 1.62, y, cz + 1.9], [px + 1.62, y + 1.85, cz + 1.9], 0.02, [0.4, 0.31, 0.2]); // staff
+      for (let k = 0; k < 4; k++) {
+        ware.drum(px + 1.2 + (k % 2) * 0.6, y, cz - 2.0 + Math.floor(k / 2) * 0.6, 0.24, 0.5, 1.0, -0.15, 9);
+        yardProps.box(px + 1.2 + (k % 2) * 0.6, y + 0.5, cz - 2.0 + Math.floor(k / 2) * 0.6, 0.18, 0.06, 0.18, [0.52, 0.44, 0.34]); // the seal
+      }
+      yardProps.box(px + 0.6, y, cz - 2.2, 0.5, 0.25, 0.5, [0.55, 0.46, 0.3]); // basket of clay sealings
+      for (let k = 0; k < 9; k++) yardProps.box(px + 0.48 + (k % 3) * 0.12, y + 0.25, cz - 2.32 + Math.floor(k / 3) * 0.12, 0.08, 0.04, 0.08, [0.5, 0.3, 0.22], k);
+      reg('admin:portico', px, cz, 2.0, 2.8, y, y + 2.4);
+      donkey(yardFolk, yf, px + 4.2, grd(px + 4.2, cz - 5), cz - 5, Math.PI / 2, true);
+    }
+  }
+  // worn paths: from each landing and ramp up to the road behind the bank
+  // ("Paths worn between unloading areas and inland transport routes")
+  {
+    const PATH: C3 = [0.5, 0.43, 0.33];
+    for (const [z, w] of [[-187, 6], [-115, 6], [-70, 3], [-212, 3]] as const) {
+      for (let x = 846; x < 866; x += 1) {
+        const P = (px: number, pz: number): C3 => [px, grd(px, pz) + 0.05, pz];
+        const a = P(x, z - w / 2);
+        const b = P(x, z + w / 2);
+        const c = P(x + 1, z + w / 2);
+        const d = P(x + 1, z - w / 2);
+        paths.quad(a, b, c, d, PATH);
+      }
+    }
+  }
+
   /* --- materialize ------------------------------------------------------------ */
   const meshes = [
     new Mesh(mud.build(), limestoneMaterial([0.6, 0.48, 0.35], gi, 0.3, 0.45)),
@@ -489,6 +660,16 @@ export function buildHarborDistrict(
     m.receiveShadow = true;
     m.name = 'harbor-district';
     scene.add(m);
+  }
+  // (v1.2 I6) the yard's props (no figures: addTownsfolk would drop them),
+  // its people, and the worn paths
+  if (yardProps.pos.length > 0) scene.add(townsfolkMesh(yardProps, gi, 'harbor-district'));
+  addTownsfolk(scene, yardFolk, gi, 'harbor-district');
+  if (paths.pos.length > 0) {
+    const pm = new Mesh(paths.build(), earthMaterial(gi));
+    pm.receiveShadow = true;
+    pm.name = 'harbor-district';
+    scene.add(pm);
   }
   return pieces;
 }

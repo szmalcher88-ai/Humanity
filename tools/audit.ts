@@ -191,7 +191,7 @@ async function collisionTest(): Promise<void> {
   const { browser } = await launchWebGPU();
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
   page.on('console', (msg) => {
-    if (msg.text().startsWith('[akhet] collision')) console.log(`  ${msg.text()}`);
+    if (msg.text().startsWith('[akhet] collision') || msg.text().startsWith('[akhet] evidence') || msg.text().startsWith('[akhet] fleet')) console.log(`  ${msg.text()}`);
   });
   await page.goto(akhetUrl({ scene: 'world', hud: false }), {
     waitUntil: 'domcontentloaded',
@@ -204,7 +204,11 @@ async function collisionTest(): Promise<void> {
   const issues = await page.evaluate(() =>
     window.__akhet.collisionAudit ? window.__akhet.collisionAudit() : null,
   );
+  // (v1.2 I6) harbour evidence tags and the moving fleet's clearance
+  const counters = await page.evaluate(() => window.__akhet.stats?.counters ?? {});
   await browser.close();
+  check('harbour evidence: every piece tagged', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
+  check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
   if (issues === null) {
     check('collision audit hook present', false, 'collisionAudit hook missing');
     return;

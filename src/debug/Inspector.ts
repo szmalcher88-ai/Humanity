@@ -78,6 +78,28 @@ export class Inspector {
     const q = new URLSearchParams(window.location.search);
     if (q.get('edit') === '1') this.setEnabled(true);
     if (q.get('debug') === 'collisions') this.overlay.visible = true;
+    if (q.get('debug') === 'confidence') this.showConfidence();
+  }
+
+  /** (v1.2 I6) ?debug=confidence: an edge box per tagged footprint, one
+   *  colour per level — A green … E red (canon: "subtle outlines or optional
+   *  overlay colors"); the reconstruction never passes for excavation */
+  private showConfidence(): void {
+    const colour: Record<string, number> = { A: 0x33cc55, B: 0x99dd33, C: 0xffcc22, D: 0xff8833, E: 0xff3333 };
+    // its own group: audit() clears the collision overlay at every run
+    const group = new Group();
+    this.o.scene.add(group);
+    for (const f of fpAll()) {
+      if (!f.conf || f.passive) continue;
+      const box = new LineSegments(
+        new EdgesGeometry(new BoxGeometry(f.hx * 2, Math.max(f.y1 - f.y0, 0.5), f.hz * 2)),
+        new LineBasicMaterial({ color: colour[f.conf] ?? 0xffffff, depthTest: false }),
+      );
+      box.position.set(f.x, (f.y0 + f.y1) / 2, f.z);
+      if (f.yaw) box.rotation.y = -f.yaw;
+      box.renderOrder = 999;
+      group.add(box);
+    }
   }
 
   /** run the audit, refresh the overlay boxes, log a summary */
@@ -250,7 +272,8 @@ export class Inspector {
           (d ? `  Δ(${d.dx.toFixed(1)}, ${d.dz.toFixed(1)})` : '') +
           (target ? '' : '  [read-only]')
         : 'click a structure to select',
-      'arrows move · Shift ×5 · Alt ×0.2 · R reset · X export patch · E exit',
+      ...(sel?.conf ? [`evidence: ${sel.conf} · ${sel.epoch ?? '?'} · ${sel.basis ?? ''}`] : []),
+      'arrows move · Shift ×5 · Alt ×0.2 · R reset · X export patch · I exit',
     ];
     if (note) lines.push(note);
     const pending = Object.keys(deltas).length;

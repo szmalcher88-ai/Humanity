@@ -12,7 +12,7 @@ import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
-import { buildHarborDistrict } from '../monuments/HarborDistrict';
+import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
@@ -34,7 +34,8 @@ import { buildReedHarvest } from '../vegetation/ReedHarvest';
 import { buildIrrigationWorks } from '../vegetation/Basins';
 import { buildOrchards, pickCanalPlots } from '../vegetation/Orchards';
 import { NileWater } from '../water/NileWater';
-import { buildHarbor, crewCount, fleetAt, movingCount } from '../water/Vessels';
+import { buildHarbor, crewCount, fleetAt, fleetClearance, movingCount } from '../water/Vessels';
+import { runEvidenceAudit, stampEvidence } from '../water/HarbourEvidence';
 import { setWorldTime } from '../render/WorldClock';
 import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
@@ -125,6 +126,14 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['harbor.moving'] = movingCount;
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
     engine.stats.counters['harbor.district'] = buildHarborDistrict(structures, seed, hf, gi);
+    // (v1.2 I6) every harbour piece carries its declared confidence
+    engine.stats.counters['evidence.tagged'] = stampEvidence();
+    const untagged = runEvidenceAudit();
+    engine.stats.counters['evidence.untagged'] = untagged.length;
+    if (untagged.length > 0) console.warn(`[akhet] evidence: ${untagged.length} untagged harbour footprint(s): ${untagged.slice(0, 8).join(', ')}`);
+    const clashes = fleetClearance();
+    engine.stats.counters['fleet.clashes'] = clashes.length;
+    if (clashes.length > 0) console.warn(`[akhet] fleet clearance: ${clashes.map((c) => `${c.kind} × ${c.id} @${c.t}s`).join('; ')}`);
     engine.stats.counters['industry'] = buildIndustryDistrict(structures, seed, hf, gi);
     engine.stats.counters['camp.shelters'] = buildWorkCamp(structures, seed, hf, gi);
     engine.stats.counters['monuments.stones'] = sites.reduce(
@@ -201,7 +210,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...campLines, ...southLines]);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...campLines, ...southLines, ...harborLines]);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;
@@ -247,7 +256,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.worldTime = t;
   };
   window.__akhet.footprints = () =>
-    fpAll().map((f) => ({ id: f.id, x: f.x, z: f.z, y0: f.y0, y1: f.y1, hx: f.hx, hz: f.hz }));
+    fpAll().map((f) => ({ id: f.id, family: f.family, x: f.x, z: f.z, y0: f.y0, y1: f.y1, hx: f.hx, hz: f.hz, ...(f.conf ? { conf: f.conf } : {}) }));
   window.__akhet.editNudge = (id, dx, dz) => inspector.nudge(id, dx, dz);
   window.__akhet.editExport = () => inspector.exportPatch();
 

@@ -77,9 +77,9 @@ export interface AkhetHooks {
   /** set the world-simulation clock (s) — tooling: shoot moving things at a time */
   setWorldClock: ((t: number) => void) | null;
   /** moving vessels where they are now (tooling: tools/closeup.ts --fleet) */
-  fleet: (() => Array<{ id: string; kind: string; x: number; z: number; a: number; load: number }>) | null;
+  fleet: (() => Array<{ id: string; kind: string; x: number; z: number; a: number; load: number; conf: string }>) | null;
   /** registered footprints (id, centre, extent) — tooling (tools/closeup.ts) */
-  footprints: (() => Array<{ id: string; x: number; z: number; y0: number; y1: number; hx: number; hz: number }>) | null;
+  footprints: (() => Array<{ id: string; family: string; x: number; z: number; y0: number; y1: number; hx: number; hz: number; conf?: string }>) | null;
   /** Inspector: nudge an editable placement by (dx, dz) and rebuild */
   editNudge: ((id: string, dx: number, dz: number) => void) | null;
   /** Inspector: export pending edit deltas as a canon patch string */

@@ -6,6 +6,8 @@
  *
  *   npx tsx tools/fpdump.ts --id mastaba:w: --out shots/fp-before.json
  *   npx tsx tools/fpdump.ts --id mastaba:w:,chapel: --out shots/fp-after.json
+ *   npx tsx tools/fpdump.ts --id vessel:,pier: --fleet 0,600 --out shots/fp.json
+ *     (--fleet: also the moving fleet at those world times, v1.2 I6)
  *
  * The dev server must be running.
  */
@@ -34,7 +36,15 @@ async function main(): Promise<void> {
   if (err) throw new Error(err);
   const all = await page.evaluate(() => window.__akhet.footprints?.() ?? []);
   const hits = all.filter((f) => prefixes.some((p) => f.id.startsWith(p)));
-  writeFileSync(out, JSON.stringify(hits, null, 1));
+  const fleet: Record<string, unknown> = {};
+  for (const t of (arg('fleet') ?? '').split(',').filter((v) => v !== '').map(Number)) {
+    fleet[String(t)] = await page.evaluate(async (wt) => {
+      window.__akhet.setWorldClock?.(wt);
+      await window.__akhet.settle?.(2);
+      return window.__akhet.fleet?.() ?? [];
+    }, t);
+  }
+  writeFileSync(out, JSON.stringify(Object.keys(fleet).length ? { footprints: hits, fleet } : hits, null, 1));
   console.log(`[fpdump] ${hits.length} of ${all.length} footprints → ${out}`);
   await browser.close();
 }

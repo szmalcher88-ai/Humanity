@@ -33,7 +33,12 @@ import { giLightMap } from '../monuments/PyramidBuilder';
 import type { NV2, NV3, NV4 } from '../gpu/TSLTypes';
 import { DT, TrackBuilder, arc, lane, planWater, riverAxis, smooth, type P2, type TrackPoint } from './Navigation';
 import { slipwayRamp } from '../monuments/HarborDistrict';
+import { GeoWriter, limestoneMaterial } from '../monuments/KhufuComplex';
+import { ColorWriter, type C3 } from '../monuments/Townsfolk';
+import { earthMaterial } from '../vegetation/Basins';
 import { NILE_WATER_Y } from '../world/WorldConst';
+import { moverEvidence } from './HarbourEvidence';
+import { fpAll, fpAabb } from '../debug/Footprints';
 
 type V3 = [number, number, number];
 
@@ -318,13 +323,21 @@ interface PlankParams {
 }
 
 let hullSeq = 0;
+/** (v1.2 I6) the class of the hull being built — it goes into the footprint
+ *  id (`vessel:<class>:<n>`) so the evidence table can tag it */
+let hullClass = 'hull';
 /** off while a moving hull is built: it has no fixed place to police */
 let registerHulls = true;
+
+/** (v1.2 I6) the west shore's works, for the systems built after the
+ *  harbour: the lanterns (Torches) and the reed post-filter (Shore) */
+export const harborLanterns: [number, number][] = [];
+export const harborWorksRects: { x0: number; x1: number; z0: number; z1: number }[] = [];
 
 /** planked river hull: open, with bulwarks and a boarded floor */
 function plankHull(w: W, det: Rng, p: PlankParams, cx: number, cz: number, yaw: number, baseY: number): Hull {
   if (registerHulls) fpReg({
-    id: `vessel:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
+    id: `vessel:${hullClass}:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
     hx: p.L / 2 + 0.3, hz: p.B / 2, yaw,
     y0: baseY - p.draft, y1: baseY + p.free + p.sweep + p.post,
     ground: 'afloat', draft: p.draft, intra: true,
@@ -567,7 +580,7 @@ interface BundleParams {
  *  stands), tapering into upturned tied tips, lashed every ~0.5 m */
 function bundleHull(w: W, det: Rng, p: BundleParams, cx: number, cz: number, yaw: number, baseY: number): Hull {
   if (registerHulls) fpReg({
-    id: `vessel:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
+    id: `vessel:${hullClass}:${hullSeq++}`, family: 'vessels', x: cx, z: cz,
     hx: p.L / 2 + 0.2, hz: p.B / 2, yaw,
     y0: baseY - p.draft, y1: baseY + p.free + p.sweep + 0.4,
     ground: 'afloat', draft: p.draft, intra: true,
@@ -726,6 +739,7 @@ function barge(
   const afloat = Math.abs(y - NILE_WATER_Y) < 0.01;
   // a moving hull is built unladen-high; its shader lowers it by sink·load
   const yb = afloat && !opt.moving ? y - sink : y;
+  hullClass = 'barge';
   const h = plankHull(w, det, {
     L, B, draft: 0.9, free: 1.2, sweep, sweepExp: 3.0, full: 0.5, bulw: 0.45, post: 0.4, tone,
   }, cx, cz, yaw, yb);
@@ -809,6 +823,7 @@ function traveler(
   const L = rng.range(13, 19);
   const B = L * 0.24;
   const sweep = rng.range(1.2, 2.2);
+  hullClass = 'traveller';
   const h = plankHull(w, det, {
     L, B, draft: 0.6, free: 1.15, sweep, sweepExp: 2.6, full: 0.62, bulw: 0.5, post: 2.2, tone,
   }, cx, cz, yaw, y);
@@ -870,6 +885,7 @@ function skiff(
   const tone: V3 = [0.64 * rng.range(0.9, 1.1), 0.6 * rng.range(0.9, 1.05), 0.37];
   const L = rng.range(4.5, 7);
   const sweep = rng.range(0.7, 1.2);
+  hullClass = 'skiff';
   const h = bundleHull(w, det, { L, B: L * 0.26, draft: 0.2, free: 0.5, sweep, tone }, cx, cz, yaw, y);
   if (crew && Math.abs(y - NILE_WATER_Y) < 0.01) {
     if (toward) {
@@ -996,6 +1012,7 @@ function cargoBoat(
   const tone: V3 = [0.47 * rng.range(0.9, 1.08), 0.35, 0.22];
   const sweep = rng.range(0.7, 1.1);
   const kind = rng.int(3); // 0 grain, 1 timber, 2 jars and baskets
+  hullClass = 'cargo';
   const h = plankHull(w, det, {
     L, B, draft: 0.6, free: 1.05, sweep, sweepExp: 2.6, full: 0.55, bulw: 0.45, post: 0.6, tone,
   }, cx, cz, yaw, y);
@@ -1115,6 +1132,7 @@ function ceremonial(
   const B = L * 0.135;
   const tone: V3 = [0.53 * rng.range(0.95, 1.05), 0.34, 0.22];
   const sweep = rng.range(2.5, 2.9);
+  hullClass = 'ceremonial';
   const h = plankHull(w, det, {
     L, B, draft: 0.8, free: 1.35, sweep, sweepExp: 2.2, full: 0.7, bulw: 0.55, post: 3.8, tone,
   }, cx, cz, yaw, y);
@@ -1148,6 +1166,7 @@ function ferry(w: W, rng: Rng, det: Rng, cx: number, cz: number, yaw: number, y:
   const tone: V3 = [0.64 * rng.range(0.92, 1.06), 0.6 * rng.range(0.92, 1.04), 0.37];
   const L = rng.range(8, 9.5);
   const sweep = rng.range(0.4, 0.6);
+  hullClass = 'ferry';
   const h = bundleHull(w, det, { L, B: L * 0.34, draft: 0.25, free: 0.55, sweep, tone }, cx, cz, yaw, y);
   const d = h.at(0);
   lbox(w, h, 0, d.floor - 0.02, 0, 0.5 * L, 0.07, h.B * 0.78, mul3(WOOD, 1.15)); // the plank deck
@@ -1263,7 +1282,7 @@ interface Mover {
 }
 
 let fleetState: {
-  movers: Array<{ kind: string; start: number; count: number; cycle: number; phase: number }>;
+  movers: Array<{ kind: string; start: number; count: number; cycle: number; phase: number; L: number; B: number }>;
   track: Float32Array;
 } | null = null;
 
@@ -1272,7 +1291,7 @@ export let movingCount = 0;
 
 /** CPU replica of the moving-fleet vertex stage: where each hull is at
  *  world time t (tooling: tools/closeup.ts --fleet) */
-export function fleetAt(t: number): Array<{ id: string; kind: string; x: number; z: number; a: number; load: number }> {
+export function fleetAt(t: number): Array<{ id: string; kind: string; x: number; z: number; a: number; load: number; conf: string }> {
   if (!fleetState) return [];
   const T = fleetState.track;
   return fleetState.movers.map((m, k) => {
@@ -1283,8 +1302,68 @@ export function fleetAt(t: number): Array<{ id: string; kind: string; x: number;
     const a = (m.start + i0) * 4;
     const b = a + 4;
     const lerp = (o: number): number => (T[a + o] as number) + ((T[b + o] as number) - (T[a + o] as number)) * f;
-    return { id: `mover:${k}`, kind: m.kind, x: lerp(0), z: lerp(1), a: lerp(2), load: lerp(3) };
+    return { id: `mover:${k}`, kind: m.kind, x: lerp(0), z: lerp(1), a: lerp(2), load: lerp(3), conf: moverEvidence(m.kind).conf };
   });
+}
+
+/**
+ * (v1.2 I6) The moving hulls have no footprint, and nothing tested them
+ * against the harbour (Haiku I6-C): sample every mover's track every 2 s
+ * over its whole cycle and test its hull rectangle (L × B on its heading)
+ * against the harbour's solid works and the moored and anchored hulls. The
+ * shuttle's contact with the cargo landing it lies alongside is the design.
+ */
+export function fleetClearance(): { kind: string; id: string; t: number }[] {
+  if (!fleetState) return [];
+  const solid = fpAll().filter((f) => !f.passive && (f.family === 'harbor-works' || f.family === 'vessels'));
+  const boxes = solid.map((f) => ({ f, b: fpAabb(f) }));
+  const out: { kind: string; id: string; t: number }[] = [];
+  const seen = new Set<string>();
+  const corners = (x: number, z: number, a: number, hx: number, hz: number): [number, number][] => {
+    const c = Math.cos(a);
+    const s = Math.sin(a);
+    return [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]].map(([u, v]) => [x + u! * c - v! * s, z + u! * s + v! * c]);
+  };
+  const sep = (P: [number, number][], Q: [number, number][]): boolean => {
+    for (const poly of [P, Q]) {
+      for (let i = 0; i < 4; i++) {
+        const [x0, z0] = poly[i]!;
+        const [x1, z1] = poly[(i + 1) % 4]!;
+        const nx = z1 - z0;
+        const nz = x0 - x1;
+        let pMin = Infinity;
+        let pMax = -Infinity;
+        let qMin = Infinity;
+        let qMax = -Infinity;
+        for (const [x, z] of P) { const d = x * nx + z * nz; pMin = Math.min(pMin, d); pMax = Math.max(pMax, d); }
+        for (const [x, z] of Q) { const d = x * nx + z * nz; qMin = Math.min(qMin, d); qMax = Math.max(qMax, d); }
+        if (pMax < qMin || qMax < pMin) return true;
+      }
+    }
+    return false;
+  };
+  const maxCycle = Math.max(...fleetState.movers.map((m) => m.cycle));
+  for (let t = 0; t < maxCycle; t += 2) {
+    const at = fleetAt(t);
+    for (const [k, p] of at.entries()) {
+      const m = fleetState.movers[k]!;
+      if (t >= m.cycle) continue;
+      const R = Math.hypot(m.L, m.B) / 2;
+      const P = corners(p.x, p.z, p.a, m.L / 2, m.B / 2);
+      for (const { f, b } of boxes) {
+        if (p.x + R < b.x0 || p.x - R > b.x1 || p.z + R < b.z0 || p.z - R > b.z1) continue;
+        if (m.kind === 'harbour-shuttle' && f.id.startsWith('landing:cargo')) continue;
+        if (!sep(P, corners(f.x, f.z, f.yaw ?? 0, f.hx, f.hz))) {
+          const key = `${m.kind}|${f.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push({ kind: m.kind, id: f.id, t });
+          }
+        }
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -1410,38 +1489,193 @@ export function buildHarbor(
     return x;
   };
 
-  /* --- stone quay: ONE straight run on the west bank ------------------------ */
-  // seated at the most seaward shoreline point of its run, so the whole
-  // face stands in water (reads as a built mole; stepped per-z segments
-  // scattered into disconnected slabs along the curved bank)
-  let quayEdgeX = 0; // east face — moored hulls must stay seaward of it
-  {
-    const qz0 = -225;
-    const qz1 = -45;
-    let qx = 0;
-    for (let z = qz0; z <= qz1; z += 30) qx = Math.max(qx, shoreX(z, 1.6));
-    qx += 2;
-    quayEdgeX = qx + 7;
-    w.box(qx, NILE_WATER_Y - 4.5, (qz0 + qz1) / 2, 14, 5.6, qz1 - qz0, [0.68, 0.62, 0.5]);
-    for (let i = 0; i < 6; i++) {
-      w.box(qx + 5.4, NILE_WATER_Y + 1.1, qz0 + 15 + i * 30, 0.4, 0.7, 0.4, [0.5, 0.45, 0.36]);
+  /* --- (v1.2 I6) THE WEST SHORE — canon IX §9.12: the agent "must not
+   * automatically generate a long continuous stone quay or forest of timber
+   * piers". The v1.2 quay was one 180 m box seated at the run's most seaward
+   * shore point; the bank curves, so mid-run it stood 35–45 m off the land
+   * (measured: waterline x ≈ 876 at z −135, ≈ 920 at z −225) — a mole
+   * closing a lagoon, with part of its gang standing in the water. Now the
+   * dredged bank itself, rammed and staked, with two short stone landings at
+   * the deep-water line, two plank ramps, and the three pile piers kept for
+   * the brief §2 floor (D-14; confidence in HarbourEvidence.ts). Positions
+   * are constants or probes: the `harbor` stream draws exactly as before.
+   * Plan: docs/plans/I6_PLAN.md §3.1. --------------------------------------- */
+  const land = seed.rng('harbor-landings');
+  const landDet = seed.rng('harbor-landings-det');
+  const stoneL = new GeoWriter();
+  const wornL = new GeoWriter();
+  const bankL = new ColorWriter();
+  harborLanterns.length = 0;
+  harborWorksRects.length = 0;
+  const TOP = NILE_WATER_Y + 1.0; // a landing's top: a boat's sheer
+  const TIMBER: V3 = [0.38, 0.28, 0.17];
+  const PATH: C3 = [0.5, 0.43, 0.33];
+  /** first x (0.5 m steps, out from the plain) where the ground falls to y */
+  const contour = (z: number, y: number): number => {
+    let x = 840;
+    while (x < 1000 && hf.heightAtCpu(x, z) > y) x += 0.5;
+    return x;
+  };
+  const bedUnder = (x0: number, x1: number, z0: number, z1: number): number => {
+    let m = Infinity;
+    for (let i = 0; i <= 6; i++) {
+      for (let j = 0; j <= 6; j++) m = Math.min(m, hf.heightAtCpu(x0 + ((x1 - x0) * i) / 6, z0 + ((z1 - z0) * j) / 6));
     }
+    return m;
+  };
+  /** an up-facing quad laid on the ground (+lift) */
+  const up = (a: C3, b: C3, c: C3, d: C3, t: C3): void => {
+    const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+    if (ny >= 0) bankL.quad(a, b, c, d, t);
+    else bankL.quad(d, c, b, a, t);
+  };
+  /** a trodden earth path over [x0,x1] × [z0,z1], following the ground */
+  const trodden = (x0: number, x1: number, z0: number, z1: number): void => {
+    const g = (x: number, z: number): C3 => [x, hf.heightAtCpu(x, z) + 0.05, z];
+    for (let x = x0; x < x1 - 0.01; x += 1) {
+      const xb = Math.min(x + 1, x1);
+      up(g(x, z0), g(x, z1), g(xb, z1), g(xb, z0), PATH);
+    }
+  };
+  // the old quay's face, kept ONLY for the moored hulls at piers 1 and 3:
+  // the v1.2 formula verbatim, so those hulls stay exactly where they were
+  let MOORING_X = 0;
+  for (let z = -225; z <= -45; z += 30) MOORING_X = Math.max(MOORING_X, shoreX(z, 1.6));
+  MOORING_X += 2 + 7;
+  let cargoFaceX = 0;
+
+  /* the ROYAL LANDING on the valley temple's axis ("low stone structures or
+   * prepared shore platforms"; "doorways align logically"): let into the
+   * bank, its face on the 1.8 m line, a slab-paved top at a boat's sheer,
+   * two worn steps down the face to the water */
+  let royalX = 0;
+  {
+    const z0 = -135;
+    const z1 = -95;
+    let xR = 0;
+    let xB = Infinity;
+    for (let z = z0; z <= z1; z += 5) {
+      xR = Math.max(xR, contour(z, NILE_WATER_Y - 1.8) + 0.5);
+      xB = Math.min(xB, contour(z, TOP + 0.05) - 0.4);
+    }
+    royalX = xR;
+    const bed = bedUnder(xB, xR, z0, z1);
+    stoneL.box((xB + xR) / 2, bed - 0.3, (z0 + z1) / 2, xR - xB, TOP - bed + 0.3, z1 - z0, 1.0);
+    // two steps down the face, smoother and darker where the water works them
+    for (const [k, top] of [[0, NILE_WATER_Y + 0.4], [1, NILE_WATER_Y - 0.2]] as const) {
+      wornL.box(xR + 0.3 + k * 0.6, bed - 0.3, -115, 0.62, top - bed + 0.3, 12, 0.92);
+    }
+    // timber fenders along the face, two stone bollards on the top
+    for (let z = z0 + 2; z <= z1 - 2; z += 4) {
+      if (Math.abs(z + 115) < 6.5) continue; // the steps
+      w.box(xR + 0.16, bed, z, 0.26, TOP + 0.35 - bed, 0.26, TIMBER);
+    }
+    for (const zb of [-125, -105]) stoneL.drum(xR - 1.6, TOP, zb, 0.28, 0.72, 0.96, 0.08, 12);
+    // the plain brought down to it: a trodden earth way
+    trodden(xB - 8, xB + 0.5, -119, -111);
+    harborLanterns.push([xB + 1.2, z0 + 1.5], [xB + 1.2, z1 - 1.5]);
     fpReg({
-      id: 'quay', family: 'harbor-works', x: qx, z: (qz0 + qz1) / 2,
-      hx: 7, hz: (qz1 - qz0) / 2, y0: NILE_WATER_Y - 4.5, y1: NILE_WATER_Y + 1.1,
-      ground: 'none',
+      id: 'landing:royal', family: 'harbor-works', x: (xB + xR) / 2, z: (z0 + z1) / 2,
+      hx: (xR - xB) / 2, hz: (z1 - z0) / 2, y0: bed - 0.3, y1: TOP, ground: 'platform', cutting: true,
     });
+    harborWorksRects.push({ x0: xB, x1: xR + 1.5, z0, z1 });
   }
 
-  /* --- three timber piers on piles, rooted at the local shoreline ----------- */
-  for (const pz of [-230, -130, -30]) {
-    // start on the beach and run out to depth — except where the stone
-    // quay fronts the shore: there the pier springs from the quay's face
-    // (v1.2: the middle pier's deck ran straight through the quay body)
-    const onQuay = pz > -225 && pz < -45;
-    const px0 = onQuay ? quayEdgeX - 0.6 : shoreX(pz, 1.2) - 10;
+  /* the CARGO LANDING: stone at the bank, a timber stage on piles out to the
+   * 1.6 m line where the shuttle lies alongside; rope coils, a sledge */
+  {
+    const z0 = -200;
+    const z1 = -175;
+    let xB = Infinity;
+    let xS = 0;
+    let xC = 0;
+    for (let z = z0; z <= z1; z += 5) {
+      xB = Math.min(xB, contour(z, TOP + 0.05) - 0.4);
+      xS = Math.max(xS, contour(z, NILE_WATER_Y - 1.2));
+      xC = Math.max(xC, contour(z, NILE_WATER_Y - 1.6) + 2);
+    }
+    xS = Math.max(xS, xB + 5);
+    xC = Math.max(xC, xS + 4);
+    cargoFaceX = xC;
+    const bed = bedUnder(xB, xS, z0, z1);
+    stoneL.box((xB + xS) / 2, bed - 0.3, (z0 + z1) / 2, xS - xB, TOP - bed + 0.3, z1 - z0, 0.97);
+    // the stage: braced piles in three rows, capped, planked
+    const sz0 = -196;
+    const sz1 = -179;
+    for (let x = xS + 1.2; x < xC; x += 3) {
+      for (const z of [sz0 + 0.5, (sz0 + sz1) / 2, sz1 - 0.5]) {
+        const b = hf.heightAtCpu(x, z);
+        w.box(x, b - 0.3, z, 0.3, TOP - 0.2 - b + 0.3, 0.3, TIMBER);
+      }
+      beam(w, [x, TOP - 0.3, sz0 + 0.5], [x, TOP - 0.3, sz1 - 0.5], 0.09, TIMBER);
+    }
+    for (let z = sz0 + 0.25; z < sz1; z += 0.5) {
+      w.box((xS + xC) / 2, TOP - 0.2, z, xC - xS + 0.2, 0.18, 0.46, mul3(WOOD, land.range(0.92, 1.08)));
+    }
+    // rope coils and a sledge on the stone, bollards at the stage head
+    for (let k = 0; k < 4; k++) {
+      const cx = xB + 2.5 + (k % 2) * 1.5;
+      const cz = z0 + 3 + Math.floor(k / 2) * 1.5;
+      w.drum(cx, TOP, cz, 0.55, 0.16, ROPE, 0, 14);
+      w.drum(cx, TOP + 0.16, cz, 0.42, 0.12, mul3(ROPE, 0.92), 0, 14);
+    }
+    for (const dz of [-0.6, 0.6]) w.box(xB + 6, TOP, z1 - 4 + dz, 3.4, 0.2, 0.26, TIMBER);
+    w.box(xB + 6, TOP + 0.2, z1 - 4, 3.1, 0.12, 1.4, TIMBER);
+    for (const zb of [sz0 + 1, sz1 - 1]) stoneL.drum(xS - 1.2, TOP, zb, 0.26, 0.7, 0.96, 0.08, 12);
+    trodden(xB - 8, xB + 0.5, -191, -183);
+    fpReg({
+      id: 'landing:cargo', family: 'harbor-works', x: (xB + xS) / 2, z: (z0 + z1) / 2,
+      hx: (xS - xB) / 2, hz: (z1 - z0) / 2, y0: bed - 0.3, y1: TOP, ground: 'platform', cutting: true,
+    });
+    fpReg({
+      id: 'landing:cargo-stage', family: 'harbor-works', x: (xS + xC) / 2, z: (sz0 + sz1) / 2,
+      hx: (xC - xS) / 2, hz: (sz1 - sz0) / 2, y0: TOP - 0.2, y1: TOP, ground: 'none',
+    });
+    harborWorksRects.push({ x0: xB, x1: xC + 1, z0, z1 });
+  }
+
+  /* two PLANK RAMPS ("Ramps, planks, braces, or simple landing structures"):
+   * from the bank top down to a small stage on braced piles 0.35 m above
+   * the water, a papyrus skiff nosed in at each */
+  for (const [id, z] of [['t1', -70], ['t2', -212]] as const) {
+    const xT = contour(z, -44.75);
+    const xW = contour(z, NILE_WATER_Y);
+    const deck = NILE_WATER_Y + 0.35;
+    const s0 = xW - 0.6;
+    const s1 = xW + 3.4;
+    for (const x of [s0 + 0.2, s1 - 0.2]) {
+      for (const dz of [-1.3, 1.3]) {
+        const b = hf.heightAtCpu(x, z + dz);
+        w.box(x, b - 0.3, z + dz, 0.24, deck - b + 0.3, 0.24, TIMBER);
+      }
+    }
+    beam(w, [s0 + 0.2, deck - 0.1, z - 1.3], [s1 - 0.2, NILE_WATER_Y - 0.4, z + 1.3], 0.05, TIMBER); // brace
+    for (let k = 0; k < 7; k++) w.box(s0 + 0.3 + k * 0.57, deck, z, 0.52, 0.1, 3.0, mul3(WOOD, land.range(0.9, 1.08)));
+    // the ramp: six planks from the bank top down to the stage
+    const yT = hf.heightAtCpu(xT, z) + 0.05;
+    for (let k = 0; k < 6; k++) {
+      const pz = z - 1.1 + k * 0.44;
+      beam(w, [xT, yT, pz], [s0 + 0.3, deck + 0.08, pz], 0.07, mul3(WOOD, land.range(0.9, 1.08)), 0.03);
+    }
+    trodden(xT - 10, xT, z - 1.6, z + 1.6);
+    // nosed in at the stage — no crew: the crew stream must keep its count
+    const kx = s1 + 4.0;
+    skiff(w, land, landDet, kx, z, Math.PI, floatY(kx, z, 0.2));
+    vessels++;
+    fpReg({
+      id: `plank-ramp:${id}`, family: 'harbor-works', x: (xT + s1) / 2, z, hx: (s1 - xT) / 2, hz: 1.6,
+      y0: NILE_WATER_Y - 1, y1: deck + 0.2, ground: 'none',
+    });
+    harborWorksRects.push({ x0: xT, x1: s1 + 1, z0: z - 2, z1: z + 2 });
+  }
+
+  /* --- three timber piers on piles, rooted on the bank ---------------------- */
+  // (v1.2 I6) all three spring from the beach now; the middle one moved from
+  // z −130 to −150, clear of the royal landing before the temple front
+  for (const pz of [-230, -150, -30]) {
+    const px0 = shoreX(pz, 1.2) - 10;
     const len = rng.range(46, 64);
-    for (let x = onQuay ? 2.1 : 0; x < len; x += 4.2) {
+    for (let x = 0; x < len; x += 4.2) {
       for (const s of [-1, 1]) {
         const bed = hf.heightAtCpu(px0 + x, pz);
         const py = Math.min(NILE_WATER_Y - 2.2, bed - 0.4);
@@ -1471,11 +1705,13 @@ export function buildHarbor(
         w.box(cx2, NILE_WATER_Y + 1.22, cz2, lx, ly, lz, [0.6, 0.47, 0.3]);
       }
     }
-    // moored vessels flanking the pier's outer (deep) half — never inside
-    // the quay mole (the bob-scope rng reshuffle parked a barge in it)
+    // moored vessels flanking the pier's outer (deep) half. Piers 1 and 3
+    // keep the v1.2 clamps verbatim (their hulls do not move); the moved
+    // pier's hulls stay off the beach and within its reach
     {
-      const bx = Math.max(px0 + len - 6 - rng.float() * 18, quayEdgeX + 13.5); // + half barge length
-      const tx = Math.max(px0 + len - 8 - rng.float() * 18, quayEdgeX + 11);
+      const keep = pz !== -150;
+      const bx = Math.max(px0 + len - 6 - rng.float() * 18, keep ? MOORING_X + 13.5 : shoreX(pz - 7.5, 1.6) + 15); // + half barge length
+      const tx = Math.max(px0 + len - 8 - rng.float() * 18, keep ? MOORING_X + 11 : shoreX(pz + 7.5, 1.6) + 15);
       const hb = barge(w, rng, det, bx, pz - 7.5, rng.range(-0.12, 0.12), floatY(bx, pz - 7.5, 0.9), crew, 'moored');
       moor(w, hb, px0, len, pz - 2.3, pz - 1.85);
       const ht = traveler(w, rng, det, tx, pz + 7.5, Math.PI + rng.range(-0.12, 0.12), floatY(tx, pz + 7.5, 0.6), crew, 'moored');
@@ -1484,22 +1720,81 @@ export function buildHarbor(
     }
   }
 
-  /* --- the royal barque along the quay, north of the middle pier (v1.2 I2) -- */
+  /* --- the royal barque at the royal landing (v1.2 I2; I6: from z −80 — which
+   *      lay SOUTH of the old middle pier, not north — to the temple axis) ---- */
   {
     const royal = seed.rng('harbor-royal');
-    const zc = -80;
-    const bx = quayEdgeX + 32 * 0.135 * 0.5 + 1.2;
+    const zc = -115;
+    const bx = royalX + 32 * 0.135 * 0.5 + 1.2;
     const h = ceremonial(w, royal, det, bx, zc, -Math.PI / 2, floatY(bx, zc, 0.8), crew);
-    // two lines to the quay bollards and a gangplank to the quay top
-    for (const zb of [-90, -60]) {
+    // two lines to the landing's bollards and a gangplank to its top
+    for (const zb of [-125, -105]) {
       const lx = zc - zb; // hull-local x runs north (yaw −π/2): local +x = world −z
       const a = h.at(lx);
       const A = h.P(lx, a.sheer + 0.05, -a.half * 0.92);
-      beam(w, A, [quayEdgeX - 1.6, NILE_WATER_Y + 1.75, zb], 0.025, ROPE);
+      beam(w, A, [royalX - 1.6, TOP + 0.65, zb], 0.025, ROPE);
     }
     const g = h.at(-2);
-    beam(w, h.P(-2, g.sheer, -g.half * 0.9), [quayEdgeX - 0.6, NILE_WATER_Y + 1.12, zc + 2], 0.32, mul3(WOOD, 1.1), 0.04);
+    beam(w, h.P(-2, g.sheer, -g.half * 0.9), [royalX - 0.6, TOP + 0.12, zc + 2], 0.32, mul3(WOOD, 1.1), 0.04);
     vessels++;
+  }
+
+  /* --- the EARTHEN EMBANKMENT along the rest of the west shore ("Compacted
+   *      earth or sediment surfaces used to stabilize movement near the
+   *      water"): the dredged bank rammed and dressed, a wet band at the
+   *      waterline ("wet silt along the riverbank"), mooring stakes; broken
+   *      at every landing, ramp and pier root ---------------------------------- */
+  {
+    const RAMMED: C3 = [0.4, 0.33, 0.25];
+    const WET: C3 = [0.25, 0.2, 0.16];
+    const gaps: [number, number][] = [[-201, -174], [-136, -94], [-73, -67], [-215, -209], [-233, -227], [-153, -147], [-33, -27]];
+    const strip = (za: number, zb: number, ya: number, yb: number, lift: number, t: C3): void => {
+      const a0 = contour(za, ya);
+      const a1 = contour(za, yb);
+      const b0 = contour(zb, ya);
+      const b1 = contour(zb, yb);
+      if (a1 - a0 < 0.4 || b1 - b0 < 0.4) return;
+      const P = (x: number, z: number): C3 => [x, hf.heightAtCpu(x, z) + lift, z];
+      for (let i = 0; i < 3; i++) {
+        const fa = (v: number): number => a0 + ((a1 - a0) * v) / 3;
+        const fb = (v: number): number => b0 + ((b1 - b0) * v) / 3;
+        up(P(fa(i), za), P(fa(i + 1), za), P(fb(i + 1), zb), P(fb(i), zb), t);
+      }
+    };
+    let k = 0;
+    let lastStake = -999;
+    for (let z = -240; z < -20; z += 4) {
+      if (gaps.some(([g0, g1]) => z + 4 > g0 && z < g1)) continue;
+      strip(z, z + 4, -44.75, NILE_WATER_Y - 0.4, 0.04, RAMMED);
+      strip(z, z + 4, NILE_WATER_Y + 0.3, NILE_WATER_Y - 0.3, 0.07, WET);
+      if (z - lastStake >= 18) {
+        const sx = contour(z + 2, NILE_WATER_Y + 0.15);
+        const sy = hf.heightAtCpu(sx, z + 2);
+        w.box(sx, sy - 0.4, z + 2, 0.13, 1.5, 0.13, TIMBER);
+        lastStake = z;
+      }
+      if ((z + 240) % 20 === 0) {
+        const x0 = contour(z + 10, -44.75);
+        const x1 = contour(z + 10, NILE_WATER_Y - 0.4);
+        fpReg({
+          id: `bank:${k++}`, family: 'harbor-district', x: (x0 + x1) / 2, z: z + 10, hx: Math.max(0.5, (x1 - x0) / 2), hz: 10,
+          y0: NILE_WATER_Y - 0.5, y1: -44.6, ground: 'none', passive: true,
+        });
+      }
+    }
+  }
+  {
+    const meshes = [
+      new Mesh(stoneL.build(), limestoneMaterial([0.72, 0.66, 0.55], gi, 0.55, 1.15, { paveW: 1.2 })),
+      new Mesh(wornL.build(), limestoneMaterial([0.5, 0.47, 0.41], gi, 50, 50, { rough: 0.5, spec: 0.3 })),
+      new Mesh(bankL.build(), earthMaterial(gi)),
+    ];
+    for (const m of meshes) {
+      m.castShadow = m !== meshes[2];
+      m.receiveShadow = true;
+      m.name = 'harbor-landings';
+      scene.add(m);
+    }
   }
   // the Tura delivery at the south-shore slipway: block on its sledge,
   // staged blocks, the scribe recording (the barge has its own track)
@@ -1635,15 +1930,18 @@ export function buildHarbor(
         tura.phase = (dockAt + 400) / (tura.track.length - 1);
       } else {
         // no clear water across the basin this seed: it passes downstream
+        // (v1.2 I6: no longer silent — Haiku I6-C)
+        console.warn('[akhet] Tura barge: no water path across the basin — river lane fallback');
         tura.track = new TrackBuilder().travel(laneN, 1.25, 1).finish();
       }
     }
-    // the harbour shuttle: canal → basin → bow-in at the quay between the
-    // piers → unload → back off → out → U-turn in the river → in again
+    // the harbour shuttle: canal → basin → bow-in at the cargo landing →
+    // lies alongside → back off → out → U-turn in the river → in again
     {
       const hS = shuttle.hull as Hull;
-      const dock: P2 = [quayEdgeX + hS.L / 2 + 1.0, -180];
-      const appr: P2 = [quayEdgeX + hS.L / 2 + 22, -180];
+      // (v1.2 I6) bow-in at the cargo landing's timber stage
+      const dock: P2 = [cargoFaceX + hS.L / 2 + 1.0, -188];
+      const appr: P2 = [cargoFaceX + hS.L / 2 + 22, -188];
       const clear = hS.B / 2 + 2.5;
       const pin = planWater(hf, [1300, -131], appr, { depth: 1.3, clear, box: basinBox });
       const pout = planWater(hf, appr, [1300, -143], { depth: 1.3, clear, box: basinBox });
@@ -1658,6 +1956,7 @@ export function buildHarbor(
         shuttle.fade = 0;
         shuttle.phase = 0.08;
       } else {
+        console.warn('[akhet] harbour shuttle: no water path to the cargo landing — river lane fallback');
         shuttle.track = new TrackBuilder().travel(laneN, 1.6, 1).finish();
       }
     }
@@ -1687,14 +1986,14 @@ export function buildHarbor(
     const tracks: number[] = [];
     const hA = new Float32Array(movers.length * 4);
     const hB = new Float32Array(movers.length * 4);
-    const meta: Array<{ kind: string; start: number; count: number; cycle: number; phase: number }> = [];
+    const meta: Array<{ kind: string; start: number; count: number; cycle: number; phase: number; L: number; B: number }> = [];
     for (const m of movers) {
       const start = tracks.length / 4;
       for (const p of m.track) tracks.push(p.x, p.z, p.a, p.load);
       const cycle = Math.max(DT, (m.track.length - 1) * DT);
       hA.set([start, m.track.length, cycle, m.phase], m.k * 4);
       hB.set([m.sink, m.fade, 0, 0], m.k * 4);
-      meta.push({ kind: m.kind, start, count: m.track.length, cycle, phase: m.phase });
+      meta.push({ kind: m.kind, start, count: m.track.length, cycle, phase: m.phase, L: m.hull?.L ?? 10, B: m.hull?.B ?? 3 });
     }
     const trk = new Float32Array(tracks);
     fleetState = { movers: meta, track: trk };

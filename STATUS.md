@@ -449,6 +449,78 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+I6 — THE HARBOUR PER CANON IX §9.11–9.13 (done; plan `docs/plans/I6_PLAN.md`;
+D-14 rewritten, D-18). Recon by the side planner (5 Haiku, 149/149 verified);
+the user was away and handed the three decisions to the main session, which
+took the plan's defaults (landings, hypotheses documented only, tags for the
+harbour and fleet).
+1. THE QUAY WAS A MOLE (planner + Haiku B6/D6, confirmed by measurement with
+   `tools/ground.ts --wrect`: waterline x ≈ 876 at z −135, ≈ 920 at z −225):
+   one 180 m box seated at the run's most seaward shore point, 35–45 m off
+   the curving bank mid-run, a lagoon behind it, part of its gang standing in
+   the water. Removed. The west shore is now the dredged EARTHEN BANK —
+   rammed silt dressed over the slope, a wet band at the waterline, mooring
+   stakes — with two short STONE LANDINGS let into the bank at the deep-water
+   line: the ROYAL landing on the valley temple's axis (slab-paved, two
+   water-worn steps down its face, timber fenders, stone bollards, the
+   lanterns at its landward corners — they stood on the basin's EAST side,
+   one under water) where the royal barque now lies (z −80 → −115), and the
+   CARGO landing with a timber stage on braced piles where the harbour
+   shuttle lies alongside (rope coils, a sledge); two PLANK RAMPS down to small
+   stages, a papyrus skiff nosed in at each; the three pile piers kept (brief
+   floor), all rooted on the bank, the middle one moved z −130 → −150. Piers
+   1 and 3's hulls keep the v1.2 formula (`MOORING_X`) and stay put to the cm;
+   every moved hull stays afloat (the crew stream keeps its count). The quay
+   gang now walks the bank top. Reeds no longer root inside the works (a
+   post-filter after Shore's sampling loop — the trees' draws untouched).
+2. THE CARGO YARD + ADMINISTRATIVE SHELTER (`HarborDistrict.ts`, own
+   streams): four bays walled apart by material — food (sacks on mats, sealed
+   jars), rope (coils, two rope-makers), equipment (sledges, levers, water
+   jars for the sledge paths), timber (cedar baulks) — and at the yard's
+   corner on the road from the landing a mud-brick recording office with a
+   reed portico: three scribes with boards and palettes, an overseer, sealed
+   jars, a basket of clay sealings, a donkey waiting; worn paths from every
+   landing and ramp to the road.
+3. CONFIDENCE TAGS (new `src/water/HarbourEvidence.ts`, D-18): the Bible's
+   Levels A–E (E added to the canon type; the canon header pointed at a
+   "Vol. II" that does not exist), conf / basis / epoch on every harbour
+   footprint and vessel class, stamped after the build; `?debug=confidence`
+   draws A-green … E-red outlines, the Inspector prints the evidence line;
+   an audit gate (`evidence.untagged` = 0) in `tools/audit.ts`.
+4. THE FLEET IS NOW TESTED: a new sweep samples every moving hull every 2 s
+   over its cycle against the harbour works and the moored/anchored hulls
+   (`fleet.clashes` = 0, in the audit). It found a v1.2 I2 bug on its first
+   run: the Tura barge's inbound track brushed an anchored barge — A*'s
+   smoothing rounded a string-pulled corner into it. `planWater` now keeps
+   the smoothed line only where every leg still has clear sight. The silent
+   river-lane fallbacks of the Tura barge and the shuttle now warn.
+5. Side fixes: Inspector help said "E exit" (the key is I); the moved
+   barque's comment said "north of the middle pier" (z −80 is south);
+   `HarborDistrict.reg()` takes a ground policy; vessel ids carry their class
+   (`vessel:barge:12`); the planner's follow-ups (the basin centre is not tied
+   to the temple's edit position; bm2 is not at dawn; wild trees can root in
+   harbour works) are logged under OPEN.
+6. COUNTS: 2 stone landings, 1 timber stage, 2 plank ramps (+2 skiffs: 36
+   hulls), ~150 m of dressed bank, 4 cargo bays, 1 recording office with 3
+   scribes; 120 harbour footprints tagged, 0 untagged; fleet clashes 0;
+   figures 1083 (+22: the yard's 14 and the quay gang's figures that the
+   lagoon used to drop). Hulls: only the barque, pier 2's pair and the two
+   new skiffs moved or appeared (fpdump before/after) — the other 21 to the
+   cm. Collision audit clean.
+BATTERY: 19/19 PASS — perf bm1 76, bm3 66, bm7 62 fps @1440p (pane closed).
+
+HAIKU — ITERATION I6 (5 agents run by the side planner, read-only, every row
+verified by it; plan §7):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A6 | canon IX §9.11–9.13, 9.21–9.27, Phase-4 gate, brief — built? | 30 | 30 |
+| B6 | the harbour's built inventory, positions from the code | 30 | 30 — found the mole independently |
+| C6 | the fleet's dependence on the quay; planWater; streams | 30 | 30 — the crew-stream coupling, the silent fallbacks, untested movers |
+| D6 | water, ground, plants, people, lanterns, bookmarks | 29 | 29 — the drowned lantern, the gang in the lagoon |
+| E6 | confidence mechanisms and conventions | 30 | 30 |
+VERDICT: 149/149. Briefed with the I5 lesson ("check against the code that
+places things, not only fpReg"), no site error.
+
 I5 — THE NECROPOLIS + THE MONUMENT (done; plan `docs/plans/I5_PLAN.md`;
 D-7 rewritten, D-16, D-17). The recon and the design came from a read-only
 side session (Opus, 5 Haiku, every row verified — table below) while I4
@@ -648,7 +720,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I3 | town life (canon VIII) — DONE (above) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
 | I4 | the land — DONE (above; D-15) | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
 | I5 | the necropolis + the monument — DONE (above; D-7, D-16, D-17) | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
-| I6 | the harbour per canon IX §9.11–9.13 | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
+| I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf | bm7 (quarry): NOT drift — the same pose renders 11.5M tris (59–62 fps) or 15.4M (42–45) run to run (I5, `tools/perf.ts`); find what toggles (shadow cascades? culling? terrain LOD?) and pin it; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
 | T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 

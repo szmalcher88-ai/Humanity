@@ -273,7 +273,13 @@ export function planWater(
     }
   }
   kept.push(to);
-  return smooth(kept, 2);
+  // (v1.2 I6) smoothing rounds the corners the string-pull keeps — and can
+  // round them into an obstacle (the Tura barge brushed an anchored barge;
+  // the fleet-clearance sweep found it): the smoothed line only where every
+  // leg still has clear sight on the inflated grid
+  const sm = smooth(kept, 2);
+  for (let k = 0; k + 1 < sm.length; k++) if (!sight(sm[k] as P2, sm[k + 1] as P2)) return kept;
+  return sm;
 }
 
 /** builds a time track: legs of travel at a speed, and stops */
