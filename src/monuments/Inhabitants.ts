@@ -62,12 +62,14 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { QUARRY_KHUFU_CENTER, VALLEY_TEMPLE_CENTER } from '../world/CANON_DIMENSIONS';
 import { NILE_WATER_Y } from '../world/WorldConst';
-import { fpAll, type Footprint } from '../debug/Footprints';
+import { fpAll, fpReg, type Footprint } from '../debug/Footprints';
 import { townToWorld } from '../world/TownFrame';
 
 /** figures allowed ON TOP of the budget for lines contributed by other
- *  systems (the farmsteads' threshers) */
-const EXTRA_SHARE = 0.2;
+ *  systems (the farmsteads' threshers). (v1.2 I5) 0.25: the extras reached
+ *  181 against 0.2 × 900 = 180; at 0.25 the high cap is 225, so no existing
+ *  extra figure moves at high or ultra */
+const EXTRA_SHARE = 0.25;
 const FIGURE_BUDGET = { safe: 140, low: 320, high: 900, ultra: 1200 } as const;
 /** figures are sub-pixel past this; the shader collapses them there */
 const FIG_FADE = [760, 560] as const;
@@ -276,7 +278,9 @@ function workLines(): Gang[] {
     // the haul road: quarry → ramp head → the pyramid's south-east foot.
     // This is the busiest line on the site and it should look it.
     { x0: qx - 10, z0: qz - 60, x1: 40, z1: 215, n: 150, spread: 5.5, carry: 0.45, still: 0.05 },
-    { x0: 40, z0: 215, x1: 105, z1: 120, n: 90, spread: 4.5, carry: 0.5, still: 0.08 },
+    // (v1.2 I5) leg 2 ran to (105, 120) — inside the court, through the 8 m
+    // south temenos wall: now it runs to the masons' yards outside it
+    { x0: 40, z0: 215, x1: 152, z1: 204, n: 90, spread: 4.5, carry: 0.5, still: 0.08 },
     // quarry faces: gangs working the benches, mostly standing
     { x0: qx - 80, z0: qz - 30, x1: qx + 80, z1: qz + 20, n: 110, spread: 34, carry: 0.15, still: 0.75 },
     { x0: qx - 40, z0: qz + 60, x1: qx + 50, z1: qz + 75, n: 60, spread: 20, carry: 0.2, still: 0.7 },
@@ -284,7 +288,8 @@ function workLines(): Gang[] {
     { x0: 160, z0: 200, x1: 270, z1: 130, n: 70, spread: 16, carry: 0.2, still: 0.72 },
     // the temple's unfinished SE corner — the gang working the falsework and
     // the ramp. Scaffolding with nobody on it reads as abandoned, not mid-job.
-    { x0: 150, z0: 33, x1: 176, z1: 41, n: 26, spread: 5, carry: 0.35, still: 0.62 },
+    // (v1.2 I5) along the re-laid ramp — the old line ended inside G1-a
+    { x0: 140.5, z0: 36, x1: 146, z1: 58, n: 26, spread: 5, carry: 0.35, still: 0.62 },
     // the causeway: a file of porters climbing to the plateau — on the
     // construction road along its SOUTH flank (v1.1: the file ran down the
     // causeway's own axis, i.e. inside its walled, roofed embankment)
@@ -372,6 +377,45 @@ export function buildInhabitants(
     carry: boolean;
   }
   const figs: Fig[] = [];
+  // (v1.2 I5) the ox trains, the gang shelters and the SE-corner works are
+  // solid: registered BEFORE the obstacle field (they had no footprint — the
+  // audit never saw one train buried 16 m deep inside G1-c, nor the ramp
+  // growing out of G1-a). Positions need no draws. Families stay out of
+  // STRUCT_FAMILIES: they are built once, here, at boot.
+  for (const [i, [tx0, tz0, head]] of TRAINS.entries()) {
+    const fx = tx0 + Math.cos(head) * 1.5;
+    const fz = tz0 + Math.sin(head) * 1.5;
+    const g = hf.heightAtCpu(fx, fz);
+    if (!Number.isFinite(g) || g < -44) continue;
+    fpReg({ id: `train:${i}`, family: 'trains', x: fx, z: fz, hx: 3.4, hz: 1.2, yaw: head, y0: g - 0.2, y1: g + 1.7, ground: 'none' });
+  }
+  for (const [k, [hx, hz]] of SHELTERS.entries()) {
+    const g = hf.heightAtCpu(hx, hz);
+    if (!Number.isFinite(g) || g < -44) continue;
+    fpReg({ id: `shelter:${k}`, family: 'trains', x: hx, z: hz, hx: 2.9, hz: 2.9, y0: g, y1: g + 2.25, ground: 'none' });
+  }
+  {
+    const g = hf.heightAtCpu(SCAFFOLD.bx, SCAFFOLD.bz);
+    const [fx0, fz0] = SCAFFOLD.foot;
+    const [hx1, hz1] = SCAFFOLD.head;
+    // in two halves: the audit tests yawed footprints as their bounding
+    // boxes, and one 22 m box at 72° reached 4 m past the ramp's real foot
+    // into the eastern boat pit
+    const len = Math.hypot(hx1 - fx0, hz1 - fz0);
+    const ryaw = Math.atan2(hz1 - fz0, hx1 - fx0);
+    for (const k of [0, 1]) {
+      const t = 0.25 + k * 0.5;
+      fpReg({
+        id: `scaffold:ramp:${k}`, family: 'scaffold', x: fx0 + (hx1 - fx0) * t, z: fz0 + (hz1 - fz0) * t,
+        hx: len / 4 + 1.5, hz: 3.5, yaw: ryaw,
+        y0: g - 0.2, y1: g + 0.6 + 4.2 * (0.5 + k * 0.5), ground: 'none',
+      });
+    }
+    fpReg({
+      id: 'scaffold:frame', family: 'scaffold', x: SCAFFOLD.bx + 1.8, z: SCAFFOLD.bz - 0.9, hx: 3.9, hz: 2.4,
+      y0: g, y1: g + 6.7, ground: 'none', allow: ['temple'],
+    });
+  }
   const blocked = obstacleField();
   let reseated = 0;
   let dropped = 0;
@@ -597,16 +641,8 @@ export function buildInhabitants(
   const wood = new GeoWriter();
   let oxen = 0;
   let sledges = 0;
-  const trains: [number, number, number][] = [
-    // x, z, heading (rad) — on the haul road, nose toward the ramp
-    [40, 380, Math.atan2(-10, -160)],
-    [70, 300, Math.atan2(-20, -110)],
-    [20, 250, Math.atan2(30, -60)],
-    [180, 165, Math.atan2(60, -40)],
-    [700, -150, Math.atan2(-140, -18)], // the causeway grade
-  ];
   const tr = rng.fork('trains');
-  for (const [tx0, tz0, head] of trains) {
+  for (const [tx0, tz0, head] of TRAINS) {
     const gy = hf.heightAtCpu(tx0, tz0);
     if (!Number.isFinite(gy) || gy < -44) continue;
     const ch = Math.cos(head);
@@ -658,10 +694,7 @@ export function buildInhabitants(
   }
 
   // gang shelters: reed-mat sunshades where the gangs rest, at the yards
-  const shelters: [number, number][] = [
-    [150, 215], [205, 240], [265, 150], [qxSafe(), 470], [40, 245], [1225, -180],
-  ];
-  for (const [hx, hz] of shelters) {
+  for (const [hx, hz] of SHELTERS) {
     const gy = hf.heightAtCpu(hx, hz);
     if (!Number.isFinite(gy) || gy < -44) continue;
     const yaw = tr.range(0, Math.PI);
@@ -675,17 +708,22 @@ export function buildInhabitants(
 
   /* --- scaffolding: the mortuary temple's SE corner, mid-build ------------ */
   {
-    // the temple front sits at x ≈ 145, the SE corner near z ≈ +26
-    const bx = 158;
-    const bz = 30;
+    // the temple spans x 133.4–173.4 (mtX 153.38), its SE corner at z 26.25
+    const bx = SCAFFOLD.bx;
+    const bz = SCAFFOLD.bz;
     const gy = hf.heightAtCpu(bx, bz);
     const sc = rng.fork('scaffold');
-    // construction ramp of rubble and mud brick, running up to the corner
+    // construction ramp of rubble and mud brick, running up to the corner.
+    // (v1.2 I5) from the SOUTH: it ran in from (174, 43), its first five
+    // blocks inside G1-a — the ramp grew out of the queen's west face
+    const [fx0, fz0] = SCAFFOLD.foot;
+    const [hx1, hz1] = SCAFFOLD.head;
+    const ryaw = Math.atan2(hz1 - fz0, hx1 - fx0);
     for (let i = 0; i < 14; i++) {
       const t = i / 13;
-      const rx = bx + 16 - t * 15;
-      const rz = bz + 13 - t * 7;
-      w.box(rx, gy - 0.2, rz, 3.0, 0.6 + t * 4.2, 7.0 - t * 1.4, 0.62, 0.14, 0.42);
+      const rx = fx0 + t * (hx1 - fx0);
+      const rz = fz0 + t * (hz1 - fz0);
+      w.box(rx, gy - 0.2, rz, 3.0, 0.6 + t * 4.2, 7.0 - t * 1.4, 0.62, 0.14, ryaw);
     }
     // timber falsework: uprights, ledgers and a working platform
     for (let i = 0; i < 5; i++) {
@@ -743,3 +781,24 @@ export function buildInhabitants(
 function qxSafe(): number {
   return QUARRY_KHUFU_CENTER.x - 40;
 }
+
+/** ox sledge trains: x, z, heading (rad) — forward is (cos h, sin h), so h
+ *  is atan2(dz, dx). (v1.2 I5) all five were written atan2(dx, dz) and
+ *  stood ~90° off their road; the fourth stood inside G1-c (buried 16 m) and
+ *  now walks the re-aimed haul leg 2 */
+const TRAINS: [number, number, number][] = [
+  [40, 380, Math.atan2(-160, -10)],
+  [70, 300, Math.atan2(-110, -20)],
+  [20, 250, Math.atan2(-60, 30)],
+  [110, 208, Math.atan2(-4, 42)],
+  [700, -150, Math.atan2(-18, -140)], // the causeway grade
+];
+
+/** gang shelters: reed-mat sunshades where the gangs rest, at the yards */
+const SHELTERS: [number, number][] = [
+  [150, 215], [205, 240], [265, 150], [qxSafe(), 470], [40, 245], [1225, -180],
+];
+
+/** the mortuary temple's SE corner works: falsework centre, the rubble
+ *  ramp's foot and head (v1.2 I5: from the south, clear of G1-a) */
+const SCAFFOLD = { bx: 158, bz: 30, foot: [151, 52] as [number, number], head: [157, 34] as [number, number] };

@@ -60,16 +60,25 @@ blocks + bakeries + enclosures) at the documented location.
 the Crow), on the terraces of `WORKER_TOWN_PADS` in `CANON_DIMENSIONS.ts`.
 
 ## D-7 — Remnant construction ramp
-**Chosen (Phase 3/6):** partially dismantled ramp remnants against the SOUTH
-face, spiraling/zoned per the quarry-to-monument logistics (quarry lies S–SSE)
-— consistent with Lehner's south-approach ramp reasoning. No intact full-height
-ramp: the monument is complete; only staged dismantling debris remains.
-**Alternatives:** straight east ramp; internal ramp (Houdin) — rejected as
-speculative for surface rendering.
+**Chosen (v1.2 I5, variant A):** the remnant of a supply ramp from the quarry
+(S–SSE) toward the middle of the south face — Lehner's south-approach
+reasoning. The court is finished and walled, so the ramp inside the enclosure
+is gone; its body outside the south wall, cut back 8 m from it, is being
+dismantled from the quarry end: a cut face showing its fill (limestone chips,
+tafl, gypsum debris) and its mud-brick retaining walls in section, an intact
+stretch of track with timber cross-sleepers, a stepped working front, the
+cleared toe with the wall footings left in the ground; the brick salvaged in
+stacks, the fill sorted into heaps and carried back to the quarry's worked-out
+bays (Lehner reports the Khufu quarry backfilled with construction debris — C).
+The rubble-and-brick ramp at the mortuary temple's SE corner still stands
+(re-laid from the south in I5: its foot stood inside G1-a).
+**Alternatives:** an unfinished gap in the south temenos wall with the ramp
+still reaching the face (rejected: alters the finished enclosure, D-3);
+straight east ramp; internal ramp (Houdin) — rejected as speculative for
+surface rendering.
 **Confidence:** D.
-**Code:** PARTIAL — the one standing construction ramp is the rubble-and-brick ramp at
-the mortuary temple's SE corner (`src/monuments/Inhabitants.ts`). The south-face
-remnants this entry chooses are NOT built yet (v1.2 roadmap).
+**Code:** `src/monuments/SouthWorks.ts` (the remnant), `src/monuments/Inhabitants.ts`
+(the SE-corner ramp and falsework).
 
 ## D-8 — three.js pinned at 0.184.0
 The brief says "three.js (current)". LAAS's THREE-NOTES.md verifies the TSL/
@@ -167,3 +176,46 @@ watering of gardens — is attested in Old Kingdom tomb scenes).
 **Code:** `src/world/Irrigation.ts` (layout), `src/world/GizaControl.ts`
 (the cut), `src/water/NileWater.ts` (canal water), `src/vegetation/Basins.ts`
 (earthworks), `src/vegetation/Orchards.ts`.
+
+## D-16 — The mastaba fields at their Khufu-era extent
+**Conflict:** the West Field grid is Reisner's documented nucleus plan (31 m
+E–W, 16 m N–S pitches, CANON_DIMENSIONS); built with every plot at 16 m row
+pitch and 24 m cores, every column fused into one N–S ridge — the brief floor
+asks for "individual mastabas". The East Field's 36-plot grid fused the same
+way. Much of the West Field's later density is 5th–6th-dynasty infill
+(Reisner 1942).
+**Chosen (v1.2 I5):** WEST — the nucleus grid with every second row built
+(175 individual tombs, ~9 m streets between them; the survivors keep their
+exact positions, sizes and tones — the build is draw-neutral); a large tomb
+suppresses a neighbour it would come within 3 m of. EAST — eight twin
+mastabas (two cores built as a pair and cased as one, G7000 pattern — the
+tombs of Khufu's children; form B), cased in fine Tura limestone where the
+West Field is local stone. FAMILY COURTS — low mud-brick courts before the
+east faces (12 in the West Field, one per twin), with chapels, false doors,
+offering tables and, in one court in three, a dependant's small tomb filling
+the gap between the parents' tombs. The grid is the excavated plan, not a
+procedural placement grid (brief bans those): unbuilt plots, size classes,
+courts and dependants break it.
+**Alternatives:** keep every plot (ridges); turn the tombs 90° to fit the
+pitches (5 m streets, no room for courts); stretch the field south over the
+Khafre knoll (must stay empty in 2550 BCE).
+**Confidence:** C (forms), D (layout).
+**Code:** `src/monuments/KhufuComplex.ts` (fields), `src/monuments/Necropolis.ts`
+(courts).
+
+## D-17 — The royal works yard south of the enclosure
+**Chosen (v1.2 I5):** canon lists "Fine limestone staging. Granite storage.
+Stone dressing areas." under the quarry district, and puts the staging yard
+in the chain "Quarry → Staging Yard → Ramp → Construction Platform →
+Monument". The yard stands on the flat court terrace south of the enclosure,
+between the quarry and the monument: granite fenced apart from the Tura
+(four pillars the exact size of the mortuary temple's, three architraves, a
+pillar half-dressed at the pounding station — granite dressed by pounding
+with dolerite balls, B), Tura limestone in three rows by size with red
+control marks (B), the dressing area, the scribe's tally, a block leaving on
+its sledge with water poured before the runners (the pouring is a Middle
+Kingdom scene — C).
+**Alternatives:** the quarry's north lip (literal "quarry"; inside the
+perf-gated quarry bookmark, needs a terrace).
+**Confidence:** D (siting), B–C (contents).
+**Code:** `src/monuments/SouthWorks.ts`.

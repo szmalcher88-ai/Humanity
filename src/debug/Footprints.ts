@@ -16,7 +16,7 @@ export type GroundPolicy =
   | 'none'; // skip ground checks (roofs, lintels, cargo…)
 
 export interface Footprint {
-  /** stable id, e.g. 'queen:G1-a', 'mortuary-temple', 'mastaba:w:3:7' */
+  /** stable id, e.g. 'pyramid:G1-a', 'mortuary-temple', 'mastaba:w:3:7' */
   id: string;
   /** family: intra-family contact is DESIGN (causeway segments overlap),
    *  cross-family contact is a defect unless allowed */

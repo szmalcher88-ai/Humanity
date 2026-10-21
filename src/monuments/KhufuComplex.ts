@@ -278,9 +278,43 @@ export function limestoneMaterial(
 /* the complex                                                          */
 /* ------------------------------------------------------------------ */
 
+/** (v1.2 I5) a built West Field tomb, as the family courts need it */
+export interface WestTomb {
+  col: number;
+  row: number;
+  x: number;
+  z: number;
+  /** along x (E–W) and z (N–S) */
+  W: number;
+  L: number;
+  H: number;
+  gy: number;
+  large: boolean;
+  /** the offering chapel on the east face, if any (its z) */
+  chapelZ: number | null;
+}
+
+/** (v1.2 I5) an East Field twin mastaba: two cores cased as one */
+export interface TwinTomb {
+  id: string;
+  x: number;
+  z: number;
+  W: number;
+  /** total length (both cores + the 3 m between them) and the two cores */
+  L: number;
+  LA: number;
+  LB: number;
+  H: number;
+  gy: number;
+  /** the two chapels' z (core A north, core B south) */
+  chapelZ: [number, number];
+}
+
 export interface ComplexInfo {
   causewayStart: Vector3;
   causewayEnd: Vector3;
+  westTombs: WestTomb[];
+  twins: TwinTomb[];
 }
 
 export function buildKhufuComplex(
@@ -615,6 +649,11 @@ export function buildKhufuComplex(
         const sz = pz - 20 + f * 40;
         local.box(px, grd(px, sz) - 0.9, sz, 4.5, 0.9, wl + 0.5, 0.8);
       }
+      // (v1.2 I5) registered: figures walked through them (Haiku I5-B)
+      fpReg({
+        id: `boatpit:e:${pz}`, family: 'boatpits', x: px, z: pz, hx: 2.3, hz: 20,
+        y0: grd(px, pz) - 0.9, y1: grd(px, pz) + 0.05, ground: 'none',
+      });
     }
   }
 
@@ -632,18 +671,39 @@ export function buildKhufuComplex(
   }
 
   /* --- mastaba fields ---------------------------------------------------------- */
+  const westTombs: WestTomb[] = [];
+  const twins: TwinTomb[] = [];
+  /** (v1.2 I5) every tomb chapel registered — they had no footprint */
+  const chapelFp = (id: string, x: number, z: number, hx: number, hz: number, y0: number, h: number): void =>
+    fpReg({
+      id, family: 'tomb-chapels', x, z, hx, hz, y0, y1: y0 + h, ground: 'grounded',
+      allow: ['mastabas-west', 'mastabas-east', 'tomb-courts'],
+    });
   {
     const t = rng.fork('mastabas-west');
     const pE = MASTABA_GRID_PITCH_EW.value;
     const pN = MASTABA_GRID_PITCH_NS.value;
-    // WESTERN field: the great grid cemetery (whole grid movable as one)
+    // WESTERN field: the great grid cemetery (whole grid movable as one).
+    // (v1.2 I5) TWO PASSES. At 16 m row pitch and 24 m cores the old build
+    // fused every column into one N–S ridge (Haiku I5-B; the brief floor is
+    // "individual mastabas"). Pass 1 is the old loop body draw for draw —
+    // the stream must not move — and records each plot; pass 2 builds every
+    // SECOND row only (the Khufu-era nucleus cemetery; the infill that later
+    // fused the field is 5th–6th dynasty, D-16), and a large tomb keeps its
+    // length: a neighbour it would come within 3 m of is not built.
+    interface Plot {
+      col: number; row: number; x: number; z: number; W: number; L: number; H: number;
+      gy: number; tone: number; chapel: boolean; chapelDz: number; large: boolean; slope: boolean;
+    }
+    const plots: Plot[] = [];
     const [wOx, wOz] = edPos('mastabas-west', -(half + 55), -205);
     for (let col = 0; col < 17; col++) {
       for (let row = 0; row < 26; row++) {
         const x = wOx - col * pE + t.range(-1.2, 1.2);
         const z = wOz + row * pN + t.range(-0.8, 0.8);
         if (t.chance(0.16)) continue; // unbuilt / robbed plots
-        const scale = t.chance(0.08) ? t.range(1.25, 1.6) : t.range(0.82, 1.1);
+        const large = t.chance(0.08);
+        const scale = large ? t.range(1.25, 1.6) : t.range(0.82, 1.1);
         const L = MASTABA_NUCLEUS_LENGTH.value * scale;
         const W = MASTABA_NUCLEUS_WIDTH.value * t.range(0.85, 1.1);
         const H = MASTABA_NUCLEUS_HEIGHT.value * t.range(0.8, 1.15);
@@ -662,29 +722,50 @@ export function buildKhufuComplex(
         // (v1.1) a plot straddling the court's leveling edge falls more
         // than ~45% of a nucleus across its corners: the uphill face sank
         // to the coping. Such ground was left unbuilt, not dug into.
-        if (Math.max(...corners) - Math.min(...corners) > 0.45 * H) continue;
-        local.box(x, gy, z, W, H + 0.5, L, tone, 0.16);
-        fpReg({
-          id: `mastaba:w:${col}:${row}`, family: 'mastabas-west', x, z,
-          hx: W / 2, hz: L / 2, y0: gy, y1: gy + H + 0.5, ground: 'grounded',
-          editGroup: 'mastabas-west',
-        });
-        // ~40%: small offering chapel on the east face
-        if (chapel) {
-          const cx2 = x + W / 2 + 1.6;
-          const cz2 = z + chapelDz;
-          // lowest corner, like the tomb it leans on (centre seating
-          // floated one end on the cemetery's slopes)
-          const cy2 = Math.min(grd(cx2 - 1.6, cz2 - 2.1), grd(cx2 + 1.6, cz2 - 2.1),
-            grd(cx2 + 1.6, cz2 + 2.1), grd(cx2 - 1.6, cz2 + 2.1));
-          local.box(cx2, cy2 - 0.3, cz2, 3.2, 3.0, 4.2, 0.9, 0.06);
-        }
+        const slope = Math.max(...corners) - Math.min(...corners) > 0.45 * H;
+        plots.push({ col, row, x, z, W, L, H, gy, tone, chapel, chapelDz, large, slope });
       }
     }
-    // EASTERN field (royal family): fewer, larger, east of the queens.
-    // The causeway's right-of-way cuts through this area (collision audit
-    // caught tombs straddling the corridor) — skip plots within its margin,
-    // like the real cemetery respects the causeway line.
+    const at = new Map(plots.map((q) => [`${q.col}:${q.row}`, q]));
+    for (const q of plots) {
+      if (q.row % 2 === 1 || q.slope) continue;
+      // a large neighbour two rows off that this tomb would come within 3 m
+      // of wins (two large ones: the northern one wins)
+      const crowded = [-2, 2].some((dr) => {
+        const o = at.get(`${q.col}:${q.row + dr}`);
+        if (!o || o.slope || !o.large || (q.large && dr > 0)) return false;
+        return Math.abs(o.z - q.z) - (o.L + q.L) / 2 < 3;
+      });
+      if (crowded) continue;
+      const { col, row, x, z, W, L, H, gy } = q;
+      local.box(x, gy, z, W, H + 0.5, L, q.tone, 0.16);
+      fpReg({
+        id: `mastaba:w:${col}:${row}`, family: 'mastabas-west', x, z,
+        hx: W / 2, hz: L / 2, y0: gy, y1: gy + H + 0.5, ground: 'grounded',
+        editGroup: 'mastabas-west',
+      });
+      // ~40%: small offering chapel on the east face
+      let chapelZ: number | null = null;
+      if (q.chapel) {
+        const cx2 = x + W / 2 + 1.6;
+        const cz2 = z + q.chapelDz;
+        // lowest corner, like the tomb it leans on (centre seating
+        // floated one end on the cemetery's slopes)
+        const cy2 = Math.min(grd(cx2 - 1.6, cz2 - 2.1), grd(cx2 + 1.6, cz2 - 2.1),
+          grd(cx2 + 1.6, cz2 + 2.1), grd(cx2 - 1.6, cz2 + 2.1));
+        local.box(cx2, cy2 - 0.3, cz2, 3.2, 3.0, 4.2, 0.9, 0.06);
+        chapelFp(`chapel:w:${col}:${row}`, cx2, cz2, 1.6, 2.1, cy2 - 0.3, 3.0);
+        chapelZ = cz2;
+      }
+      westTombs.push({ col, row, x, z, W, L, H, gy, large: q.large, chapelZ });
+    }
+    // EASTERN field (royal family). (v1.2 I5) The 36-plot grid fused into
+    // ridges like the West Field; Khufu's children were buried here in
+    // TWIN mastabas — two cores built as a pair and cased as one (G7000
+    // series, form B) — so: eight twins, two rows of four north and south of
+    // the causeway, cased in fine Tura limestone where the West Field is
+    // local stone (canon: hierarchy "through scale and material quality").
+    // Seven draws per twin, no skips: the fork re-lays only itself.
     const abx = cwEnd.x - cwStart.x;
     const abz = cwEnd.z - cwStart.z;
     const abL2 = abx * abx + abz * abz;
@@ -694,33 +775,40 @@ export function buildKhufuComplex(
     };
     const te = rng.fork('mastabas-east');
     const [eOx, eOz] = edPos('mastabas-east', 255, -110);
-    for (let col = 0; col < 4; col++) {
-      for (let row = 0; row < 9; row++) {
-        const x = eOx + col * (pE + 4) + te.range(-1, 1);
-        const z = eOz + row * (pN + 6) + te.range(-1, 1);
-        if (te.chance(0.1)) continue;
-        if (distToCauseway(x, z) < 28) continue;
-        const L = MASTABA_NUCLEUS_LENGTH.value * te.range(1.0, 1.35);
-        const W = MASTABA_NUCLEUS_WIDTH.value * te.range(1.0, 1.3);
-        const H = MASTABA_NUCLEUS_HEIGHT.value * te.range(0.95, 1.25);
+    for (let c = 0; c < 4; c++) {
+      for (const [side, dz] of [['n', 28], ['s', 166]] as const) {
+        const x = eOx + c * 35 + te.range(-1, 1);
+        const z = eOz + dz + te.range(-1, 1);
+        const LA = MASTABA_NUCLEUS_LENGTH.value * te.range(1.0, 1.15);
+        const LB = MASTABA_NUCLEUS_LENGTH.value * te.range(1.0, 1.15);
+        const W = MASTABA_NUCLEUS_WIDTH.value * te.range(1.15, 1.3);
+        const H = MASTABA_NUCLEUS_HEIGHT.value * te.range(1.05, 1.25);
+        const tone = te.range(0.92, 1.02);
+        const L = LA + LB + 3;
         const gy =
           Math.min(
             grd(x - W / 2, z - L / 2), grd(x + W / 2, z - L / 2),
             grd(x - W / 2, z + L / 2), grd(x + W / 2, z + L / 2),
           ) - 0.5;
-        local.box(x, gy, z, W, H + 0.5, L, te.range(0.85, 1.02), 0.16);
+        tura.box(x, gy, z, W, H + 0.5, L, tone, 0.16);
+        const id = `twin:e:${c}:${side}`;
+        const clear = Math.min(distToCauseway(x, z - L / 2), distToCauseway(x, z + L / 2), distToCauseway(x, z));
+        if (clear < 12) console.warn(`[akhet] ${id} within ${clear.toFixed(1)} m of the causeway axis`);
         fpReg({
-          id: `mastaba:e:${col}:${row}`, family: 'mastabas-east', x, z,
+          id, family: 'mastabas-east', x, z,
           hx: W / 2, hz: L / 2, y0: gy, y1: gy + H + 0.5, ground: 'grounded',
           editGroup: 'mastabas-east',
         });
-        if (te.chance(0.6)) {
+        // a chapel before each core's centre, on the east face
+        const chapelZ: [number, number] = [z - L / 2 + LA / 2, z + L / 2 - LB / 2];
+        for (const [k, cz2] of [['a', chapelZ[0]], ['b', chapelZ[1]]] as const) {
           const cx2 = x + W / 2 + 1.8;
-          const cz2 = z + te.range(-L / 3, L / 3);
           const cy2 = Math.min(grd(cx2 - 1.8, cz2 - 2.3), grd(cx2 + 1.8, cz2 - 2.3),
             grd(cx2 + 1.8, cz2 + 2.3), grd(cx2 - 1.8, cz2 + 2.3));
           local.box(cx2, cy2 - 0.3, cz2, 3.6, 3.2, 4.6, 0.92, 0.06);
+          chapelFp(`chapel:e:${c}:${side}:${k}`, cx2, cz2, 1.8, 2.3, cy2 - 0.3, 3.2);
         }
+        twins.push({ id, x, z, W, L, LA, LB, H, gy, chapelZ });
       }
     }
   }
@@ -742,5 +830,5 @@ export function buildKhufuComplex(
     scene.add(m);
   }
 
-  return { causewayStart: cwStart, causewayEnd: cwEnd };
+  return { causewayStart: cwStart, causewayEnd: cwEnd, westTombs, twins };
 }

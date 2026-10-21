@@ -449,6 +449,89 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+I5 — THE NECROPOLIS + THE MONUMENT (done; plan `docs/plans/I5_PLAN.md`;
+D-7 rewritten, D-16, D-17). The recon and the design came from a read-only
+side session (Opus, 5 Haiku, every row verified — table below) while I4
+landed; the user chose the defaults for its three questions.
+1. THE CEMETERIES WERE RIDGES (planner's Haiku B): at 16 m row pitch and
+   24 m cores every West Field column had fused into one N–S ridge, and the
+   audit never saw it (same-family pairs are skipped). Now the West Field is
+   built in TWO PASSES — pass 1 the old loop body draw for draw, pass 2 every
+   second row (the Khufu-era nucleus; the infill is 5th–6th dynasty) with a
+   large tomb suppressing a neighbour within 3 m: 175 individual tombs with
+   ~9 m streets. Draw-neutral, checked with the new `tools/fpdump.ts`: all
+   175 survivors match their old footprints to the centimetre, none new.
+   The East Field became eight TWIN MASTABAS cased in Tura (two cores as a
+   pair, G7000), two chapels each. Every tomb chapel is now registered.
+2. FAMILY COURTS (new `src/monuments/Necropolis.ts`): mud-brick courts before
+   the east faces — 8 in the West Field (pairs one row apart; one roll per
+   slot on its own stream, wall tones on another, so the choice never
+   depends on geometry), one before every twin: walls biting 0.4 m into the
+   battered faces, a doorway, the gap between the tombs walled; at each tomb
+   its chapel's dark doorway or a FALSE DOOR laid on the battered face, a
+   limestone offering table with a basin, loaves, a jar and onions;
+   dependants' small tombs between the parents' (2); ka-priests, bearers with
+   trays, a woman with a jar and a child in the six courts nearest the
+   pyramid. Walls are laid in pieces sized by the ground's total rise and
+   fall along them, each piece its own footprint; on the plateau's eastern
+   scarp the NE twin's court starts where its wall line lies level.
+3. D-7, THE RAMP REMNANT (new `src/monuments/SouthWorks.ts`, variant A): the
+   supply ramp's body outside the south wall, 90.8 m from (−8, 147) to
+   (10, 236), cut back 8 m from the wall, being dismantled from the quarry
+   end: the cut face with its fill in bands, the intact track with timber
+   sleepers, two lifts cut down at the working front with the brick walls
+   broken where it comes out, the cleared toe with the wall footings; brick
+   in stacks, fragments and tafl in separate heaps, a dump at the quarry
+   lip; diggers with copper hoes, basket fillers, carriers, an overseer, a
+   scribe tallying; carriers walking the fill back to the quarry.
+4. THE ROYAL WORKS YARD (same file) on the flat strip south of the
+   enclosure: the granite store fenced apart (four pillars the mortuary
+   temple's size, three architraves, a pillar half-dressed at the pounding
+   station with its dolerite balls), Tura in three rows by size (casing,
+   standard blocks stacked, paving slabs) with red control marks, the
+   dressing area, the scribe's tally under a reed shade, a block leaving on
+   its sledge with a six-man rope team and water poured before the runners.
+5. SIDE BUGS from the plan, all fixed: the five ox trains faced ~90° off
+   their road (`atan2(dx, dz)` for a forward of (cos h, sin h)); one train
+   stood inside G1-c, buried 16 m deep → moved to the re-aimed haul leg 2;
+   the SE-corner rubble ramp grew out of G1-a's west face → re-laid from the
+   south (bm11 now frames it leading up to the falsework); haul leg 2 ran
+   through the 8 m south temenos wall → re-aimed at the masons' yards; the
+   trains, gang shelters, SE-corner works and eastern boat pits had no
+   footprints → registered (the audit would have caught the buried train);
+   stale comments. `tools/ground.ts --wrect` (world rectangles). Extras
+   share 0.2 → 0.25 (the new gangs would have pushed the extras past it).
+6. COUNTS: 175 West Field tombs (was 369 fused), 8 twins, 16 family courts,
+   2 dependants, 40 offering places; a ramp remnant of 34 pieces; 39 Tura
+   stacks and blocks in three rows, 8 granite pieces; figures 1061 (+28:
+   carriers, the front gang, the yard). Collision audit clean — after three
+   real findings at build time: a yawed 22 m footprint whose box reached a
+   boat pit (split in two), a court on the plateau's scarp (walls now start
+   where their line is level), and a court choice coupled to wall geometry
+   through a shared stream (tones moved to their own stream).
+BATTERY: 18/19 + 1 advisory WARN — perf bm1 78, bm3 98, bm7 42 fps @1440p.
+NEW `tools/perf.ts` (the battery's perf sweep alone, A/B in one sitting,
+repeats, --settle): bm7 with the I5 meshes 62/59/59 fps, hidden 61/59 — I5
+costs nothing there. The finding: bm7 renders in TWO STATES for the same
+pose — 11.5M triangles at 59–62 fps, or 15.4M at 42–45 — and which one a
+run lands in varies run to run. That is the v1.2 "bm7 drift" (43–45 vs 62):
+a render-state toggle, not added content. → I7 item 1.
+
+HAIKU — ITERATION I5 (5 agents run by the side planner session, read-only,
+every row verified by it; plan §7):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon + brief requirements for the three I5 items, built? | 26 | 25 — called "individual mastabas" built; both fields were ridges |
+| B | mastaba fields: grid, draws, footprints, free ground | 28 | 27 — found the ridges, the unregistered chapels and pits |
+| C | the south face, D-7, the ground south of the temenos | 30 | 30 — and the scaffold ramp inside G1-a, the train inside G1-c |
+| D | quarry staging: bowl, haul road, gangs, camp, sites | 30 | 29 — a site on the West Field; led to the swapped atan2 |
+| E | builders, footprint/audit rules, pads, gangs, RNG, bookmarks | 30 | 30 |
+VERDICT: 141/144. The misses share a class: a site checked against
+registered footprints only. Build-time checks this iteration added: the
+audit caught one AABB inflation (a yawed 22 m ramp footprint), one court on
+a scarp, and a court choice that depended on wall geometry (a shared stream)
+— all fixed before the battery.
+
 I4 — THE LAND (done; canon Vol IV District 10, the CANAL SYSTEM, brief §2; D-15):
 1. GRAVITY FIRST (Haiku I4-C found it): the plain stands 2 m above the low
    river, so no basin on it can hold river water in this season. So: three
@@ -564,9 +647,9 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I2 | the river at work (canon IX §9.14–9.22) — DONE (above; wakes deferred to I7) | boats UNDERWAY on a navigation graph (spline-following in the vertex stage, wakes); the Tura limestone route as the flagship sequence (loaded barge arriving, unloading to a staging area, a scribe recording — Merer's diary, nothing invented); loaded hulls sitting lower; a general cargo vessel and a ceremonial vessel class; reed and papyrus cutters with bundles; a ferry crossing |
 | I3 | town life (canon VIII) — DONE (above) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
 | I4 | the land — DONE (above; D-15) | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
-| I5 | the necropolis + the monument | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
+| I5 | the necropolis + the monument — DONE (above; D-7, D-16, D-17) | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
 | I6 | the harbour per canon IX §9.11–9.13 | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
-| I7 | polish + perf | bm7 (quarry) drifted from 45–47 to 43–45 fps over v1.2 with no single cause found by A/B (fleet, townsfolk: zero cost); the I4 battery read 62 with the in-app browser pane closed — A/B pane open vs closed first, then profile; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
+| I7 | polish + perf | bm7 (quarry): NOT drift — the same pose renders 11.5M tris (59–62 fps) or 15.4M (42–45) run to run (I5, `tools/perf.ts`); find what toggles (shadow cascades? culling? terrain LOD?) and pin it; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
 | T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)

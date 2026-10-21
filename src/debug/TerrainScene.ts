@@ -15,6 +15,8 @@ import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
+import { buildFamilyCourts } from '../monuments/Necropolis';
+import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
@@ -86,6 +88,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     'pyramids', 'temenos', 'temple', 'causeway', 'boatpits', 'chapels',
     'mastabas-west', 'mastabas-east', 'pavement', 'vessels', 'harbor-works',
     'worker-town', 'harbor-district', 'industry', 'work-camp',
+    // (v1.2 I5) — not 'trains' / 'scaffold': Inhabitants registers those once, at boot
+    'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -104,7 +108,18 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       structures.remove(c);
     }
     sites = buildMonuments(structures, seed, gi);
-    buildKhufuComplex(structures, seed, hf, gi);
+    const complex = buildKhufuComplex(structures, seed, hf, gi);
+    // (v1.2 I5) the necropolis' family courts, the D-7 ramp remnant and the
+    // royal works yard south of the enclosure
+    const courts = buildFamilyCourts(structures, seed, hf, gi, complex.westTombs, complex.twins);
+    engine.stats.counters['tombs.west'] = complex.westTombs.length;
+    engine.stats.counters['tombs.twins'] = complex.twins.length;
+    engine.stats.counters['tomb.courts'] = courts.courts;
+    engine.stats.counters['tomb.dependants'] = courts.dependants;
+    const south = buildSouthWorks(structures, seed, hf, gi);
+    engine.stats.counters['ramp.segments'] = south.rampSegments;
+    engine.stats.counters['works.tura'] = south.tura;
+    engine.stats.counters['works.granite'] = south.granite;
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
     engine.stats.counters['harbor.crew'] = crewCount;
     engine.stats.counters['harbor.moving'] = movingCount;
@@ -186,7 +201,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...campLines]);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...campLines, ...southLines]);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;
