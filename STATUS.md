@@ -188,7 +188,13 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
   (fast-forward; GitHub Pages stays off); the slow-adapter probe runs FIRST
   in the battery (`tools/battery.ts`). Also asked: why the Sphinx does not
   show at `localhost:5173` — by design, the default is 2550 BCE; the later
-  worlds are `?epoch=` presets (an in-app epoch switch offered).
+  worlds are `?epoch=` presets. → On the human's request, the HUD gained an
+  EPOCH SWITCH (top right, `HUD.ts`): canon IX §9.3's presets as buttons
+  (KHUFU_EARLY shown greyed until T3-3); a switch reloads into the epoch
+  with the camera carried as `?cam=`; buttons never take focus (a <select>
+  would eat the fly keys); hidden for the harness (`?hud=0`, which every
+  tool URL sets) and gallery frames (`?clean=1`) — the tools' frames and
+  tests unchanged (test-bookmarks and test-inspector PASS).
 - 2026-07-10: three pinned 0.184.0 (D-8). World frame: origin = G1 center,
   +X east, +Z south, Y up (world Y = ASL − 60 m). World extent x[−1200,2800],
   z[−1800,2200]. Epoch = newly completed pyramid (canon Vol V preferred).

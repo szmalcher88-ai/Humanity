@@ -108,6 +108,7 @@ directional light so shadows keep working after dusk.
 | `[` `]` | Step time of day |
 | `I` | Placement inspector (footprints, audit issues, nudge editing) |
 | `P` | Print the camera pose string |
+| **epoch** (top right) | Switch the epoch preset — reloads into it, the camera kept where it is (hidden with `?hud=0` / `?clean=1`) |
 
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
 `?epoch=KHUFU_LATE|KHUFU_COMPLETION|KHAFRE_PERIOD|MENKAURE_PERIOD|EVIDENCE_VIEW` (canon IX §9.3 presets; the

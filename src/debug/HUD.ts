@@ -8,6 +8,7 @@
 
 import type { Engine } from '../core/Engine';
 import type { AkhetParams } from '../core/Params';
+import { DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
 
 export type HudProvider = () => string[];
 
@@ -44,6 +45,7 @@ export class Hud {
     ].join(';');
     document.body.appendChild(this.fpsEl);
     this.applyVisibility();
+    this.epochMenu();
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') {
@@ -79,6 +81,79 @@ export class Hud {
   /** ?clean=1 — no overlays at all (gallery frames, trailer capture) */
   private readonly clean = new URLSearchParams(window.location.search).get('clean') === '1';
 
+  /**
+   * The epoch switch (top right): canon IX §9.3's presets as a small menu.
+   * The terrain is baked per boot, so a switch RELOADS into the epoch — with
+   * the current camera carried over as `?cam=`, so the view stays where it
+   * is. Buttons, not a <select>: a focused select takes letter keys (E, A,
+   * W … the fly keys) and would switch epochs by accident. Hidden for the
+   * tools (`?hud=0`, which every harness URL sets) and gallery frames
+   * (`?clean=1`).
+   */
+  private epochMenu(): void {
+    const q0 = new URLSearchParams(window.location.search);
+    if (this.clean || q0.get('hud') === '0') return;
+    const ITEMS: [Epoch, string, boolean][] = [
+      ['KHUFU_EARLY', 'Khufu — early foundation (not built yet)', false],
+      ['KHUFU_LATE', 'Khufu — the pyramid rising', true],
+      ['KHUFU_COMPLETION', 'Khufu — the pyramid completed (default)', true],
+      ['KHAFRE_PERIOD', 'Khafre — the Sphinx, Khafre’s pyramid', true],
+      ['MENKAURE_PERIOD', 'Menkaure — Menkaure’s works', true],
+      ['EVIDENCE_VIEW', 'Evidence view (confidence overlay)', true],
+    ];
+    const current = this.params.epoch;
+    const label = (e: Epoch): string => (ITEMS.find(([k]) => k === e)?.[1] ?? e).replace(' (default)', '');
+    const box = document.createElement('div');
+    box.id = 'hud-epoch';
+    box.style.cssText = [
+      'position:fixed', 'top:10px', 'right:10px', 'z-index:1001', 'color:#e8dfc8',
+      'font:12px/1.3 ui-monospace,Menlo,monospace', 'text-align:right', 'user-select:none',
+    ].join(';');
+    const style = (b: HTMLElement, active: boolean): void => {
+      b.style.cssText = [
+        'display:block', 'margin:0 0 2px auto', 'padding:4px 9px', 'border:0', 'border-radius:4px',
+        'font:inherit', 'text-align:right', 'cursor:pointer', 'color:#e8dfc8',
+        `background:${active ? 'rgba(120,90,40,0.85)' : 'rgba(14,11,8,0.62)'}`,
+      ].join(';');
+    };
+    const head = document.createElement('button');
+    head.textContent = `epoch: ${label(current)} ▾`;
+    style(head, false);
+    const list = document.createElement('div');
+    list.style.display = 'none';
+    for (const [epoch, text, built] of ITEMS) {
+      const b = document.createElement('button');
+      b.textContent = text;
+      style(b, epoch === current);
+      if (!built) {
+        b.disabled = true;
+        b.style.opacity = '0.45';
+        b.style.cursor = 'default';
+      }
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // never take focus
+      b.addEventListener('click', () => {
+        if (!built || epoch === current) {
+          list.style.display = 'none';
+          return;
+        }
+        const q = new URLSearchParams(window.location.search);
+        if (epoch === DEFAULT_EPOCH) q.delete('epoch');
+        else q.set('epoch', epoch);
+        q.delete('bm'); // a bookmark would move the camera away
+        const pose = this.engine.hooks.getPose?.();
+        if (pose) q.set('cam', [pose.p[0], pose.p[1], pose.p[2], pose.yaw, pose.pitch].map((n) => n.toFixed(3)).join(','));
+        window.location.search = q.toString();
+      });
+      list.appendChild(b);
+    }
+    head.addEventListener('mousedown', (e) => e.preventDefault());
+    head.addEventListener('click', () => {
+      list.style.display = list.style.display === 'none' ? 'block' : 'none';
+    });
+    box.append(head, list);
+    document.body.appendChild(box);
+  }
+
   private applyVisibility(): void {
     this.el.style.display = this.visible ? 'block' : 'none';
     this.fpsEl.style.display = this.visible || this.clean ? 'none' : 'block';
@@ -113,7 +188,7 @@ export class Hud {
       for (const k of counterKeys.sort()) lines.push(`${k}: ${fmt(s.counters[k] ?? 0)}`);
     }
     for (const p of this.providers) lines.push('—', ...p());
-    lines.push('—', 'F3 hud · 1-9 bookmarks · F flythrough · P pose');
+    lines.push('—', 'F3 hud · 1-9 bookmarks · F flythrough · P pose · epoch: top right');
     this.el.textContent = lines.join('\n');
   }
 }
