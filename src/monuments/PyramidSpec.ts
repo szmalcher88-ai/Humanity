@@ -40,6 +40,14 @@ export interface PyramidParams {
    *  neighbours) and the face-wide wave ×1.5 — the same draws in the same
    *  order, so nothing moves; roughened in the builder */
   graniteUndressed?: boolean;
+  /** (T3-1) the pyramid under construction: build only the courses up to
+   *  the first whose TOP passes this fraction of the height. The full
+   *  solve and the full casing are drawn as ever (rows below are
+   *  bit-for-bit the finished pyramid's), the stones above filtered out */
+  builtFrac?: number;
+  /** (T3-1) the lowest N courses' casing undressed (dressed top-down at the
+   *  end): the T2-5 undressed path on Tura rows */
+  undressedCourses?: number;
   /** micro-variation stream */
   rng: Rng;
 }
@@ -74,6 +82,8 @@ export interface PyramidSpec {
   params: PyramidParams;
   courses: CourseRow[];
   stones: CasingStone[];
+  /** (T3-1) under construction: the courses laid and the top of the last */
+  built?: { courses: number; top: number };
   /** derived exacts for the audit */
   derived: {
     apexY: number;
@@ -117,7 +127,7 @@ export function solveCourses(p: PyramidParams): CourseRow[] {
 export function layCasing(p: PyramidParams, courses: CourseRow[]): CasingStone[] {
   const rng = p.rng.fork('casing');
   const stones: CasingStone[] = [];
-  const undressedRows = p.graniteUndressed ? (p.graniteCourses ?? 0) : 0;
+  const undressedRows = Math.max(p.graniteUndressed ? (p.graniteCourses ?? 0) : 0, p.undressedCourses ?? 0);
   for (let ci = 0; ci < courses.length; ci++) {
     const row = courses[ci] as CourseRow;
     const tw = ci < undressedRows ? 1.5 : 1;
@@ -169,11 +179,20 @@ export function layCasing(p: PyramidParams, courses: CourseRow[]): CasingStone[]
 
 export function buildSpec(p: PyramidParams): PyramidSpec {
   const courses = solveCourses(p);
-  const stones = layCasing(p, courses);
+  let stones = layCasing(p, courses);
+  let built: PyramidSpec['built'];
+  if (p.builtFrac !== undefined) {
+    const k = courses.findIndex((r) => r.y0 + r.h > (p.builtFrac as number) * p.height);
+    const last = courses[k] as CourseRow;
+    built = { courses: k + 1, top: last.y0 + last.h };
+    const top = built.top - 1e-6;
+    stones = stones.filter((s) => s.y0 < top);
+  }
   return {
     params: p,
     courses,
     stones,
+    ...(built ? { built } : {}),
     derived: {
       apexY: p.cy + p.height,
       halfBase: p.baseSide / 2,

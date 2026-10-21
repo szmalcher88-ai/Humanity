@@ -73,7 +73,9 @@ export interface SouthInfo {
   granite: number;
 }
 
-export function buildSouthWorks(scene: Object3D, seed: WorldSeed, hf: Heightfield, gi: ProbeGI | null): SouthInfo {
+export function buildSouthWorks(
+  scene: Object3D, seed: WorldSeed, hf: Heightfield, gi: ProbeGI | null, underConstruction = false,
+): SouthInfo {
   const rng = seed.rng('south-works');
   const folkRng = seed.rng('south-folk');
   const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
@@ -87,157 +89,161 @@ export function buildSouthWorks(scene: Object3D, seed: WorldSeed, hf: Heightfiel
   const wood = new GeoWriter();
   const info: SouthInfo = { rampSegments: 0, tura: 0, granite: 0 };
 
-  /* --- the ramp remnant ---------------------------------------------------- */
-  const LEN = Math.hypot(TOE[0] - HEAD[0], TOE[1] - HEAD[1]);
-  const ux = (TOE[0] - HEAD[0]) / LEN;
-  const uz = (TOE[1] - HEAD[1]) / LEN;
-  const YAW = Math.atan2(uz, ux);
-  /** axis frame: s along the ramp from the head, sd toward its east side */
-  const P = (s: number, sd: number): [number, number] => [HEAD[0] + ux * s + uz * sd, HEAD[1] + uz * s - ux * sd];
-  const groundSpan = (s0: number, s1: number, half: number): [number, number, number] => {
-    const g: number[] = [];
-    for (const s of [s0, (s0 + s1) / 2, s1]) for (const sd of [-half, 0, half]) g.push(grd(...P(s, sd)));
-    return [Math.min(...g), Math.max(...g), grd(...P((s0 + s1) / 2, 0))];
-  };
-  /** height of the fill over the ground's high side, by station */
-  const profile = (s: number): number => {
-    if (s < 6) return 5.6;
-    if (s < 40) return 5.4 + ((3.0 - 5.4) * (s - 6)) / 34;
-    if (s < 49) return 2.0;
-    if (s < 58) return 1.0;
-    return 0.6 + ((0.1 - 0.6) * (s - 58)) / (LEN - 58);
-  };
-  const tops: { s0: number; s1: number; top: number }[] = [];
-  const topAt = (s: number): number => {
-    const t = tops.find((q) => s >= q.s0 && s < q.s1) ?? tops[tops.length - 1]!;
-    return t.top;
-  };
-  // the body, in 2-ish m pieces, each seated on its own ground
-  const pieces: [number, number][] = [[0, 6]];
-  for (let k = 0; k < 16; k++) pieces.push([6 + k * 2.125, 6 + (k + 1) * 2.125]);
-  for (let k = 0; k < 9; k++) pieces.push([40 + k * 2, 42 + k * 2]);
-  for (let k = 0; k < 8; k++) pieces.push([58 + (k * (LEN - 58)) / 8, 58 + ((k + 1) * (LEN - 58)) / 8]);
-  for (const [s0, s1] of pieces) {
-    const cleared = s0 >= 58;
-    const [lo, hi, mid] = groundSpan(s0, s1, cleared ? 11 : 9);
-    const y0 = lo - 0.3;
-    const h = profile((s0 + s1) / 2);
-    const top = cleared ? mid + h : hi + h;
-    tops.push({ s0, s1, top });
-    const [cx, cz] = P((s0 + s1) / 2, 0);
-    const len = s1 - s0 + 0.02;
-    fill.box(cx, y0, cz, len, top - y0, cleared ? 22 : 15.6, cleared ? RUBBLE : FILL, YAW);
-    // the retaining walls (footings only on the cleared toe), broken at the
-    // front where the brick is coming out
-    for (const side of [-1, 1]) {
-      const sm = (s0 + s1) / 2;
-      if (side > 0 && sm > 42 && sm < 47) continue;
-      if (side < 0 && sm > 50 && sm < 55) continue;
-      const [wx, wz] = P(sm, side * 8.4);
-      const wTop = cleared ? grd(wx, wz) + 0.4 : top;
-      mud.box(wx, y0, wz, len, wTop - y0, 1.2, rng.range(0.52, 0.6), 0, YAW, 0.12);
-    }
-    info.rampSegments++;
-  }
-  // the cut face: the fill in bands, laid on the severed end
-  {
-    const t0 = tops[0]!.top;
-    const [lo] = groundSpan(0, 6, 9);
-    let y = lo;
-    const bands: C3[] = [CHIPS, TAFL, CHIPS, GYPSUM, TAFL, CHIPS, TAFL, GYPSUM, CHIPS];
-    for (let k = 0; y < t0 - 0.05; k++) {
-      const bh = Math.min(t0 - y, rng.range(0.35, 0.8));
-      const [bx, bz] = P(-0.012, rng.range(-0.3, 0.3));
-      props.box(bx, y, bz, 0.03, bh, 15.4, bands[k % bands.length]!, YAW);
-      y += bh;
-    }
-  }
-  // the old track: timber cross-sleepers along the intact stretch
-  for (let s = 7; s < 39.5; s += 1.6) {
-    const [sx, sz] = P(s, 0);
-    wood.box(sx, topAt(s) - 0.04, sz, 0.25, 0.15, 10, rng.range(0.85, 1.0), 0, YAW);
-  }
-  fpReg({ id: 'ramp:head', family: FAMILY_RAMP, ...ctr(P, 3, 0), hx: 3, hz: 9.6, yaw: YAW, y0: groundSpan(0, 6, 9)[0] - 0.3, y1: tops[0]!.top, ground: 'grounded' });
-  for (let k = 0; k < 4; k++) {
-    const s0 = 6 + k * 8.5;
-    const [lo] = groundSpan(s0, s0 + 8.5, 9);
-    fpReg({ id: `ramp:upper:${k}`, family: FAMILY_RAMP, ...ctr(P, s0 + 4.25, 0), hx: 4.25, hz: 9.6, yaw: YAW, y0: lo - 0.3, y1: topAt(s0 + 4), ground: 'grounded' });
-  }
-  for (let k = 0; k < 2; k++) {
-    const s0 = 40 + k * 9;
-    const [lo] = groundSpan(s0, s0 + 9, 9);
-    // `cutting`: the lifts are cut DOWN into the fill — on ground rising
-    // toward the quarry a 1 m tread stands low on its uphill side by design
-    // (its top never drops below the ground: top = highest ground + lift)
-    fpReg({ id: `ramp:front:${k}`, family: FAMILY_RAMP, ...ctr(P, s0 + 4.5, 0), hx: 4.5, hz: 9.6, yaw: YAW, y0: lo - 0.3, y1: topAt(s0 + 4), ground: 'grounded', cutting: true });
-  }
-  // the cleared toe is a low spread that follows the ground (ground: none)
-  fpReg({ id: 'ramp:toe', family: FAMILY_RAMP, ...ctr(P, (58 + LEN) / 2, 0), hx: (LEN - 58) / 2, hz: 11, yaw: YAW, y0: groundSpan(58, LEN, 11)[0] - 0.3, y1: topAt(60), ground: 'none', passive: true });
-
-  /* the salvage, sorted, on the east side (toward the haul road) */
-  for (let k = 0; k < 4; k++) {
-    const [bx, bz] = P(44 + k * 4, 17.5 + (k % 2) * 0.6);
-    const g = grd(bx, bz) - 0.05;
-    mud.box(bx, g, bz, 2.0, 1.0, 1.2, rng.range(0.55, 0.62), 0.02, YAW + rng.range(-0.08, 0.08));
-    fpReg({ id: `bricks:${k}`, family: FAMILY_RAMP, x: bx, z: bz, hx: 1.0, hz: 0.6, yaw: YAW, y0: g, y1: g + 1.0, ground: 'grounded' });
-  }
-  for (const [k, [s, sd, r, h, tone]] of ([[52, 21.5, 2.0, 1.1, 0.8], [61, 21, 2.0, 1.0, 0.77], [70, 20.5, 1.8, 0.9, 0.92]] as const).entries()) {
-    const [hx, hz] = P(s, sd);
-    const g = grd(hx, hz) - 0.08;
-    rubble.drum(hx, g, hz, r, h, tone, r / h * 0.9, 14);
-    fpReg({ id: `spoil:${k}`, family: FAMILY_RAMP, x: hx, z: hz, hx: r * 0.8, hz: r * 0.8, y0: g, y1: g + h, ground: 'grounded' });
-  }
-  // the dump at the quarry's lip, a tongue down the first bay
-  {
-    const dx = 45;
-    const dz = 302;
-    for (let k = 0; k < 4; k++) {
-      const z = dz + k * 3.2;
-      rubble.drum(dx + k * 0.4, grd(dx + k * 0.4, z) - 0.1, z, 4 - k * 0.8, 2 - k * 0.4, 0.8, 1.5, 14);
-    }
-    const g = grd(dx, dz);
-    fpReg({ id: 'ramp:dump', family: FAMILY_RAMP, x: dx, z: dz + 3, hx: 4, hz: 6.5, y0: g - 0.1, y1: g + 2, ground: 'none' });
-  }
-
-  /* the people at the front and the toe */
-  {
-    const onRamp = (s: number, sd: number, yawOff: number, pose: 'stand' | 'kneel' | 'squat'): [number, number, number] => {
-      const [x, z] = P(s, sd);
-      const y = topAt(s);
-      person(folk, folkRng, x, y, z, YAW + Math.PI + yawOff, pose);
-      return [x, y, z];
+  // (T3-1) under construction (KHUFU_LATE) the supply ramp stands INTACT
+  // (G1Works.ts) — the remnant and its dismantling are not yet (D-25)
+  if (!underConstruction) {
+    /* --- the ramp remnant ---------------------------------------------------- */
+    const LEN = Math.hypot(TOE[0] - HEAD[0], TOE[1] - HEAD[1]);
+    const ux = (TOE[0] - HEAD[0]) / LEN;
+    const uz = (TOE[1] - HEAD[1]) / LEN;
+    const YAW = Math.atan2(uz, ux);
+    /** axis frame: s along the ramp from the head, sd toward its east side */
+    const P = (s: number, sd: number): [number, number] => [HEAD[0] + ux * s + uz * sd, HEAD[1] + uz * s - ux * sd];
+    const groundSpan = (s0: number, s1: number, half: number): [number, number, number] => {
+      const g: number[] = [];
+      for (const s of [s0, (s0 + s1) / 2, s1]) for (const sd of [-half, 0, half]) g.push(grd(...P(s, sd)));
+      return [Math.min(...g), Math.max(...g), grd(...P((s0 + s1) / 2, 0))];
     };
-    // diggers with copper-bladed hoes, facing the riser they cut (north)
-    for (const [s, sd] of [[42.5, -4.5], [43.2, 0.6], [42.8, 5.2], [51.5, -3.2], [52.2, 2.0], [51.8, 6.0]] as const) {
-      const [x, y, z] = onRamp(s, sd, folkRng.range(-0.3, 0.3), 'stand');
-      const [hx, hz] = P(s - 0.9, sd);
-      folk.beam([x - ux * 0.25, y + 1.0, z - uz * 0.25], [hx, y + 0.15, hz], 0.025, WOOD);
-      folk.box(hx, y + 0.02, hz, 0.22, 0.04, 0.16, COPPER, YAW);
+    /** height of the fill over the ground's high side, by station */
+    const profile = (s: number): number => {
+      if (s < 6) return 5.6;
+      if (s < 40) return 5.4 + ((3.0 - 5.4) * (s - 6)) / 34;
+      if (s < 49) return 2.0;
+      if (s < 58) return 1.0;
+      return 0.6 + ((0.1 - 0.6) * (s - 58)) / (LEN - 58);
+    };
+    const tops: { s0: number; s1: number; top: number }[] = [];
+    const topAt = (s: number): number => {
+      const t = tops.find((q) => s >= q.s0 && s < q.s1) ?? tops[tops.length - 1]!;
+      return t.top;
+    };
+    // the body, in 2-ish m pieces, each seated on its own ground
+    const pieces: [number, number][] = [[0, 6]];
+    for (let k = 0; k < 16; k++) pieces.push([6 + k * 2.125, 6 + (k + 1) * 2.125]);
+    for (let k = 0; k < 9; k++) pieces.push([40 + k * 2, 42 + k * 2]);
+    for (let k = 0; k < 8; k++) pieces.push([58 + (k * (LEN - 58)) / 8, 58 + ((k + 1) * (LEN - 58)) / 8]);
+    for (const [s0, s1] of pieces) {
+      const cleared = s0 >= 58;
+      const [lo, hi, mid] = groundSpan(s0, s1, cleared ? 11 : 9);
+      const y0 = lo - 0.3;
+      const h = profile((s0 + s1) / 2);
+      const top = cleared ? mid + h : hi + h;
+      tops.push({ s0, s1, top });
+      const [cx, cz] = P((s0 + s1) / 2, 0);
+      const len = s1 - s0 + 0.02;
+      fill.box(cx, y0, cz, len, top - y0, cleared ? 22 : 15.6, cleared ? RUBBLE : FILL, YAW);
+      // the retaining walls (footings only on the cleared toe), broken at the
+      // front where the brick is coming out
+      for (const side of [-1, 1]) {
+        const sm = (s0 + s1) / 2;
+        if (side > 0 && sm > 42 && sm < 47) continue;
+        if (side < 0 && sm > 50 && sm < 55) continue;
+        const [wx, wz] = P(sm, side * 8.4);
+        const wTop = cleared ? grd(wx, wz) + 0.4 : top;
+        mud.box(wx, y0, wz, len, wTop - y0, 1.2, rng.range(0.52, 0.6), 0, YAW, 0.12);
+      }
+      info.rampSegments++;
     }
-    // basket fillers kneeling, a basket beside each
-    for (const [s, sd] of [[45, -2], [46, 3.5], [54.5, -1], [55, 4.5]] as const) {
-      onRamp(s, sd, 0.4, 'kneel');
-      const [bx, bz] = P(s + 0.2, sd + 0.8);
-      props.box(bx, topAt(s), bz, 0.55, 0.32, 0.55, BASKET, YAW);
-    }
-    // two carriers with full baskets on the head, stepping off the front
-    for (const [s, sd] of [[57, 7], [59.5, 8.5]] as const) {
-      const [x, y, z] = onRamp(s, sd, Math.PI, 'stand');
-      folk.box(x, y + 1.72, z, 0.5, 0.3, 0.5, BASKET, YAW);
-    }
-    // the overseer with his staff on the intact top
+    // the cut face: the fill in bands, laid on the severed end
     {
-      const [x, y, z] = onRamp(38, 2.5, 0, 'stand');
-      folk.beam([x + 0.25, y, z + 0.1], [x + 0.25, y + 1.9, z + 0.1], 0.02, WOOD);
+      const t0 = tops[0]!.top;
+      const [lo] = groundSpan(0, 6, 9);
+      let y = lo;
+      const bands: C3[] = [CHIPS, TAFL, CHIPS, GYPSUM, TAFL, CHIPS, TAFL, GYPSUM, CHIPS];
+      for (let k = 0; y < t0 - 0.05; k++) {
+        const bh = Math.min(t0 - y, rng.range(0.35, 0.8));
+        const [bx, bz] = P(-0.012, rng.range(-0.3, 0.3));
+        props.box(bx, y, bz, 0.03, bh, 15.4, bands[k % bands.length]!, YAW);
+        y += bh;
+      }
     }
-    // a scribe on a mat at the toe, tallying baskets
+    // the old track: timber cross-sleepers along the intact stretch
+    for (let s = 7; s < 39.5; s += 1.6) {
+      const [sx, sz] = P(s, 0);
+      wood.box(sx, topAt(s) - 0.04, sz, 0.25, 0.15, 10, rng.range(0.85, 1.0), 0, YAW);
+    }
+    fpReg({ id: 'ramp:head', family: FAMILY_RAMP, ...ctr(P, 3, 0), hx: 3, hz: 9.6, yaw: YAW, y0: groundSpan(0, 6, 9)[0] - 0.3, y1: tops[0]!.top, ground: 'grounded' });
+    for (let k = 0; k < 4; k++) {
+      const s0 = 6 + k * 8.5;
+      const [lo] = groundSpan(s0, s0 + 8.5, 9);
+      fpReg({ id: `ramp:upper:${k}`, family: FAMILY_RAMP, ...ctr(P, s0 + 4.25, 0), hx: 4.25, hz: 9.6, yaw: YAW, y0: lo - 0.3, y1: topAt(s0 + 4), ground: 'grounded' });
+    }
+    for (let k = 0; k < 2; k++) {
+      const s0 = 40 + k * 9;
+      const [lo] = groundSpan(s0, s0 + 9, 9);
+      // `cutting`: the lifts are cut DOWN into the fill — on ground rising
+      // toward the quarry a 1 m tread stands low on its uphill side by design
+      // (its top never drops below the ground: top = highest ground + lift)
+      fpReg({ id: `ramp:front:${k}`, family: FAMILY_RAMP, ...ctr(P, s0 + 4.5, 0), hx: 4.5, hz: 9.6, yaw: YAW, y0: lo - 0.3, y1: topAt(s0 + 4), ground: 'grounded', cutting: true });
+    }
+    // the cleared toe is a low spread that follows the ground (ground: none)
+    fpReg({ id: 'ramp:toe', family: FAMILY_RAMP, ...ctr(P, (58 + LEN) / 2, 0), hx: (LEN - 58) / 2, hz: 11, yaw: YAW, y0: groundSpan(58, LEN, 11)[0] - 0.3, y1: topAt(60), ground: 'none', passive: true });
+
+    /* the salvage, sorted, on the east side (toward the haul road) */
+    for (let k = 0; k < 4; k++) {
+      const [bx, bz] = P(44 + k * 4, 17.5 + (k % 2) * 0.6);
+      const g = grd(bx, bz) - 0.05;
+      mud.box(bx, g, bz, 2.0, 1.0, 1.2, rng.range(0.55, 0.62), 0.02, YAW + rng.range(-0.08, 0.08));
+      fpReg({ id: `bricks:${k}`, family: FAMILY_RAMP, x: bx, z: bz, hx: 1.0, hz: 0.6, yaw: YAW, y0: g, y1: g + 1.0, ground: 'grounded' });
+    }
+    for (const [k, [s, sd, r, h, tone]] of ([[52, 21.5, 2.0, 1.1, 0.8], [61, 21, 2.0, 1.0, 0.77], [70, 20.5, 1.8, 0.9, 0.92]] as const).entries()) {
+      const [hx, hz] = P(s, sd);
+      const g = grd(hx, hz) - 0.08;
+      rubble.drum(hx, g, hz, r, h, tone, r / h * 0.9, 14);
+      fpReg({ id: `spoil:${k}`, family: FAMILY_RAMP, x: hx, z: hz, hx: r * 0.8, hz: r * 0.8, y0: g, y1: g + h, ground: 'grounded' });
+    }
+    // the dump at the quarry's lip, a tongue down the first bay
     {
-      const [x, z] = P(84, 14);
-      const g = grd(x, z);
-      props.box(x, g, z, 1.4, 0.03, 0.9, [0.55, 0.47, 0.3], YAW);
-      person(folk, folkRng, x, g + 0.03, z, YAW + Math.PI / 2, 'sit');
-      const [bx, bz] = P(84, 13.6);
-      folk.box(bx, g + 0.42, bz, 0.36, 0.03, 0.26, [0.72, 0.66, 0.52], YAW);
+      const dx = 45;
+      const dz = 302;
+      for (let k = 0; k < 4; k++) {
+        const z = dz + k * 3.2;
+        rubble.drum(dx + k * 0.4, grd(dx + k * 0.4, z) - 0.1, z, 4 - k * 0.8, 2 - k * 0.4, 0.8, 1.5, 14);
+      }
+      const g = grd(dx, dz);
+      fpReg({ id: 'ramp:dump', family: FAMILY_RAMP, x: dx, z: dz + 3, hx: 4, hz: 6.5, y0: g - 0.1, y1: g + 2, ground: 'none' });
+    }
+
+    /* the people at the front and the toe */
+    {
+      const onRamp = (s: number, sd: number, yawOff: number, pose: 'stand' | 'kneel' | 'squat'): [number, number, number] => {
+        const [x, z] = P(s, sd);
+        const y = topAt(s);
+        person(folk, folkRng, x, y, z, YAW + Math.PI + yawOff, pose);
+        return [x, y, z];
+      };
+      // diggers with copper-bladed hoes, facing the riser they cut (north)
+      for (const [s, sd] of [[42.5, -4.5], [43.2, 0.6], [42.8, 5.2], [51.5, -3.2], [52.2, 2.0], [51.8, 6.0]] as const) {
+        const [x, y, z] = onRamp(s, sd, folkRng.range(-0.3, 0.3), 'stand');
+        const [hx, hz] = P(s - 0.9, sd);
+        folk.beam([x - ux * 0.25, y + 1.0, z - uz * 0.25], [hx, y + 0.15, hz], 0.025, WOOD);
+        folk.box(hx, y + 0.02, hz, 0.22, 0.04, 0.16, COPPER, YAW);
+      }
+      // basket fillers kneeling, a basket beside each
+      for (const [s, sd] of [[45, -2], [46, 3.5], [54.5, -1], [55, 4.5]] as const) {
+        onRamp(s, sd, 0.4, 'kneel');
+        const [bx, bz] = P(s + 0.2, sd + 0.8);
+        props.box(bx, topAt(s), bz, 0.55, 0.32, 0.55, BASKET, YAW);
+      }
+      // two carriers with full baskets on the head, stepping off the front
+      for (const [s, sd] of [[57, 7], [59.5, 8.5]] as const) {
+        const [x, y, z] = onRamp(s, sd, Math.PI, 'stand');
+        folk.box(x, y + 1.72, z, 0.5, 0.3, 0.5, BASKET, YAW);
+      }
+      // the overseer with his staff on the intact top
+      {
+        const [x, y, z] = onRamp(38, 2.5, 0, 'stand');
+        folk.beam([x + 0.25, y, z + 0.1], [x + 0.25, y + 1.9, z + 0.1], 0.02, WOOD);
+      }
+      // a scribe on a mat at the toe, tallying baskets
+      {
+        const [x, z] = P(84, 14);
+        const g = grd(x, z);
+        props.box(x, g, z, 1.4, 0.03, 0.9, [0.55, 0.47, 0.3], YAW);
+        person(folk, folkRng, x, g + 0.03, z, YAW + Math.PI / 2, 'sit');
+        const [bx, bz] = P(84, 13.6);
+        folk.box(bx, g + 0.42, bz, 0.36, 0.03, 0.26, [0.72, 0.66, 0.52], YAW);
+      }
     }
   }
 

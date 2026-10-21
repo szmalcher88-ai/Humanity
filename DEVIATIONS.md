@@ -425,3 +425,28 @@ causeway cut to ≤ 8 %.
 `src/world/GizaControl.ts` (the terraces and pads), `src/monuments/Monuments.ts`
 (G3-a), `src/monuments/MenkaureComplex.ts`, `src/debug/TerrainScene.ts` (the
 gangs), `src/debug/Bookmarks.ts` (bm14).
+
+## D-25 — KHUFU_LATE: the Great Pyramid at mid-height, its ramps
+**Conflict:** the canon names the stage ("Mid-height construction"; IX's
+KHUFU_LATE "advanced construction and limestone transport") but gives no
+course, height or ramp; D-7 chose a supply ramp from the quarry (S–SSE) to
+the middle of the south face and rejected an internal ramp — and a straight
+ramp from the quarry cannot reach mid-height (≈ 730 m at 10 %).
+**Chosen (T3-1, KHUFU_LATE only; plan `docs/plans/T3-1_PLAN.md`, defaults
+taken while the human was away):** built to the first course whose top
+passes half the height (103 courses, 73.94 m — D); the casing undressed (C:
+dressed top-down at the end); D-7's supply ramp intact (its remnant's axis
+and section) feeding a zigzag on the south face to a flat working platform
+(the Hölscher/Arnold one-face hypothesis — C; our geometry D); the next
+course half laid; no pyramidion (D-9). The court, the temenos and the boat
+pits not yet built (D-3's enclosure is finished after the pyramid).
+**Alternatives:** two-thirds (≈ 97.5 m) or near completion (≈ 124 m — the
+default's "approaching completion"); a spiral ramp round all four faces
+(Dunham); the temenos built with a gap (D-7's rejected variant).
+**Confidence:** C (the stage, the zigzag's family, the undressed casing) ·
+D (the course, the geometry, the platform's state).
+**Code:** `src/world/Epoch.ts` (`building`), `src/monuments/PyramidSpec.ts`
+(`builtFrac`, `undressedCourses`), `src/monuments/PyramidBuilder.ts` (the
+frustum), `src/gpu/passes/ProbeGI.ts` (the top plane),
+`src/monuments/Monuments.ts`, `src/monuments/KhufuComplex.ts`,
+`src/monuments/SouthWorks.ts`, `src/monuments/G1Works.ts`.

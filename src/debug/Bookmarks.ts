@@ -65,6 +65,11 @@ export const MARKS: Mark[] = [
   // queens, G2 beyond. The plan's eye on the bank (−360, 800) looked into
   // the slope; this one stands over the wadi at Y 25. MENKAURE_PERIOD.
   { name: "Menkaure's works", p: [-250, 25, 860], yaw: 0.98, pitch: -0.05, t: 9.0, epoch: 'MENKAURE_PERIOD' },
+  // 15 (`?bm=15&epoch=KHUFU_LATE`) — (T3-1) the rising pyramid, from the
+  // quarry's north side looking north up D-7's supply ramp and the zigzag on
+  // the south face to the working platform at mid-height. KHUFU_LATE (an
+  // EARLIER stage: the '=' rule never reloads a later world back into it).
+  { name: 'the rising pyramid', p: [40, 8, 330], yaw: 0.12, pitch: 0.12, t: 10.0, epoch: 'KHUFU_LATE' },
 ];
 
 /** tour order: harbor → river → town → quarry → plateau → causeway → back */

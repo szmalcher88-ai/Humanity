@@ -38,10 +38,10 @@ import {
   G3A_SLOPE_DEG,
   MENKAURE_QUEENS,
 } from '../world/CANON_DIMENSIONS';
-import { atLeast, DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
+import { atLeast, building, DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
 import type { Confidence } from '../world/CANON_DIMENSIONS';
 import { buildPyramid, type PyramidLod } from './PyramidBuilder';
-import { buildSpec, type PyramidSpec } from './PyramidSpec';
+import { buildSpec, solveCourses, type PyramidSpec } from './PyramidSpec';
 
 export interface MonumentSite {
   name: string;
@@ -51,6 +51,30 @@ export interface MonumentSite {
 
 function heightFromSlope(baseSide: number, slopeDeg: number): number {
   return (baseSide / 2) * Math.tan((slopeDeg * Math.PI) / 180);
+}
+
+/** (T3-1) the Great Pyramid's build state in KHUFU_LATE: MID-HEIGHT — the
+ *  first course whose top passes half its height (canon "Mid-height
+ *  construction"; "near completion" belongs to the default, IX:122) */
+export const G1_BUILT_FRAC = 0.5;
+
+/** (T3-1) the built top of G1 under construction — the same solve on the
+ *  same stream as `buildMonuments` (seed.rng is pure per name), for the
+ *  probe GI, which is made before the monuments */
+export function g1BuiltTop(seed: WorldSeed): number {
+  const rows = solveCourses({
+    baseSide: G1_BASE_SIDE.value,
+    height: heightFromSlope(G1_BASE_SIDE.value, G1_SLOPE_DEG.value),
+    slopeDeg: G1_SLOPE_DEG.value,
+    cx: 0, cy: 0, cz: 0,
+    courseCount: G1_COURSE_COUNT.value,
+    course1: G1_COURSE1_HEIGHT.value,
+    courseMin: G1_COURSE_MIN_HEIGHT.value,
+    rng: seed.rng('monument-G1'),
+  });
+  const H = heightFromSlope(G1_BASE_SIDE.value, G1_SLOPE_DEG.value);
+  const last = rows[rows.findIndex((r) => r.y0 + r.h > G1_BUILT_FRAC * H)] as { y0: number; h: number };
+  return last.y0 + last.h;
 }
 
 export function buildMonuments(
@@ -75,6 +99,8 @@ export function buildMonuments(
     evidence?: { conf: Confidence; basis: string; epoch: string },
     shadowLod?: number,
     graniteUndressed = false,
+    /** (T3-1) under construction: built to G1_BUILT_FRAC, its casing undressed */
+    underConstruction = false,
   ): void => {
     const [cx, cz] = edPos(`pyramid:${name}`, cx0, cz0);
     const H = heightFromSlope(baseSide, slopeDeg);
@@ -91,6 +117,7 @@ export function buildMonuments(
       graniteCourses,
       ...(shadowLod !== undefined ? { shadowLod } : {}),
       ...(graniteUndressed ? { graniteUndressed } : {}),
+      ...(underConstruction ? { builtFrac: G1_BUILT_FRAC, undressedCourses: courseCount } : {}),
       rng: seed.rng(`monument-${name}`),
     });
     const lod = buildPyramid(spec, gi);
@@ -105,7 +132,7 @@ export function buildMonuments(
       hx: baseSide / 2,
       hz: baseSide / 2,
       y0: cy,
-      y1: cy + H,
+      y1: cy + (spec.built?.top ?? H),
       ground: 'platform',
       editable: name !== 'G1', // the world origin stays put
       ...evidence,
@@ -116,16 +143,34 @@ export function buildMonuments(
     }
   };
 
-  // Akhet Khufu — platform leveled at world Y = 0
-  add(
-    'G1',
-    G1_BASE_SIDE.value,
-    G1_SLOPE_DEG.value,
-    0, 0, 0,
-    G1_COURSE_COUNT.value,
-    G1_COURSE1_HEIGHT.value,
-    G1_COURSE_MIN_HEIGHT.value,
-  );
+  // Akhet Khufu — platform leveled at world Y = 0; (T3-1) in KHUFU_LATE
+  // under construction at mid-height, its casing undressed (D-25)
+  if (building(epoch)) {
+    add(
+      'G1',
+      G1_BASE_SIDE.value,
+      G1_SLOPE_DEG.value,
+      0, 0, 0,
+      G1_COURSE_COUNT.value,
+      G1_COURSE1_HEIGHT.value,
+      G1_COURSE_MIN_HEIGHT.value,
+      0,
+      { conf: 'D', basis: 'mid-height construction (canon preset); the course by height (D-25)', epoch: 'khufu-late' },
+      undefined,
+      false,
+      true,
+    );
+  } else {
+    add(
+      'G1',
+      G1_BASE_SIDE.value,
+      G1_SLOPE_DEG.value,
+      0, 0, 0,
+      G1_COURSE_COUNT.value,
+      G1_COURSE1_HEIGHT.value,
+      G1_COURSE_MIN_HEIGHT.value,
+    );
+  }
 
   // queens' row terrace at −1.2 (GizaControl qPad)
   const qNames = ['G1-a', 'G1-b', 'G1-c'];

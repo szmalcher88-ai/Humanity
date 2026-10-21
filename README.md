@@ -110,14 +110,16 @@ directional light so shadows keep working after dusk.
 | `P` | Print the camera pose string |
 
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
-`?epoch=KHUFU_COMPLETION|KHAFRE_PERIOD|MENKAURE_PERIOD|EVIDENCE_VIEW` (T2: canon IX §9.3 presets; the
+`?epoch=KHUFU_LATE|KHUFU_COMPLETION|KHAFRE_PERIOD|MENKAURE_PERIOD|EVIDENCE_VIEW` (canon IX §9.3 presets; the
 default is Khufu's completed pyramid, bit-identical; KHAFRE_PERIOD clears Khufu's works and
 adds the Sphinx in its enclosure — provisional site height, D-20 — and Khafre's pyramid G2 with
 its granite course, court and wall (D-21; `?g2=0` skips G2 for an A/B), its mortuary temple,
 causeway, valley temple and the Sphinx Temple (D-22; `?ktemples=0` skips them; `?bm=13` = from
 the valley temple); MENKAURE_PERIOD adds Menkaure's pyramid G3 with its sixteen granite courses,
 court and wall (D-23; `?g3=0`) and his works as they stood at his death — the queens, the
-unfinished temples and causeway, the construction yards (D-24; `?mworks=0`; `?bm=14`); KHUFU_EARLY / KHUFU_LATE fall back with a notice) ·
+unfinished temples and causeway, the construction yards (D-24; `?mworks=0`; `?bm=14`); KHUFU_LATE shows the Great Pyramid under construction at mid-height
+with its supply ramp and the zigzag on the south face (D-25; `?klate=0`; `?bm=15&epoch=KHUFU_LATE`);
+KHUFU_EARLY falls back to it with a notice) ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·
 `?clean=1` (hide every overlay — gallery frames) · `?hide=debris,particles` (hide scene

@@ -102,6 +102,10 @@ export class ProbeGI {
     private hf: Heightfield,
     private atmosphere: Atmosphere,
     preset: 'safe' | 'low' | 'high' | 'ultra' = 'high',
+    /** (T3-1) the Great Pyramid under construction: its built top (m) — the
+     *  analytic pyramid gains a TOP plane there; absent = the finished G1
+     *  (and the shader graph exactly as before) */
+    private readonly g1Top?: number,
   ) {
     this.slice =
       preset === 'safe' ? 512 : preset === 'low' ? PROBES_PER_FRAME_LOW : PROBES_PER_FRAME;
@@ -158,6 +162,23 @@ export class ProbeGI {
         If(entering.and(tP.greaterThan(tEnter)), () => {
           tEnter.assign(tP);
           hitN.assign(n);
+        });
+        If(leaving, () => {
+          tExit.assign(tExit.min(tP));
+        });
+      }
+      // (T3-1) the top plane y <= built top: outward normal (0,1,0) — only
+      // when the pyramid is under construction (a JS-level if)
+      if (this.g1Top !== undefined) {
+        const s0 = o.y.sub(this.g1Top);
+        const den = d.y;
+        const tP = s0.negate().div(den);
+        const entering = den.lessThan(-1e-7);
+        const leaving = den.greaterThan(1e-7);
+        miss.assign(den.abs().lessThanEqual(1e-7).and(s0.greaterThan(0)).select(float(1), miss));
+        If(entering.and(tP.greaterThan(tEnter)), () => {
+          tEnter.assign(tP);
+          hitN.assign(vec3(0, 1, 0));
         });
         If(leaving, () => {
           tExit.assign(tExit.min(tP));

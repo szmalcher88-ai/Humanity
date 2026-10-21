@@ -30,10 +30,12 @@ export const DEFAULT_EPOCH: Epoch = 'KHUFU_COMPLETION';
 /** built so far; the rest fall back to the nearest built stage — and SAY so */
 // (T2-5) MENKAURE_PERIOD = the KHAFRE world (every `atLeast(…, 'KHAFRE_PERIOD')`
 // holds for it) + what is gated on `atLeast(…, 'MENKAURE_PERIOD')`: G3
-const IMPLEMENTED: readonly Epoch[] = ['KHUFU_COMPLETION', 'KHAFRE_PERIOD', 'MENKAURE_PERIOD', 'EVIDENCE_VIEW'];
+// (T3-1) KHUFU_LATE = the Khufu world with the pyramid under construction:
+// every change gated on `building(e)`; KHUFU_EARLY falls back to it (the
+// nearest built stage) until T3-3
+const IMPLEMENTED: readonly Epoch[] = ['KHUFU_LATE', 'KHUFU_COMPLETION', 'KHAFRE_PERIOD', 'MENKAURE_PERIOD', 'EVIDENCE_VIEW'];
 const FALLBACK: Partial<Record<Epoch, Epoch>> = {
-  KHUFU_EARLY: 'KHUFU_COMPLETION',
-  KHUFU_LATE: 'KHUFU_COMPLETION',
+  KHUFU_EARLY: 'KHUFU_LATE',
 };
 
 export interface EpochChoice {
@@ -57,4 +59,12 @@ export function stageOf(e: Epoch): Epoch {
 /** true when `e` is at stage `k` or later */
 export function atLeast(e: Epoch, k: Epoch): boolean {
   return EPOCH_ORDER.indexOf(stageOf(e)) >= EPOCH_ORDER.indexOf(k);
+}
+
+/** (T3-1) the Great Pyramid still being built — KHUFU_EARLY / KHUFU_LATE;
+ *  false for the default, the later stages and EVIDENCE_VIEW. `?klate=0`
+ *  shows the finished pyramid in those epochs (the A/B arm) */
+export function building(e: Epoch): boolean {
+  if (atLeast(e, 'KHUFU_COMPLETION')) return false;
+  return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('klate') !== '0';
 }

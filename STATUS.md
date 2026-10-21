@@ -450,6 +450,72 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T3-1 — KHUFU_LATE: THE GREAT PYRAMID UNDER CONSTRUCTION (done; plan
+`docs/plans/T3-1_PLAN.md`; D-25). The T2 roadmap was done; the planner's T3
+roadmap: T3-1 the pyramid and its ramps (this), T3-2 the complex and the
+logistics in KHUFU_LATE, T3-3 KHUFU_EARLY, T3-4 "several decades after"
+(the human's call). THREE contracts now hold, bit for bit: the default
+(1142 of 1142), KHAFRE (1120) and MENKAURE (1179, a new baseline dumped on
+the stashed `980d3ec` tree) — every change behind `building(epoch)`
+(`Epoch.ts`: KHUFU_EARLY / KHUFU_LATE; `?klate=0` turns it off).
+- HOW HIGH: MID-HEIGHT — the canon's "Mid-height construction" (its "near
+  completion" belongs to the default, IX:122): the first course whose top
+  passes H/2, chosen by height at build time — 103 courses, top 73.94 m,
+  36,388 casing stones (65 % of the finished casing; ≈ 87 % of the volume).
+  `PyramidParams.builtFrac`: the full solve and casing are drawn as ever and
+  the stones above filtered out, so every built row is the finished
+  pyramid's. The far shell becomes a FRUSTUM with its cap; the probe GI's
+  analytic G1 gains a TOP plane at the built height (the recon's blocker:
+  without it the half-built pyramid would still shade the sun above it) —
+  both only when the build is set, the default graphs unchanged.
+- THE CASING UNDRESSED (laid with each course, dressed top-down at the end):
+  T2-5's undressed path on the Tura rows, rough-faced.
+- THE RAMPS: D-7's supply ramp INTACT on the remnant's axis and section
+  (fill 15.6 m between mud-brick walls) from the toe (10, 236) at 10 % to the
+  south face, feeding a ZIGZAG on the south face (the Hölscher/Arnold
+  one-face hypothesis, C; our geometry D): legs at 10 %, a 9.5 m deck whose
+  inner edge follows the face, turning on landings near the arrises, each
+  leg's body resting on the courses below — a stepped mass on one face, the
+  other three readable. (Honest: the deck steps 0.3 m every 3 m and reads a
+  little like a stair from above.)
+- THE PLATFORM: the next course half laid from the corners (casing and
+  backing rows), three sledges with their hauling teams arriving from the
+  ramp, staged backing blocks with lever teams, the survey station on the
+  axis with a scribe; no pyramidion (D-9). Hauling teams also on the supply
+  ramp and the first leg — STATIC figures (walkers stand on the terrain only).
+- NOT YET in KHUFU_LATE: the court pavement, the temenos and the boat pits
+  (built after the pyramid, the pits after the funeral) — their forks still
+  taken, so every stream after them draws as in the finished world; D-7's
+  remnant and its dismantling gangs (the intact ramp stands instead).
+  Unchanged until T3-2: the temple, the queens, G1-d, the causeway.
+- People: the remnant's two gangs out, the works yard's kept, walkers along
+  the supply ramp's foot appended last; no torches (the cap).
+- BOOKMARK 15 (`?bm=15&epoch=KHUFU_LATE`): "the rising pyramid" from the
+  quarry's north side, up the supply ramp and the zigzag.
+- AUDIT (`--epoch KHUFU_LATE`): the G1 row stays the full design; a LATE row
+  on the world's stream checks the built part (103 courses, top past H/2,
+  36k stones, none above the top); an unbuilt epoch now prints its fallback;
+  collisions clean on the first boot.
+- PERF (`perf.ts --bm 3,1,7,11 --runs 3 --q "epoch=KHUFU_LATE" --b
+  "klate=0"`, one sitting — A the pyramid under construction, B the finished
+  one in the same epoch): fps medians A = B at all four (60 / 60 / 40 / 60);
+  the scene pass CHEAPER under construction by 0.4–0.7 ms (36k stones of 55k,
+  no court); the shadow sums +0.4–1.3 ms with the ramps — inside their ≈ 2 ms
+  resolution.
+BATTERY (default epoch): 18/19 + the advisory perf WARN (bm1 53, bm3 66, bm7 45);
+the slow-adapter probe PASSED inside the battery this time (its tally since
+T2-3: 2 of 5 battery runs passed, 6 of 6 standalone).
+
+HAIKU — T3-1 (5 agents, read-only, run and verified by the side planner):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon and recorded decisions | 30 | 30 — IX:122 puts "approaching completion" in the default: the case for mid-height |
+| B | the pyramid pipeline, truncation | 30 | 30 — the probe GI's analytic FULL G1, the blocker a frustum alone would miss |
+| C | the ground and builders south of G1 | 30 | 29 — the south boat pits beside the ramp; one wrong row (town-local kilns read as world) |
+| D | life and logistics | 30 | 29 — walkers cannot climb a ramp; the index-filtered canon lines |
+| E | epochs, gates, tools | 30 | 29 — the notice's hard-coded built list |
+VERDICT: 147/150 (98.0 %).
+
 T2-6 — MENKAURE'S WORKS AT HIS DEATH (done; plan `docs/plans/T2-6_PLAN.md`;
 D-24). MENKAURE_PERIOD only; both contracts hold (default 1142/1142, KHAFRE
 1120/1120, 0 changed). ★ M-1: the canon's District 3 — "Construction Areas,
@@ -1182,7 +1248,8 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3, T2-6 Menkaure's works at his death DONE (above; D-20 provisional site, D-21–D-24) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3, T2-6 Menkaure's works at his death DONE (above; D-20 provisional site, D-21–D-24) |
+| T3 | the Khufu construction stages (canon IX §9.3, the brief's Tier 3) — T3-1 KHUFU_LATE the pyramid at mid-height + ramps DONE (above; D-25) | T3-2 the complex and the logistics in KHUFU_LATE; T3-3 KHUFU_EARLY; T3-4 "several decades after" (the human's call) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

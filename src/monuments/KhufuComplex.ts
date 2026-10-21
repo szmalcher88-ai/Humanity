@@ -322,6 +322,11 @@ export function buildKhufuComplex(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null = null,
+  /** (T3-1) the pyramid still being built (KHUFU_LATE): the court, its
+   *  temenos and the boat pits are NOT YET — finished after the pyramid,
+   *  the pits cut after the funeral (D-25). Their forks are still taken, so
+   *  every stream after them draws as in the finished world */
+  underConstruction = false,
 ): ComplexInfo {
   const rng = seed.rng('khufu-complex');
   /** terrain height under a structure — everything off the leveled court
@@ -355,7 +360,8 @@ export function buildKhufuComplex(
       t.range(0.93, 1.02),
     );
   };
-  {
+  if (underConstruction) rng.fork('pavement');
+  else {
     const t = rng.fork('pavement');
     // four strips (N/S/E/W) of slab rows between base and temenos+court edge
     for (const [x0, x1, z0, z1] of [
@@ -384,7 +390,7 @@ export function buildKhufuComplex(
   }
 
   /* --- temenos wall (gap at the mortuary temple, east) --------------------- */
-  {
+  if (!underConstruction) {
     const r = half + temenosD + court;
     const h = G1_TEMENOS_HEIGHT.value;
     const th = 3.0;
@@ -613,7 +619,8 @@ export function buildKhufuComplex(
   }
 
   /* --- boat pits ------------------------------------------------------------- */
-  {
+  if (underConstruction) rng.fork('boatpits');
+  else {
     const t = rng.fork('boatpits');
     // two southern rectangular pits with limestone cover beams
     for (const px of [-52, 45]) {

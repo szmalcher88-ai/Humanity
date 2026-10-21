@@ -10,16 +10,17 @@ import { isReduced } from '../core/Params';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
-import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
+import { buildMonuments, g1BuiltTop, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildKhafreComplex } from '../monuments/KhafreComplex';
 import { buildMenkaureComplex, menkaureLines } from '../monuments/MenkaureComplex';
+import { buildG1Works, g1WorksLines } from '../monuments/G1Works';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
 import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
-import { atLeast } from '../world/Epoch';
+import { atLeast, building } from '../world/Epoch';
 import { buildSphinx } from '../monuments/Sphinx';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
@@ -63,7 +64,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   await sunSky.init(renderer);
 
   ctx.progress(0.85, 'gi: irradiance probe field');
-  const gi = new ProbeGI(hf, sunSky.atmosphere, engine.params.preset);
+  // (T3-1) under construction the analytic G1 in the probe GI gets its built top
+  const gi = new ProbeGI(hf, sunSky.atmosphere, engine.params.preset, building(engine.params.epoch) ? g1BuiltTop(seed) : undefined);
   await gi.init(renderer);
   // reduced preset: probe refresh every 3rd frame (PERF II — the gather was
   // 6.3 ms of a 66 ms iGPU frame; the field is temporally EMA'd anyway, so a
@@ -97,7 +99,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard', 'sphinx',
     'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway',
     'menkaure-temenos', 'menkaure-pavement', 'menkaure-temple', 'menkaure-causeway',
-    'menkaure-queens', 'menkaure-terrace', 'menkaure-works',
+    'menkaure-queens', 'menkaure-terrace', 'menkaure-works', 'g1-ramp', 'g1-works',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -119,7 +121,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       structures.remove(c);
     }
     sites = buildMonuments(structures, seed, gi, engine.params.epoch);
-    const complex = buildKhufuComplex(structures, seed, hf, gi);
+    const complex = buildKhufuComplex(structures, seed, hf, gi, building(engine.params.epoch));
     // (v1.2 I5) the necropolis' family courts, the D-7 ramp remnant and the
     // royal works yard south of the enclosure
     const courts = buildFamilyCourts(structures, seed, hf, gi, complex.westTombs, complex.twins);
@@ -153,10 +155,19 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       engine.stats.counters['khafre.slabs'] = 0;
     }
     if (khufuWorks) {
-      const south = buildSouthWorks(structures, seed, hf, gi);
+      const south = buildSouthWorks(structures, seed, hf, gi, building(engine.params.epoch));
       engine.stats.counters['ramp.segments'] = south.rampSegments;
       engine.stats.counters['works.tura'] = south.tura;
       engine.stats.counters['works.granite'] = south.granite;
+      // (T3-1) the pyramid under construction: the supply ramp intact, the
+      // zigzag on the south face, the working platform at the built top
+      const top = sites.find((st) => st.name === 'G1')?.spec.built?.top;
+      if (top !== undefined) {
+        const g1w = buildG1Works(structures, seed, hf, gi, top);
+        engine.stats.counters['g1.rampSegments'] = g1w.rampSegments;
+        engine.stats.counters['g1.zigzagLegs'] = g1w.zigzagLegs;
+        engine.stats.counters['g1.builtTopCm'] = Math.round(top * 100);
+      }
     }
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
     engine.stats.counters['harbor.crew'] = crewCount;
@@ -249,7 +260,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? southLines : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : [])], khufuWorks);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : [])], khufuWorks);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

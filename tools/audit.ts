@@ -11,7 +11,8 @@
 
 import { Vector3 } from 'three';
 import { WorldSeed } from '../src/core/Seed';
-import { atLeast, parseEpoch, type Epoch } from '../src/world/Epoch';
+import { atLeast, building, parseEpoch, type Epoch } from '../src/world/Epoch';
+import { G1_BUILT_FRAC } from '../src/monuments/Monuments';
 import { buildSpec, auditSpec } from '../src/monuments/PyramidSpec';
 import {
   G1_BASE_SIDE,
@@ -62,7 +63,10 @@ check(
 // courseCount rows — it is now: the solved course sum IS the slope's height.)
 const ei = process.argv.indexOf('--epoch');
 const epochArg = ei > 0 ? process.argv[ei + 1] : undefined;
-const epoch = parseEpoch(epochArg ?? null).epoch;
+const epochChoice = parseEpoch(epochArg ?? null);
+const epoch = epochChoice.epoch;
+// (T3-1) an unbuilt epoch falls back — say so, never audit the wrong world silently
+if (epochChoice.asked !== null) console.log(`NOTE  epoch "${epochChoice.asked}" is not built — auditing ${epoch}`);
 interface Row {
   name: string; base: number; slope: number; survey: number; baseSurvey: number;
   courses: number; c1: number; cMin: number; granite: number; floor: number; from: Epoch;
@@ -121,6 +125,23 @@ for (const r of ROWS.filter((x) => atLeast(epoch, x.from))) {
     const gTop = spec.courses[r.granite]?.y0 ?? 0;
     check(`${r.name} granite band: ${r.granite} course(s)`, gTop > 0.5 && gTop < 2.5 * r.granite, `top ${gTop.toFixed(3)} m`);
   }
+}
+
+// (T3-1) the Great Pyramid under construction: the BUILT part of the same
+// solve on the world's stream — mid-height (the first course whose top
+// passes H/2), its stones, the frustum's top
+if (building(epoch)) {
+  const h = (G1_BASE_SIDE.value / 2) * Math.tan((G1_SLOPE_DEG.value * Math.PI) / 180);
+  const spec = buildSpec({
+    baseSide: G1_BASE_SIDE.value, height: h, slopeDeg: G1_SLOPE_DEG.value, cx: 0, cy: 0, cz: 0,
+    courseCount: G1_COURSE_COUNT.value, course1: G1_COURSE1_HEIGHT.value, courseMin: G1_COURSE_MIN_HEIGHT.value,
+    builtFrac: G1_BUILT_FRAC, undressedCourses: G1_COURSE_COUNT.value, rng: seed.rng('monument-G1'),
+  });
+  const b = spec.built;
+  const k = spec.courses.findIndex((r) => r.y0 + r.h > G1_BUILT_FRAC * h);
+  check('G1 under construction: built to the course passing H/2', !!b && b.courses === k + 1 && b.top > h / 2, b ? `${b.courses} courses, top ${b.top.toFixed(2)} m` : 'no build');
+  check('G1 under construction: the built stones (>30k)', spec.stones.length > 30000, `${spec.stones.length}`);
+  check('G1 under construction: no stone above the top', spec.stones.every((st) => st.y0 < (b?.top ?? 0)), '');
 }
 
 // (T2-4) Khafre's causeway, from the constants: clear of the Sphinx

@@ -295,7 +295,10 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   mat.colorNode = turaCol;
   // (v1.1) dressed Tura limestone is HONED, not polished: at 0.42 the faces
   // seen edge-on mirrored the zenith and the queens read as blue steel
-  const turaRough = clamp(float(0.62).add(varying(B.z) as unknown as NF), 0.45, 0.8);
+  // (T3-1) an undressed Tura casing (under construction) is rough-faced
+  const turaRough = p.undressedCourses
+    ? clamp(float(0.76).add(varying(B.z) as unknown as NF), 0.6, 0.9)
+    : clamp(float(0.62).add(varying(B.z) as unknown as NF), 0.45, 0.8);
   mat.roughnessNode = turaRough;
   // (T2-3) the lowest course(s) in red granite (G2 only — a JS-level if, so
   // the other pyramids' node graphs are unchanged); the band's top is the
@@ -375,12 +378,30 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   const c1 = [hb, 0, -hb];
   const c2 = [hb, 0, hb];
   const c3 = [-hb, 0, hb];
-  const fpos = [
+  let fpos = [
     ...c1, ...c0, ...apex, // north face (−z, outward)
     ...c2, ...c1, ...apex, // east
     ...c3, ...c2, ...apex, // south
     ...c0, ...c3, ...apex, // west
   ];
+  if (spec.built) {
+    // (T3-1) under construction: a FRUSTUM to the built top and its flat cap
+    // — the core under the working platform (only when built is set: the
+    // finished pyramids' shells are unchanged)
+    const yt = spec.built.top * (1 - 8e-4);
+    const ht = hb * (1 - yt / H);
+    const t0 = [-ht, yt, -ht];
+    const t1 = [ht, yt, -ht];
+    const t2 = [ht, yt, ht];
+    const t3 = [-ht, yt, ht];
+    fpos = [
+      ...c1, ...c0, ...t0, ...c1, ...t0, ...t1, // north
+      ...c2, ...c1, ...t1, ...c2, ...t1, ...t2, // east
+      ...c3, ...c2, ...t2, ...c3, ...t2, ...t3, // south
+      ...c0, ...c3, ...t3, ...c0, ...t3, ...t0, // west
+      ...t0, ...t3, ...t2, ...t0, ...t2, ...t1, // the cap, facing up
+    ];
+  }
   farGeo.setAttribute('position', new BufferAttribute(new Float32Array(fpos), 3));
   farGeo.computeVertexNormals();
 
