@@ -113,8 +113,9 @@ Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|u
 `?epoch=KHUFU_COMPLETION|KHAFRE_PERIOD|EVIDENCE_VIEW` (T2: canon IX §9.3 presets; the
 default is Khufu's completed pyramid, bit-identical; KHAFRE_PERIOD clears Khufu's works and
 adds the Sphinx in its enclosure — provisional site height, D-20 — and Khafre's pyramid G2 with
-its granite course, court and wall (D-21; `?g2=0` skips G2 for an A/B); the others named in §9.3
-fall back with a notice) ·
+its granite course, court and wall (D-21; `?g2=0` skips G2 for an A/B), its mortuary temple,
+causeway, valley temple and the Sphinx Temple (D-22; `?ktemples=0` skips them; `?bm=13` = from
+the valley temple); the others named in §9.3 fall back with a notice) ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·
 `?clean=1` (hide every overlay — gallery frames) · `?hide=debris,particles` (hide scene

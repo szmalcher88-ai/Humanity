@@ -69,7 +69,7 @@ export const EVIDENCE_FAMILIES = ['harbor-works', 'harbor-district', 'vessels'];
 /** (T2) families that carry their own evidence (stamped where built, not
  *  from TABLE): the audit holds them to it too — they exist only in a later
  *  epoch, so the default world's audit is unchanged */
-const SELF_TAGGED = ['sphinx', 'khafre-temenos', 'khafre-pavement'];
+const SELF_TAGGED = ['sphinx', 'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway'];
 
 export function evidenceFor(id: string): Evidence | null {
   if (id.startsWith('vessel:')) return VESSELS[id.split(':')[1] ?? 'hull'] ?? VESSELS['hull']!;

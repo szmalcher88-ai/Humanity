@@ -545,7 +545,8 @@ export function buildKhufuComplex(
         xm + Math.sin(yaw) * off, ym, zm - Math.cos(yaw) * off,
         L, wallH + rise, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
       );
-      // roof slabs with the central light slit (two runs, gap 0.45 m)
+      // roof slabs with the central light slit (two runs; the 0.45 in the
+      // formula is not the gap — the slabs' 0.35 m trim widens it to 0.8 m)
       const roofHalf = (w - 0.45) / 4 + 0.45 / 2;
       for (const s of [-1, 1]) {
         local.box(

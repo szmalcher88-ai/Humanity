@@ -450,6 +450,86 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-4 — KHAFRE'S TEMPLES AND CAUSEWAY (done; plan `docs/plans/T2-4_PLAN.md`;
+D-22). Recon by the side planner (5 Haiku, 145/150 — table below).
+KHAFRE_PERIOD only; the default world untouched (footprint dump identical,
+1142 of 1142, 0 changed). Canon VII gives NO figures for any of the four
+buildings — every size is an outside figure (C) or a reconstruction (D).
+- THE TERRAIN (all inside the epoch `if`s): the Sphinx enclosure's floor now
+  runs LEVEL east at −12.8 until it daylights on the escarpment (it rose to
+  the old ground in T2-2), and a cut terrace south of it carries the valley
+  temple — ONE rock-cut level for the Sphinx and both temples, as the real
+  three share one (D-20 still: provisional). Their faces join the bedding
+  mask, the floor joins `worked`. The mortuary temple stands on a second pad
+  at the court's level (+10, all fill, ≤ 4.1 m at its east front).
+- THE MORTUARY TEMPLE (110 × 50 m, D): on the temenos line, whose east wall
+  now stops at the temple's flanks (Khufu's rule; the T2-3 doorway gone):
+  the offering hall (roofed, six granite pillars), the open court (two rows
+  of six granite monoliths), the roofed entrance hall (eight), 8 m walls.
+- THE CAUSEWAY (499.7 m, D): Khufu's section and pedestal rule, copied (his
+  code untouched — a fork on his root would re-lay his works), in TWO LEGS
+  — the temple front → (255, 484) → the valley temple's west face — because
+  a straight line clips our provisional Sphinx enclosure (D-22). Graded over
+  the whole route, six smoothing passes; it crosses Khufu's worked-out quarry
+  on a pedestal up to ~13 m high. Its deck ends at −0.5, not the plan's −2.0:
+  the ground before the temple's terrace stands ≈ 1.4 m above the plan's
+  noise-free model, and the pinned end dropped 106 ‰ over three segments —
+  now 74 ‰ at worst (`khafre.cwMaxGrade`, gated ≤ 100 ‰ in the audit).
+- THE VALLEY TEMPLE (45 m square, C; the rest D): granite outside in large
+  jointed blocks, a flat roof at +0.2 with a parapet, two east doorways,
+  the T-hall of 16 granite pillars; the causeway arrives at its NW corner at
+  roof level (the inner descending passage not modelled).
+- THE SPHINX TEMPLE (46 m, D): massive limestone (2 × 3 m jointing), an open
+  court in a roofed ambulatory on 24 granite pillars, two east doorways,
+  niches on the axis west and east; 6.8 m east of the paws. From bm12 the
+  head and face stand over its west wall, the chest and paws behind it (K-8:
+  "the temple in front of the Sphinx IS the relationship").
+- BOOKMARK 13 (`?bm=13`, no key): "from the valley temple" (VII:398) — on its
+  roof on the causeway's line, the causeway's roof leading the eye to G2,
+  the Sphinx's head right (VII:402). Eye at Y 7, not the plan's 4: with the
+  deck climbing west the lower eye looked up into the causeway's open end.
+- K-10 (the quarry gang and the chips in the corridor) needed no code: the
+  inhabitants' obstacle field reads the causeway's yawed footprints
+  (registered before it) and re-seats or drops every figure inside; chips
+  inside the pedestal are inside solid stone.
+- `?ktemples=0` (under the epoch) skips the four buildings — the A/B switch;
+  one mesh per building and material (`?hide=khafre-valley` etc.).
+- Families `khafre-temple`, `khafre-causeway` (in `STRUCT_FAMILIES` and the
+  evidence gate); the court's conf C → D (its width rests on a D offset).
+- AUDIT (`audit.ts --epoch KHAFRE_PERIOD`): the causeway ≥ 47.25 m clear of
+  the enclosure band (53.0), its length (499.7), its end on the valley
+  temple's west face, the grade gate; the collision audit clean on the first
+  boot.
+- PERF (`perf.ts --bm 13,12,7,4,8 --runs 3 --q "epoch=KHAFRE_PERIOD" --b
+  "ktemples=0"`, one sitting): fps medians A = B at all five (bm13 60, bm12
+  60, bm7 40, bm4 60, bm8 40 — the quantised steps again); scene pass bm13
+  +0.48 ms, bm12 −0.40, bm4 −0.18, bm8 −0.20, bm7 −1.83 (the pedestal hides
+  the quarry floor's gang and chips behind it) — within the rule (≤ 1.5 ms);
+  the shadow sums within their ≈ 2 ms resolution.
+BATTERY (default epoch): 17/19 + the advisory perf WARN (bm1 54, bm3 65, bm7 45)
++ 1 FAIL: "slow-adapter device survival" hung the Intel iGPU INSIDE the
+battery again (as in T2-3). Then, one sitting, standalone: T2-4 tree PASS
+(11.4 s), HEAD T2-3 stashed PASS (11.7 s), T2-4 tree PASS (10.4 s), all
+27.7 fps. Across T2-3/T2-4 the probe failed 2 of 2 inside the battery and
+passed 5 of 6 standalone, H and W alike: a battery-context failure, not the
+code's. Likely cause, unproven: the probe runs 4th, after three CPU-heavy
+world boots, and the iGPU shares the CPU's package (thermals). OPEN —
+a decision for the human: run the probe first in the battery (a cool
+machine), or keep it where it is as the harsher test.
+(T2-3 follow-up checked: G2's NE fill bank at (−185, 205) reads as a raised
+terrace edge ~3–4 m high, clear of the West Field's tombs.)
+
+HAIKU — T2-4 (5 agents, read-only, run and verified by the side planner):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon and sources | 30 | 29 — VII gives no figures for any of the four buildings; one wrong implication (the T2-3 line "would change the default world") |
+| B | terrain along the routes, 10 samples | 30 | 28 — samples within 0.3 m of the verifier's model; one wrong line cite; one "not implemented" that is the `exitKeep` falloff |
+| C | builders and patterns | 30 | 28 — Khufu's causeway as the template, the fork-on-his-root trap; two misreadings |
+| D | clearances under the epoch | 30 | 30 — 15 conflicts against the test candidates, all designed out (the bend, the temple moved, K-10) |
+| E | perf, audit, tooling | 30 | 30 — no shadow ablation exists; the resolution limit |
+VERDICT: 145/150 (96.7 %). The noise-free terrain model was 1.4 m off at
+the causeway's end — the build caught it (the grade gate), not the recon.
+
 T2-3 — KHAFRE'S PYRAMID G2 (done; plan `docs/plans/T2-3_PLAN.md`; D-21).
 Recon by the side planner (5 Haiku, 139/142 — table below). KHAFRE_PERIOD
 only; the default world untouched (footprint dump identical, 1142 of 1142,
@@ -973,7 +1053,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2 DONE (above; D-20 provisional site, D-21) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway DONE (above; D-20 provisional site, D-21, D-22) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

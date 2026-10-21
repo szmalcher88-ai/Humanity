@@ -24,6 +24,11 @@ import {
   G2_COURSE_COUNT,
   G2_GRANITE_COURSES,
   G2_SLOPE_DEG,
+  G1_CAUSEWAY_WIDTH,
+  KHAFRE_CAUSEWAY,
+  KHAFRE_VT_CENTER,
+  KHAFRE_VT_SIDE,
+  SPHINX_CENTER,
   auditSelfConsistency,
 } from '../src/world/CANON_DIMENSIONS';
 import { SunSky } from '../src/sky/SunSky';
@@ -93,6 +98,35 @@ for (const r of ROWS.filter((x) => atLeast(epoch, x.from))) {
     const gTop = spec.courses[r.granite]?.y0 ?? 0;
     check(`${r.name} granite band: ${r.granite} course(s)`, gTop > 0.5 && gTop < 2.5 * r.granite, `top ${gTop.toFixed(3)} m`);
   }
+}
+
+// (T2-4) Khafre's causeway, from the constants: clear of the Sphinx
+// enclosure band, its length, its end on the valley temple's west face
+if (atLeast(epoch, 'KHAFRE_PERIOD')) {
+  const R = KHAFRE_CAUSEWAY;
+  let len = 0;
+  let worst = Infinity;
+  for (let i = 0; i + 1 < R.length; i++) {
+    const [ax, az] = R[i] as readonly [number, number];
+    const [bx, bz] = R[i + 1] as readonly [number, number];
+    len += Math.hypot(bx - ax, bz - az);
+    for (let k = 0; k <= 200; k++) {
+      const x = ax + ((bx - ax) * k) / 200;
+      const z = az + ((bz - az) * k) / 200;
+      const lx = x - SPHINX_CENTER.x;
+      if (lx >= -60.5 && lx <= 100) worst = Math.min(worst, Math.abs(z - SPHINX_CENTER.z));
+    }
+  }
+  const need = 39.5 + G1_CAUSEWAY_WIDTH.value / 2 + 3;
+  check('Khafre causeway clear of the Sphinx enclosure', worst >= need, `|z − ${SPHINX_CENTER.z}| ≥ ${worst.toFixed(1)} (need ${need.toFixed(2)})`);
+  check('Khafre causeway length ≈ 499.5 m', Math.abs(len - 499.5) < 1, `${len.toFixed(1)} m`);
+  const [ex, ez] = R[R.length - 1] as readonly [number, number];
+  const vx0 = KHAFRE_VT_CENTER.x - KHAFRE_VT_SIDE.value / 2;
+  check(
+    'Khafre causeway ends on the valley temple west face (north half)',
+    Math.abs(ex - vx0) < 0.01 && ez > KHAFRE_VT_CENTER.z - KHAFRE_VT_SIDE.value / 2 && ez < KHAFRE_VT_CENTER.z,
+    `(${ex}, ${ez}) vs face x ${vx0}`,
+  );
 }
 
 // --- 3. sun path cardinality (equinox) -------------------------------------------
@@ -230,6 +264,9 @@ async function collisionTest(): Promise<void> {
   await browser.close();
   check('evidence: every piece tagged (harbour, Sphinx, Khafre)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
   check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
+  if (atLeast(epoch, 'KHAFRE_PERIOD') && counters['khafre.cwSegs']) {
+    check('Khafre causeway grade ≤ 100 ‰', (counters['khafre.cwMaxGrade'] ?? 999) <= 100, `${counters['khafre.cwMaxGrade']} ‰ over ${counters['khafre.cwSegs']} segments`);
+  }
   if (issues === null) {
     check('collision audit hook present', false, 'collisionAudit hook missing');
     return;

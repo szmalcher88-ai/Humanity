@@ -430,9 +430,14 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     const floorY = float(SPHINX_FLOOR_Y.value);
     // inside the walls: x ≥ −58 (west face), |z| ≤ 38 (north and south)
     const encK = smoothstep(-60.5, -57.5, lx).mul(smoothstep(39.5, 36.5, az));
-    sphinxEnc = encK.mul(smoothstep(100, 70, lx)); // kept swept of drift sand
-    // the floor runs level, then rises out to the east toward the temple site
-    const fy = mix(floorY, h, smoothstep(58, 100, lx));
+    // (T2-4) the floor runs LEVEL east until it daylights on the escarpment
+    // face (x ≈ 484–495): the Sphinx, its temple and the valley temple share
+    // one rock-cut terrace, as the real three share one level (D-22)
+    const fy = floorY;
+    // the valley temple's terrace, cut only, south of the band (its north
+    // edge overlaps it, so no ridge stands between them)
+    const vtK = smoothstep(372, 375, p.x).mul(smoothstep(463, 466, p.y)).mul(smoothstep(531, 528, p.y));
+    sphinxEnc = encK.mul(smoothstep(200, 170, lx)).max(vtK); // kept swept of drift sand
     // the lion: rump at −36.5 → chest at +30 (the mesh takes over there)
     const hw = smoothstep(-39, -27, lx).mul(9.5).mul(smoothstep(36, 29, lx).mul(0.25).add(0.75));
     const back = mix(float(9.0), float(12.5), smoothstep(-34, 14, lx)).mul(smoothstep(33, 27, lx).mul(0.45).add(0.55));
@@ -441,9 +446,14 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     const bodyY = floorY.add(back.mul(across).mul(inBody));
     const cut = max(fy, bodyY);
     h = mix(h, min(h, cut), encK);
+    h = mix(h, min(h, floorY), vtK);
     // the quarry faces: bands just inside the west, north and south walls
+    // (T2-4: the north and south faces now run on east with the level floor)
     sphinxWall = smoothstep(-62, -58, lx).mul(smoothstep(-52, -56, lx)).mul(smoothstep(42, 36, az))
-      .max(smoothstep(32, 37, az).mul(smoothstep(42, 38, az)).mul(smoothstep(-62, -57, lx)).mul(smoothstep(70, 55, lx)));
+      .max(smoothstep(32, 37, az).mul(smoothstep(42, 38, az)).mul(smoothstep(-62, -57, lx)).mul(smoothstep(175, 160, lx)))
+      // the valley-temple terrace's west and south faces
+      .max(smoothstep(369, 372, p.x).mul(smoothstep(378, 375, p.x)).mul(smoothstep(461, 465, p.y)).mul(smoothstep(533, 529, p.y)))
+      .max(smoothstep(525, 528, p.y).mul(smoothstep(534, 531, p.y)).mul(smoothstep(370, 374, p.x)));
   }
 
   /* --- geology detail: limestone shelving + surface roughness ------------- */
@@ -542,6 +552,12 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     const d2 = p.sub(vec2(G2_CENTER.x, G2_CENTER.z)).abs();
     g2Pad = smoothstep(145, 133, d2.x.max(d2.y));
     h = mix(h, float(G2_PAD_Y.value), g2Pad);
+    // (T2-4) the mortuary temple's pad, on at the court's level so its floor
+    // runs on through the doorway: all fill (≤ 4.1 m at the east front)
+    const dm = vec2(p.x.add(147.2).abs().sub(59).max(0), p.y.sub(350).abs().sub(29).max(0));
+    const mtPad = smoothstep(6, 0, dm.x).mul(smoothstep(6, 0, dm.y));
+    h = mix(h, float(G2_PAD_Y.value), mtPad);
+    g2Pad = g2Pad.max(mtPad);
   }
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */

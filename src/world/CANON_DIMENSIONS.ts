@@ -261,6 +261,45 @@ export const G2_GRANITE_COURSES = e(1, 'count', 'C', "Lehner 1997 (Khafre's lowe
 /** court + wall offset from the base — Khufu's 10.1 + 10.1 reused */
 export const G2_TEMENOS_OFFSET = e(20.2, 'm', 'D', "Khufu's court and temenos offsets reused — no survey in the repo (D-21)");
 
+/** (T2-4) Khafre's mortuary temple, causeway, valley temple and the Sphinx
+ *  Temple — KHAFRE_PERIOD only (D-22). Canon VII gives NO figures for any
+ *  of them: every number is an outside figure (C) or a reconstruction (D). */
+export const KHAFRE_MT_EW = e(110, 'm', 'D', 'rounded; Hölscher 1912 to be checked — D-22');
+export const KHAFRE_MT_NS = e(50, 'm', 'D', 'rounded; Hölscher 1912 to be checked — D-22');
+/** the causeway's route: the mortuary temple's east front → a bend → the
+ *  valley temple's west face, 499.5 m (the commonly cited ≈ 495 m, C). It
+ *  BENDS because our provisional Sphinx enclosure and Khufu's quarry bowl
+ *  differ from the real ones — the real causeway is straight (D-22) */
+export const KHAFRE_CAUSEWAY: readonly (readonly [number, number])[] = [[-92.2, 350], [255, 484], [382.5, 484]];
+/** the deck at the valley temple, just under its roof (+0.2): −0.5, not the
+ *  plan's −2.0 — the ground before the temple's terrace stands at ≈ −0.6
+ *  under the seed noise, and a deck pinned 1.5 m lower dropped 106 ‰ over
+ *  its last three segments (the audit's 100 ‰ gate) */
+export const KHAFRE_CAUSEWAY_END_Y = e(-0.5, 'm', 'D', 'the deck at the valley temple, near its roof — D-22');
+/** the valley temple (granite) and the Sphinx Temple share the Sphinx's
+ *  rock-cut floor (SPHINX_FLOOR_Y, D-20) — the real three share one level */
+export const KHAFRE_VT_CENTER: CanonPlacement = { x: 405, z: 500, confidence: 'D', source: 'south of the Sphinx Temple, on the causeway — D-22' };
+export const KHAFRE_VT_SIDE = e(45, 'm', 'C', 'the commonly cited ≈ 45 m square (outside figure)');
+export const KHAFRE_VT_H = e(13, 'm', 'D', 'reconstruction — D-22');
+export const SPHINX_TEMPLE_CENTER: CanonPlacement = { x: 405, z: 431, confidence: 'D', source: 'on the Sphinx axis, 6.8 m east of the paws — D-22' };
+export const SPHINX_TEMPLE_SIDE = e(46, 'm', 'D', 'reconstruction — D-22');
+export const SPHINX_TEMPLE_H = e(9, 'm', 'D', 'reconstruction — D-22');
+
+/** distance (m, plan view) from a point to the causeway's axis — the corridor
+ *  the KHAFRE world keeps clear of gangs and debris (T2-4 K-10) */
+export function khafreCorridorDist(x: number, z: number): number {
+  let best = Infinity;
+  for (let i = 0; i + 1 < KHAFRE_CAUSEWAY.length; i++) {
+    const [ax, az] = KHAFRE_CAUSEWAY[i] as readonly [number, number];
+    const [bx, bz] = KHAFRE_CAUSEWAY[i + 1] as readonly [number, number];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, z - az - t * dz));
+  }
+  return best;
+}
+
 /** Satellite pyramid G1-d, just OUTSIDE the SE corner of the enclosure —
  *  at z=130 the south temenos wall (z≈135) ran straight through it. */
 export const G1D_CENTER: CanonPlacement = {

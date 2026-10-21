@@ -94,7 +94,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     'worker-town', 'harbor-district', 'industry', 'work-camp',
     // (v1.2 I5) — not 'trains' / 'scaffold': Inhabitants registers those once, at boot
     'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard', 'sphinx',
-    'khafre-temenos', 'khafre-pavement',
+    'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -127,7 +127,16 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     // (T2-2) the Sphinx, carved free of its enclosure's bedrock (KHAFRE on)
     engine.stats.counters['sphinx'] = khufuWorks ? 0 : buildSphinx(structures, gi);
     // (T2-3) Khafre's pyramid court and temenos (G2 itself is a monument)
-    engine.stats.counters['khafre.slabs'] = khufuWorks ? 0 : buildKhafreComplex(structures, seed, gi).slabs;
+    // (T2-4) + the mortuary temple, the causeway, the valley and Sphinx temples
+    if (!khufuWorks) {
+      const kh = buildKhafreComplex(structures, seed, hf, gi);
+      engine.stats.counters['khafre.slabs'] = kh.slabs;
+      engine.stats.counters['khafre.cwSegs'] = kh.cwSegs;
+      engine.stats.counters['khafre.cwMaxGrade'] = kh.cwMaxGrade;
+      engine.stats.counters['khafre.cwMaxAt'] = kh.cwMaxAt;
+    } else {
+      engine.stats.counters['khafre.slabs'] = 0;
+    }
     if (khufuWorks) {
       const south = buildSouthWorks(structures, seed, hf, gi);
       engine.stats.counters['ramp.segments'] = south.rampSegments;

@@ -336,3 +336,34 @@ far shell, 5 cm inside them, casts alone (the perf A/B, STATUS T2-3).
 **Code:** `src/world/CANON_DIMENSIONS.ts` (`G2_*`), `src/world/GizaControl.ts`
 (the platform), `src/monuments/Monuments.ts`, `src/monuments/PyramidBuilder.ts`
 (the granite band, the shadow LOD), `src/monuments/KhafreComplex.ts`.
+
+## D-22 — Khafre's mortuary temple, causeway, valley temple and Sphinx Temple
+**Conflict:** canon VII names the four buildings, their materials and their
+order on the route (VII:290-305) but gives NO size, height or position for
+any of them; the real causeway runs STRAIGHT from the mortuary temple to the
+valley temple beside the Sphinx — and our Sphinx enclosure (provisional,
+D-20) and Khufu's quarry bowl are not the real ones.
+**Chosen (T2-4, KHAFRE_PERIOD only; plan `docs/plans/T2-4_PLAN.md`, defaults
+taken while the human was away):**
+- the mortuary temple 110 × 50 m (rounded, D — Hölscher 1912 to be checked)
+  on a pad at the court's level, all fill; Tura floors (the real calcite
+  floors are not in the palette);
+- the causeway in TWO LEGS round our enclosure: (−92.2, 350) → (255, 484) →
+  (382.5, 484), 499.7 m (the commonly cited ≈ 495 m, C); Khufu's section
+  (9.5 m, roofed, slit-lit) on Khufu's pedestal rule across the worked-out
+  quarry; the deck from +10 to −0.5 (D);
+- the valley temple a 45 m square (C) of granite-faced walls, 13 m to its
+  roof (D), the inner descending passage not modelled; the Sphinx Temple
+  46 m (D) of massive limestone with a granite colonnade;
+- both temples on ONE rock-cut terrace with the Sphinx at −12.8 (D-20's
+  provisional level): the enclosure floor made level east to the escarpment
+  and a terrace cut south of it.
+**Alternatives:** a straight causeway clipping the enclosure's SW corner
+(≈ 2.5 m), or straight and clear with the valley temple 64 m south of the
+Sphinx Temple; reshaping Khufu's quarry (a default-world change — the
+human's); the temples on the current ground ≈ 8 m above the Sphinx's paws.
+**Confidence:** C (the valley temple's square, the route length) · D (the
+rest). Every footprint carries conf/basis/epoch.
+**Code:** `src/world/CANON_DIMENSIONS.ts` (`KHAFRE_*`, `SPHINX_TEMPLE_*`,
+`khafreCorridorDist`), `src/world/GizaControl.ts` (the terraces and the
+pad), `src/monuments/KhafreComplex.ts`.
