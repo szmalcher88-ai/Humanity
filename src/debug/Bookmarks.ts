@@ -51,14 +51,16 @@ export const MARKS: Mark[] = [
   { name: 'temple scaffolding', p: [146, 7, 68], yaw: -0.19, pitch: 0.02, t: 16.2 },
   // 12 (key =) — (T2-2) the Sphinx in its enclosure, from the east, in the
   // morning sun on its face (canon VII's view list). KHAFRE_PERIOD only.
-  { name: 'the Sphinx', p: [430, 6, 431], yaw: 1.5708, pitch: -0.06, t: 9.0, epoch: 'KHAFRE_PERIOD' },
+  // (T2-7) the floor at its real level (−40): the eye the same 18.8 m over it
+  { name: 'the Sphinx', p: [430, -21.2, 431], yaw: 1.5708, pitch: -0.06, t: 9.0, epoch: 'KHAFRE_PERIOD' },
   // 13 (`?bm=13` only, no key) — (T2-4) "approaching from the Valley Temple"
   // (VII:398): on its roof on the causeway's line, the Sphinx 85 m right of
   // the axis, Khafre's pyramid 734 m left, "behind the Sphinx" (VII:402);
   // eye at Y 7, over the parapet: the causeway climbs west, so from lower
   // down the eye looked up into its open end instead of along its roof
   // to the pyramid (the plan's Y 4 assumed a deck 1.5 m lower). KHAFRE_PERIOD.
-  { name: 'from the valley temple', p: [392, 7.0, 484], yaw: 1.145, pitch: 0.0, t: 8.0, epoch: 'KHAFRE_PERIOD' },
+  // (T2-7) the same 6.8 m over the valley temple's roof on the real floor
+  { name: 'from the valley temple', p: [392, -20.2, 484], yaw: 1.145, pitch: 0.0, t: 8.0, epoch: 'KHAFRE_PERIOD' },
   // 14 (`?bm=14` only) — (T2-6) Menkaure's works at his death, from above
   // the Main Wadi: G3 and its unfinished temple with the casing begun, the
   // temple yard, the causeway's staked track coming down the bank, the

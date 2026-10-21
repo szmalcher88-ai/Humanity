@@ -44,6 +44,8 @@ import {
   G2_CENTER,
   G2_PAD_Y,
   G3_CENTER,
+  KHAFRE_CAUSEWAY,
+  KHAFRE_CAUSEWAY_END_Y,
   G3_PAD_Y,
   MENKAURE_QUEENS,
   MENKAURE_VT_Y,
@@ -71,7 +73,17 @@ const ESCARP: [number, number][] = [
   [-100, -430],
   [280, -300],
   [430, -40],
-  [490, 330],
+  // (T2-7, D-20 alternative A — the human's call) the crest swings WEST to
+  // the Sphinx and LOW (35 ASL): its back flush with the old surface, its
+  // enclosure floor at the real ≈ 20 m ASL, the temples at the valley's
+  // edge. (468.9, 200) lies ON the old segment, so north of z 200 nothing
+  // moves; the town (z ≥ 667) keeps its nearest segment. Heights D.
+  // EXACTLY on the old segment (430, −40) → (490, 330), with its exact crest:
+  // 8 cm off it and 55.4 ASL moved the East Field's ground by up to 2.9 cm
+  [430 + (60 * 240) / 370, 200],
+  [380, 330],
+  [300, 431],
+  [320, 530],
   [430, 620],
   [280, 830],
   [150, 1000],
@@ -79,7 +91,8 @@ const ESCARP: [number, number][] = [
   [420, 1950],
   [800, 2400],
 ];
-const ESCARP_CREST_ASL = [44, 48, 50, 53, 55, 56, 55, 52, 47, 40, 38, 36, 32];
+// (T2-7) grown IN STEP with ESCARP — a short array falls back to 50 ASL silently
+const ESCARP_CREST_ASL = [44, 48, 50, 53, 55, 56, 56 - 240 / 370, 45, 35, 35, 52, 47, 40, 38, 36, 32];
 
 /** slope run-out from crest to floodplain toe (m) */
 const ESCARP_RUN = 420;
@@ -295,12 +308,20 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
   /* --- escarpment: plateau → floodplain drop ----------------------------- */
   const esc = escarpSigned(p);
   // edge meander so the crest is not a ruler line (small — real crest is sharp)
+  // (T2-7) damped to a quarter near the Sphinx, so its shelf does not slide
+  // under the body
+  const dSph = p.sub(vec2(SPHINX_CENTER.x, SPHINX_CENTER.z)).length();
   const crestWobble = full
     ? mx_noise_float(p.div(120).add(vec2(o.detail[0] + 37, o.detail[1] - 91))).mul(28)
+        .mul(smoothstep(150, 230, dSph).mul(0.75).add(0.25))
     : float(0);
   const sdE = esc.sd.add(crestWobble);
+  // (T2-7) a LOCAL run-out near the Sphinx: the valley floor reached ≈ 150 m
+  // from the crest there (the temples at the valley's edge), the default
+  // 420 m elsewhere — the blend 250 → 150 m leaves the town's ground as it was
+  const runOut = mix(float(ESCARP_RUN), float(150), smoothstep(250, 150, p.sub(vec2(380, 450)).length()));
   // profile: first 90 m = steep cliff (60% of drop), then talus to the toe
-  const dropT = clamp(sdE.div(ESCARP_RUN), 0, 1);
+  const dropT = clamp(sdE.div(runOut), 0, 1);
   const cliffT = clamp(sdE.div(90), 0, 1);
   const profile = cliffT.pow(0.8).mul(0.6).add(
     smoothstep(0.18, 1, dropT).mul(0.4),
@@ -330,7 +351,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
 
   /* --- floodplain flattening --------------------------------------------- */
   // everything at/below the plain level east of the toe settles to alluvium
-  const plainMask = smoothstep(ESCARP_RUN * 0.92, ESCARP_RUN * 1.15, sdE);
+  const plainMask = smoothstep(runOut.mul(0.92), runOut.mul(1.15), sdE);
   h = mix(h, floodY, plainMask);
 
   /* --- Nile channel ------------------------------------------------------- */
@@ -437,7 +458,9 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     // (T2-4) the floor runs LEVEL east until it daylights on the escarpment
     // face (x ≈ 484–495): the Sphinx, its temple and the valley temple share
     // one rock-cut terrace, as the real three share one level (D-22)
-    const fy = floorY;
+    // (T2-7) …with an east limit: where the valley floor lies at or under
+    // it, it stops — a probe-revealed hump never becomes a trench
+    const fy = mix(floorY, h, smoothstep(440, 470, p.x));
     // the valley temple's terrace, cut only, south of the band (its north
     // edge overlaps it, so no ridge stands between them)
     const vtK = smoothstep(372, 375, p.x).mul(smoothstep(463, 466, p.y)).mul(smoothstep(531, 528, p.y));
@@ -562,6 +585,32 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     const mtPad = smoothstep(6, 0, dm.x).mul(smoothstep(6, 0, dm.y));
     h = mix(h, float(G2_PAD_Y.value), mtPad);
     g2Pad = g2Pad.max(mtPad);
+    // (T2-7) Khafre's causeway on its STRAIGHT grade — +10 at the mortuary
+    // temple to the valley temple's roof — CUT through the rises of the new
+    // escarpment slope (cut only, never filled: where the ground falls away
+    // the causeway's own pedestal carries it). Lifted over the ground it rode
+    // the slope's bumps at 161 ‰ (the audit's gate is 100)
+    {
+      const legs = KHAFRE_CAUSEWAY;
+      const lens = legs.slice(1).map((b, i) => Math.hypot(b[0] - (legs[i] as readonly [number, number])[0], b[1] - (legs[i] as readonly [number, number])[1]));
+      const total = lens.reduce((a, b) => a + b, 0);
+      let bestD: NF = float(1e9);
+      let bestS: NF = float(0);
+      let s0 = 0;
+      for (let i = 0; i + 1 < legs.length; i++) {
+        const a = legs[i] as readonly [number, number];
+        const b = legs[i + 1] as readonly [number, number];
+        const { d, t } = segDist(p, [a[0], a[1]], [b[0], b[1]]);
+        const closer = d.lessThan(bestD);
+        bestS = closer.select(t.mul(lens[i] as number).add(s0), bestS);
+        bestD = min(bestD, d);
+        s0 += lens[i] as number;
+      }
+      const deckY = float(G2_PAD_Y.value).add(bestS.mul((KHAFRE_CAUSEWAY_END_Y.value - G2_PAD_Y.value) / total));
+      const cutK = smoothstep(10, 7, bestD);
+      h = mix(h, min(h, deckY.sub(0.3)), cutK);
+      g2Pad = g2Pad.max(cutK.mul(0.6));
+    }
   }
   // (T2-5) G3's levelled platform, MENKAURE_PERIOD on: half 76.9 (base,
   // court, wall + 5 m), 12 m blend, at the plateau cap — MEASURED on the
@@ -669,30 +718,6 @@ export function causewayAxis(): { ax: number; az: number; bx: number; bz: number
 
 /** worker-town anchor re-export for scenes/tools */
 export const WORKER_TOWN: [number, number] = [WORKER_TOWN_CENTER.x, WORKER_TOWN_CENTER.z];
-
-/** convenience: does |p| sit east of the escarpment toe (analytic, CPU)? */
-export function isFloodplainCpu(x: number, z: number): boolean {
-  // cheap CPU mirror: beyond the toe of the nearest escarpment segment
-  let bestD = Infinity;
-  let side = 0;
-  for (let i = 0; i < ESCARP.length - 1; i++) {
-    const a = ESCARP[i] as [number, number];
-    const b = ESCARP[i + 1] as [number, number];
-    const abx = b[0] - a[0];
-    const abz = b[1] - a[1];
-    const len2 = abx * abx + abz * abz;
-    const t = Math.max(0, Math.min(1, ((x - a[0]) * abx + (z - a[1]) * abz) / len2));
-    const px = a[0] + abx * t;
-    const pz = a[1] + abz * t;
-    const d = Math.hypot(x - px, z - pz);
-    if (d < bestD) {
-      bestD = d;
-      const inv = 1 / Math.hypot(abx, abz);
-      side = (x - a[0]) * (abz * inv) + (z - a[1]) * (-abx * inv);
-    }
-  }
-  return side > ESCARP_RUN;
-}
 
 // keep unused-import lint honest: abs used in far branch variants
 void abs;

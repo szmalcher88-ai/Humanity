@@ -113,7 +113,7 @@ directional light so shadows keep working after dusk.
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
 `?epoch=KHUFU_LATE|KHUFU_COMPLETION|KHAFRE_PERIOD|MENKAURE_PERIOD|EVIDENCE_VIEW` (canon IX §9.3 presets; the
 default is Khufu's completed pyramid, bit-identical; KHAFRE_PERIOD clears Khufu's works and
-adds the Sphinx in its enclosure — provisional site height, D-20 — and Khafre's pyramid G2 with
+adds the Sphinx in its enclosure at its real level (the escarpment moved, D-20) and Khafre's pyramid G2 with
 its granite course, court and wall (D-21; `?g2=0` skips G2 for an A/B), its mortuary temple,
 causeway, valley temple and the Sphinx Temple (D-22; `?ktemples=0` skips them; `?bm=13` = from
 the valley temple); MENKAURE_PERIOD adds Menkaure's pyramid G3 with its sixteen granite courses,

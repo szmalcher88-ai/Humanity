@@ -464,6 +464,50 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-7 — THE SPHINX AT ITS REAL LEVEL: THE ESCARPMENT MOVED (done; the
+human's D-20 choice, alternative A; plan `docs/plans/T2-7_PLAN.md`; D-20
+closed). A DEFAULT-WORLD terrain change, built in two passes with the
+ground measured between them.
+- THE CREST: the vertex (490, 330) / 55 ASL replaced by four — (468.9, 200)
+  ON the old segment with its exact crest (a first try 8 cm off it with
+  55.4 ASL moved the East Field's footprints by up to 2.9 cm: caught by the
+  dump), (380, 330) / 45, (300, 431) / 35 — the Sphinx's shelf —, (320, 530)
+  / 35; a LOCAL run-out (420 → 150 m within 250 m of (380, 450)) so the
+  valley floor comes up to the temples; the crest wobble damped to a quarter
+  near the Sphinx; the dead `isFloodplainCpu` mirror removed. The plan's ★
+  "E" — the crest moved west AND low: D-20's literal "200 m west at full
+  height" put the Sphinx on the escarpment's face with its back cut flat.
+- MEASURED (pass 1, `ground.ts`): the body's strip −27.2 against the floor
+  + 12.5 = −27.5 (its back flush with the old surface); the temples' strip
+  −38.9 (the valley's edge, −44.5 at its foot).
+- PASS 2: `SPHINX_FLOOR_Y` −12.8 → −40 (the real ≈ 20 m ASL, C — outside
+  figure); the T2-4 level floor gains an east limit; Khafre's causeway ends
+  at the valley temple's roof (`F + 12.4`, derived) on its STRAIGHT grade —
+  the terrain CUT along it under the epoch (cut only; lifted over the
+  ground it rode the new slope's bumps at 161 ‰, the plan's port said
+  125–161): 81 ‰; bm12 / bm13 lowered by 27.2 (the same height over the
+  floor and the roof); LATE's second quarry face moved onto the bowl's
+  floor (110 … 140, 410 … 432, within 1.9 m — the ENE arm now runs down into
+  the Sphinx's shelf).
+- THE CONTRACTS, re-baselined by the human's decision, with every move
+  accounted for (dumps by id, Δ > 5 cm): DEFAULT — 0 of 1142 (10 differ by
+  ≤ 8 µm, float32 noise); KHAFRE and MENKAURE — exactly the expected 37:
+  the four `sphinx:*`, the Sphinx Temple, the valley temple and the
+  causeway's 31 footprints (its whole straight grade changed); LATE — only
+  `quarry-works:face:ene` (the move). Counts unchanged: 1142 / 1120 / 1179 /
+  1190; the new baselines are `shots/t27/fp-*-after.json`.
+- THE TOURS (15 marks × 4 worlds, before and after): every frame at TAA /
+  cloud noise (mean < 1.5, ≤ 0.5 % over 24 levels below the sky band)
+  except bm12 / bm13 — moved eyes and the new Sphinx site, in every world.
+- AUDIT: all four worlds PASS (the Khafre grade gate 81 ‰, collisions clean).
+- A process slip, recorded: the BEFORE tours were still running when pass 1
+  was first saved — the default tour's page reloaded mid-run (HMR) and
+  failed; the change was stashed at once, the other three worlds ran on the
+  old code, and the default BEFORE tour was re-shot cleanly before pass 1
+  came back. Rule kept: no src edit while anything reads the dev server.
+BATTERY (default; iGPU first): 18/19 + the advisory perf WARN (bm1 53, bm3 65,
+bm7 43 — the band of the last batteries: the terrain costs nothing).
+
 T3-2 — KHUFU_LATE: THE COMPLEX AND THE LOGISTICS (done; plan
 `docs/plans/T3-2_PLAN.md`; D-26). The canon gives NO construction order for
 the complex — its one order: the Tura limestone arrives while the pyramid

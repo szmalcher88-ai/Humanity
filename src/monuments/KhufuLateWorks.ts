@@ -128,7 +128,10 @@ export function buildKhufuLateWorks(
     });
   };
   face('west', -32, 478, 6, 4, -0.6);
-  face('ene', 236, 378, 5, 4, Math.PI - 0.4);
+  // (T2-7) the ENE arm now runs down into the Sphinx's shelf (measured 9 m
+  // of fall across the old face): the second face moved onto the bowl's floor
+  // (110 … 140, 410 … 432 — within 1.9 m)
+  face('ene', 125, 421, 5, 4, Math.PI - 0.4);
 
   /* --- the transport ramp: floor (90, 390) → the north lip (70, 306) ---------- */
   {

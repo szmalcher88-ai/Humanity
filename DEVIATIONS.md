@@ -288,32 +288,27 @@ a live switch (the terrain is baked per boot — a re-bake and a full rebuild).
 **Confidence:** n/a (method).
 **Code:** `src/world/Epoch.ts`, `src/core/Params.ts`, `src/debug/TerrainScene.ts`.
 
-## D-20 — The Sphinx site elevation (provisional)
-**(2026-10-21, the human chose alternative A: move the escarpment and put
-the Sphinx at its real level in all epochs — plan T2-7; this entry is
-rewritten when it lands.)**
+## D-20 — The Sphinx site elevation (RESOLVED, T2-7)
 **Conflict:** the Sphinx enclosure floor lies at ≈ 20 m ASL; the code's
-plateau at the real site (325, 431) stands at ≈ 61 m ASL (+1.2 world) —
-the escarpment crest at that latitude is ≈ 138 m east of the site, about
-200 m east of where the real drop is (T2 plan, finding 6). A plateau
-re-tilt cannot fix it (it would bury the worker town, and
-`min(plateau, crest)` would erase the escarpment — finding 6b); the fix is
-a LOCAL terrain change in the default world too (the slope existed in
-Khufu's reign).
-**Chosen (T2-2, plan default E5, taken while the human was away):** the
-Sphinx and its enclosure under KHAFRE_PERIOD only, at the real x/z, the
-floor cut 14 m into the CURRENT ground (−12.8 world ≈ 47 m ASL) — deep
-enough that the body's back line lies under the old surface and the head
-clears the rim. The default world is unchanged (footprint dump identical).
-**Alternatives:** (A, recommended for the human) move the escarpment crest
-~200 m west between z ≈ 250 and 650 with its crest heights and author the
-Sphinx amphitheatre, for ALL epochs — the correct geography; it changes the
-default world (the east end of Khufu's quarry, bm7, its gangs and debris,
-the Shore loop) and needs a full re-verification iteration; (C) a separate
-`?scene=sphinx` test scene with no world placement.
-**Confidence:** D (the site height); the form B (Lehner's survey).
-**Code:** `src/world/CANON_DIMENSIONS.ts` (`SPHINX_*`),
-`src/world/GizaControl.ts` (the KHAFRE_PERIOD block), `src/monuments/Sphinx.ts`.
+plateau at the real site (325, 431) stood at ≈ 61 m ASL — the escarpment's
+crest ran ≈ 140 m east of the site. Until T2-7 the Sphinx was cut 14 m into
+that ground (floor −12.8 world, ≈ 47 ASL), provisional.
+**Chosen (the human, 2026-10-21: alternative A; built T2-7):** the
+escarpment's crest swings WEST and LOW to the Sphinx in ALL epochs — the
+vertex (490, 330) replaced by (468.9, 200) on the old line, (380, 330) /
+45 ASL, (300, 431) / 35, (320, 530) / 35 (D); a local 150 m run-out near
+the Sphinx, the crest wobble damped there; the enclosure floor at the real
+≈ 20 m ASL (−40 world, C — an outside figure, the canon gives no level), the
+body's back flush with the old surface (measured), the temples at the
+valley's edge, Khafre's causeway on a straight grade cut through the new
+slope's rises. The default world's footprints did not move (≤ 8 µm).
+**Alternatives (not taken):** the crest moved 200 m west at full height
+(the Sphinx then stands on the face, its back cut flat); the provisional
+cut into the old ground; a separate `?scene=sphinx`.
+**Confidence:** C (the floor's level) · D (the crest's vertices and heights).
+**Code:** `src/world/GizaControl.ts` (ESCARP, the run-out, the causeway
+cut), `src/world/CANON_DIMENSIONS.ts` (`SPHINX_FLOOR_Y`,
+`KHAFRE_CAUSEWAY_END_Y`), `src/monuments/Sphinx.ts`.
 
 ## D-21 — Khafre's pyramid G2: site, platform, granite course, enclosure, course count
 **Conflict:** canon VII describes G2 (its "elevation illusion", its casing,

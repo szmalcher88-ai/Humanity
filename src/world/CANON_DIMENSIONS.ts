@@ -235,10 +235,12 @@ export const SPHINX_CENTER: CanonPlacement = {
 export const SPHINX_LENGTH = e(73, 'm', 'B', 'Lehner 1991, The Archaeology of an Image');
 export const SPHINX_WIDTH = e(19, 'm', 'B', 'Lehner 1991');
 export const SPHINX_HEIGHT = e(20, 'm', 'B', 'Lehner 1991');
-/** PROVISIONAL: the enclosure floor 14 m under the CURRENT ground at the
- *  site (≈ +1.2 world), not its real ≈ 20 m ASL (−40 world) — the plateau
- *  here stands ~40 m too high (T2 plan finding 6; D-20) */
-export const SPHINX_FLOOR_Y = e(-12.8, 'm', 'D', 'provisional — DEVIATIONS D-20');
+/** (T2-7) the enclosure floor at its REAL level, ≈ 20 m ASL (−40 world —
+ *  an outside figure, the canon gives the Sphinx no level): the escarpment
+ *  now swings west to the Sphinx (GizaControl ESCARP, D-20 alternative A),
+ *  the body's back flush with the old surface (measured −27.2 against the
+ *  floor + 12.5 = −27.5). It was −12.8, cut into ground ~40 m too high. */
+export const SPHINX_FLOOR_Y = e(-40, 'm', 'C', 'the real floor ≈ 20 m ASL (outside figure) — DEVIATIONS D-20');
 
 /** (T2-3) Khafre's pyramid G2 — shown from KHAFRE_PERIOD on only (D-19,
  *  D-21). None of these numbers is in the canon (VII gives no G2 figures):
@@ -271,11 +273,9 @@ export const KHAFRE_MT_NS = e(50, 'm', 'D', 'rounded; Hölscher 1912 to be check
  *  BENDS because our provisional Sphinx enclosure and Khufu's quarry bowl
  *  differ from the real ones — the real causeway is straight (D-22) */
 export const KHAFRE_CAUSEWAY: readonly (readonly [number, number])[] = [[-92.2, 350], [255, 484], [382.5, 484]];
-/** the deck at the valley temple, just under its roof (+0.2): −0.5, not the
- *  plan's −2.0 — the ground before the temple's terrace stands at ≈ −0.6
- *  under the seed noise, and a deck pinned 1.5 m lower dropped 106 ‰ over
- *  its last three segments (the audit's 100 ‰ gate) */
-export const KHAFRE_CAUSEWAY_END_Y = e(-0.5, 'm', 'D', 'the deck at the valley temple, near its roof — D-22');
+/** (T2-7) the deck at the valley temple's roof (F + 12.4) — derived from
+ *  the Sphinx's floor, no second literal (it was −0.5 on the old ground) */
+export const KHAFRE_CAUSEWAY_END_Y = e(SPHINX_FLOOR_Y.value + 12.4, 'm', 'D', "the deck at the valley temple's roof — D-22");
 /** the valley temple (granite) and the Sphinx Temple share the Sphinx's
  *  rock-cut floor (SPHINX_FLOOR_Y, D-20) — the real three share one level */
 export const KHAFRE_VT_CENTER: CanonPlacement = { x: 405, z: 500, confidence: 'D', source: 'south of the Sphinx Temple, on the causeway — D-22' };
