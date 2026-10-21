@@ -116,7 +116,7 @@ Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|u
 objects by name prefix — ablation) · `?edit=1` (boot with the inspector on) ·
 `?debug=collisions` (draw the audit's footprint boxes) · `?debug=confidence` (evidence
 levels A–E as coloured outlines, v1.2 I6) · A/B switches (v1.2 I7): `?water=planes` ·
-`?earthshadow=0` · `?casters=all` · `?tuftfade=old` · `?noguard=1` (the TDR guard off).
+`?earthshadow=0` · `?casters=all` · `?tuftfade=old` · `?tuftlod=0` · `?noguard=1` (the TDR guard off).
 Perf: `npx tsx tools/perf.ts --bm 1,3,7 --runs 3 --b "<query>"` — pinned preset, rAF
 medians, readings after a render-scale cut flagged INVALID.
 
