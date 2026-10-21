@@ -41,7 +41,7 @@ import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { WIND_X, WIND_Z } from './WorldConst';
 import { townToWorld } from './TownFrame';
 import { INDUSTRY_SMOKE } from '../monuments/IndustryDistrict';
-import { CAMP_HEARTHS } from '../monuments/WorkCamp';
+import { campHearths } from '../monuments/WorkCamp';
 
 const BUDGET = { safe: 6_000, low: 22_000, high: 131_072, ultra: 160_000 } as const;
 
@@ -104,7 +104,7 @@ export class WorkParticles {
       smokeSrc.push({ x, z, r: 0.9, w: 0.9 });
     }
     // (v1.2 I4) the haulers' camp hearths on the plateau
-    for (const [x, z] of CAMP_HEARTHS) smokeSrc.push({ x, z, r: 0.5, w: 0.7 });
+    for (const [x, z] of campHearths) smokeSrc.push({ x, z, r: 0.5, w: 0.7 });
     {
       // brickyard: dust off the drying field and the straw heaps
       const [x, z] = townToWorld(122, 145);

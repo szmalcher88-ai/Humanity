@@ -110,6 +110,9 @@ directional light so shadows keep working after dusk.
 | `P` | Print the camera pose string |
 
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
+`?epoch=KHUFU_COMPLETION|KHAFRE_PERIOD|EVIDENCE_VIEW` (T2: canon IX §9.3 presets; the
+default is Khufu's completed pyramid, bit-identical; the others named in §9.3 fall back
+with a notice) ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·
 `?clean=1` (hide every overlay — gallery frames) · `?hide=debris,particles` (hide scene

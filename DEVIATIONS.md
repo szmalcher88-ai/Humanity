@@ -257,3 +257,21 @@ line. Scope now: the harbour and its fleet (canon IX's gate); the rest of the
 world follows in T2/Tier 3 once the scheme is proven.
 **Confidence:** n/a (method).
 **Code:** `src/water/HarbourEvidence.ts`, `src/debug/Footprints.ts`, `src/debug/Inspector.ts`.
+
+## D-19 — Epoch presets ahead of the brief's tier
+**Conflict:** the brief files `?epoch=` presets under Tier 3; the roadmap
+(v1.2+) takes them first in T2, because the Tier-2 monuments (the Sphinx,
+Khafre's complex) did not exist in 2550 BCE and may only appear in a later
+epoch — canon IX §9.3 names the presets, and the Bible's Tier-1 rule
+("NO Khafre/Menkaure/Sphinx") holds "unless a selectable timeline is
+implemented".
+**Chosen (T2-1):** the mechanism first, with the default epoch
+(KHUFU_COMPLETION, the brief's Tier-1 state) bit-identical to the world
+before it; built: KHAFRE_PERIOD (Khufu's construction context cleared),
+EVIDENCE_VIEW (the default world with the confidence overlay); the other
+named presets fall back to the nearest built stage with an on-screen notice.
+Boot-time only.
+**Alternatives:** wait for Tier 3 (no Tier-2 content could be shown at all);
+a live switch (the terrain is baked per boot — a re-bake and a full rebuild).
+**Confidence:** n/a (method).
+**Code:** `src/world/Epoch.ts`, `src/core/Params.ts`, `src/debug/TerrainScene.ts`.

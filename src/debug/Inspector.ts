@@ -27,6 +27,7 @@ import {
   type PerspectiveCamera,
   type Scene,
 } from 'three';
+import { parseEpoch } from '../world/Epoch';
 import type { Heightfield } from '../world/Heightfield';
 import { runCollisionAudit, type CollisionIssue } from './CollisionAudit';
 import { edDeltas, edExport, edLoad, edNudge, edReset } from './EditOverrides';
@@ -78,7 +79,8 @@ export class Inspector {
     const q = new URLSearchParams(window.location.search);
     if (q.get('edit') === '1') this.setEnabled(true);
     if (q.get('debug') === 'collisions') this.overlay.visible = true;
-    if (q.get('debug') === 'confidence') this.showConfidence();
+    // (T2) EVIDENCE_VIEW is the default world with the evidence overlay on
+    if (q.get('debug') === 'confidence' || parseEpoch(q.get('epoch')).epoch === 'EVIDENCE_VIEW') this.showConfidence();
   }
 
   /** (v1.2 I6) ?debug=confidence: an edge box per tagged footprint, one

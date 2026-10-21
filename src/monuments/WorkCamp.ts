@@ -44,6 +44,9 @@ const BASKET: C3 = [0.58, 0.48, 0.3];
 /** the lane's hearths (world x, z) */
 export const CAMP_HEARTHS: [number, number][] = [[-48, 270], [-31, 270.5], [-14, 269.5]];
 
+/** (T2) the hearths that burn: empty when the camp is not built (KHAFRE_PERIOD) */
+export const campHearths: [number, number][] = [];
+
 /** the gangs walking camp ↔ haul road */
 export const campLines: Gang[] = [
   { x0: 2, z0: 271, x1: 54, z1: 277, n: 10, spread: 2.4, carry: 0.15, still: 0.25 },
@@ -51,6 +54,8 @@ export const campLines: Gang[] = [
 
 export function buildWorkCamp(scene: Object3D, seed: WorldSeed, hf: Heightfield, gi: ProbeGI | null): number {
   const rng = seed.rng('work-camp');
+  campHearths.length = 0;
+  campHearths.push(...CAMP_HEARTHS);
   const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
   const w = new ColorWriter();
   const mud = new GeoWriter();

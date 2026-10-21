@@ -17,6 +17,7 @@ import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
 import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
+import { atLeast } from '../world/Epoch';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
@@ -95,6 +96,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const structures = new Group();
   scene.add(structures);
   let sites: MonumentSite[] = [];
+  // (T2) the epoch preset (?epoch=): the default is the Khufu-completion world
+  const khufuWorks = !atLeast(engine.params.epoch, 'KHAFRE_PERIOD');
+  engine.stats.counters['epoch.khafre'] = khufuWorks ? 0 : 1;
   const rebuildStructures = (): void => {
     fpClear(STRUCT_FAMILIES);
     for (const c of [...structures.children]) {
@@ -117,10 +121,12 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['tombs.twins'] = complex.twins.length;
     engine.stats.counters['tomb.courts'] = courts.courts;
     engine.stats.counters['tomb.dependants'] = courts.dependants;
-    const south = buildSouthWorks(structures, seed, hf, gi);
-    engine.stats.counters['ramp.segments'] = south.rampSegments;
-    engine.stats.counters['works.tura'] = south.tura;
-    engine.stats.counters['works.granite'] = south.granite;
+    if (khufuWorks) {
+      const south = buildSouthWorks(structures, seed, hf, gi);
+      engine.stats.counters['ramp.segments'] = south.rampSegments;
+      engine.stats.counters['works.tura'] = south.tura;
+      engine.stats.counters['works.granite'] = south.granite;
+    }
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
     engine.stats.counters['harbor.crew'] = crewCount;
     engine.stats.counters['harbor.moving'] = movingCount;
@@ -135,7 +141,9 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['fleet.clashes'] = clashes.length;
     if (clashes.length > 0) console.warn(`[akhet] fleet clearance: ${clashes.map((c) => `${c.kind} × ${c.id} @${c.t}s`).join('; ')}`);
     engine.stats.counters['industry'] = buildIndustryDistrict(structures, seed, hf, gi);
-    engine.stats.counters['camp.shelters'] = buildWorkCamp(structures, seed, hf, gi);
+    // (T2) from KHAFRE_PERIOD on, Khufu's construction context is cleared:
+    // the haulers' camp, the ramp remnant and the works yard are not built
+    engine.stats.counters['camp.shelters'] = khufuWorks ? buildWorkCamp(structures, seed, hf, gi) : 0;
     engine.stats.counters['monuments.stones'] = sites.reduce(
       (a, s) => a + s.lod.stoneCount,
       0,
@@ -210,7 +218,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...campLines, ...southLines, ...harborLines]);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? southLines : []), ...harborLines], khufuWorks);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

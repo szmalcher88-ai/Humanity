@@ -220,8 +220,15 @@ async function boot(): Promise<void> {
       '?preset=safe in the URL, or move the browser to the discrete GPU.',
     ]);
   }
+  // (T2) an epoch preset that is not built yet falls back — and says so
+  if (params.epochAsked !== null) {
+    showNotice(`Epoch "${params.epochAsked}" is not built yet`, [
+      `Showing ${params.epoch} instead (canon IX §9.3 presets built so far:`,
+      'KHUFU_COMPLETION — the default —, KHAFRE_PERIOD, EVIDENCE_VIEW).',
+    ]);
+  }
   // eslint-disable-next-line no-console
-  console.log('[akhet] ready', JSON.stringify({ scene: params.scene, seed: params.seed }));
+  console.log('[akhet] ready', JSON.stringify({ scene: params.scene, seed: params.seed, epoch: params.epoch }));
 }
 
 boot().catch((err: unknown) => {

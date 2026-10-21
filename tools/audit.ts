@@ -193,7 +193,10 @@ async function collisionTest(): Promise<void> {
   page.on('console', (msg) => {
     if (msg.text().startsWith('[akhet] collision') || msg.text().startsWith('[akhet] evidence') || msg.text().startsWith('[akhet] fleet')) console.log(`  ${msg.text()}`);
   });
-  await page.goto(akhetUrl({ scene: 'world', hud: false }), {
+  // (T2) --epoch KHAFRE_PERIOD audits that epoch's world (default: Khufu's)
+  const ei = process.argv.indexOf('--epoch');
+  const epoch = ei > 0 ? process.argv[ei + 1] : undefined;
+  await page.goto(akhetUrl({ scene: 'world', hud: false, ...(epoch ? { extra: { epoch } } : {}) }), {
     waitUntil: 'domcontentloaded',
   });
   await page.waitForFunction(

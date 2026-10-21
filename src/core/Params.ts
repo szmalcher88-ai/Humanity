@@ -13,6 +13,7 @@
  * Engaged by the adapter benchmark, by `?preset=safe`, and AUTOMATICALLY on
  * the load after a device loss.
  */
+import { parseEpoch, type Epoch } from '../world/Epoch';
 export type QualityPreset = 'safe' | 'low' | 'high' | 'ultra';
 
 export interface AkhetParams {
@@ -47,6 +48,10 @@ export interface AkhetParams {
    * pixels. Kept for the A/B and for future heavier materials.
    */
   prepass: boolean;
+  /** (T2) the epoch preset (`?epoch=`; default KHUFU_COMPLETION) */
+  epoch: Epoch;
+  /** the epoch the URL asked for when it is not built yet (a notice says so) */
+  epochAsked: string | null;
 }
 
 function num(v: string | null, fallback: number): number {
@@ -75,6 +80,10 @@ export function parseParams(search: string = window.location.search): AkhetParam
     dpr: q.get('dpr') !== null ? num(q.get('dpr'), 1) : null,
     cull: q.get('cull') !== '0',
     prepass: q.get('prepass') === '1',
+    ...(() => {
+      const c = parseEpoch(q.get('epoch'));
+      return { epoch: c.epoch, epochAsked: c.asked };
+    })(),
   };
 }
 

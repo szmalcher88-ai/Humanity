@@ -269,12 +269,12 @@ function townLine(
   return [{ x0, z0, x1, z1, n, spread, carry, still }];
 }
 
-function workLines(): Gang[] {
+function workLines(khufuWorks = true): Gang[] {
   const qx = QUARRY_KHUFU_CENTER.x;
   const qz = QUARRY_KHUFU_CENTER.z;
   const vx = VALLEY_TEMPLE_CENTER.x;
   const vz = VALLEY_TEMPLE_CENTER.z;
-  return [
+  const lines: Gang[] = [
     // the haul road: quarry → ramp head → the pyramid's south-east foot.
     // This is the busiest line on the site and it should look it.
     { x0: qx - 10, z0: qz - 60, x1: 40, z1: 215, n: 150, spread: 5.5, carry: 0.45, still: 0.05 },
@@ -336,6 +336,9 @@ function workLines(): Gang[] {
     // on the walk's axis they stood in the posts and the rope itself)
     ...townLine(61.3, 98, 61.3, 206, 10, 0.3, 0.1, 0.1),
   ];
+  // (T2) Khufu's construction context — the haul road's two legs and the
+  // SE-corner gang — is gone once his works are cleared (KHAFRE_PERIOD)
+  return khufuWorks ? lines : lines.filter((_, k) => k !== 0 && k !== 1 && k !== 5);
 }
 
 export interface InhabitantCounts {
@@ -353,6 +356,9 @@ export function buildInhabitants(
   cull = true,
   /** work lines contributed by other systems (the farmsteads' threshers) */
   extra: readonly Gang[] = [],
+  /** (T2) Khufu's construction works (haul road, trains, shelters, the SE
+   *  scaffold) — false from KHAFRE_PERIOD on; the default draws as before */
+  khufuWorks = true,
 ): InhabitantCounts {
   const rng = seed.rng('inhabitants');
   const budget = FIGURE_BUDGET[preset];
@@ -360,7 +366,7 @@ export function buildInhabitants(
   // so the canon lines keep their counts and random draws however many
   // extras arrive (v1.2: one shared scale meant adding a farmstead
   // re-laid every gang on the site)
-  const canon = workLines();
+  const canon = workLines(khufuWorks);
   const gangs = [...canon, ...extra];
   const canonWanted = canon.reduce((a, g) => a + g.n, 0);
   const extraWanted = extra.reduce((a, g) => a + g.n, 0);
@@ -383,6 +389,7 @@ export function buildInhabitants(
   // audit never saw one train buried 16 m deep inside G1-c, nor the ramp
   // growing out of G1-a). Positions need no draws. Families stay out of
   // STRUCT_FAMILIES: they are built once, here, at boot.
+  if (khufuWorks) {
   for (const [i, [tx0, tz0, head]] of TRAINS.entries()) {
     const fx = tx0 + Math.cos(head) * 1.5;
     const fz = tz0 + Math.sin(head) * 1.5;
@@ -416,6 +423,7 @@ export function buildInhabitants(
       id: 'scaffold:frame', family: 'scaffold', x: SCAFFOLD.bx + 1.8, z: SCAFFOLD.bz - 0.9, hx: 3.9, hz: 2.4,
       y0: g, y1: g + 6.7, ground: 'none', allow: ['temple'],
     });
+  }
   }
   const blocked = obstacleField();
   let reseated = 0;
@@ -643,7 +651,7 @@ export function buildInhabitants(
   let oxen = 0;
   let sledges = 0;
   const tr = rng.fork('trains');
-  for (const [tx0, tz0, head] of TRAINS) {
+  for (const [tx0, tz0, head] of khufuWorks ? TRAINS : []) {
     const gy = hf.heightAtCpu(tx0, tz0);
     if (!Number.isFinite(gy) || gy < -44) continue;
     const ch = Math.cos(head);
@@ -695,7 +703,7 @@ export function buildInhabitants(
   }
 
   // gang shelters: reed-mat sunshades where the gangs rest, at the yards
-  for (const [hx, hz] of SHELTERS) {
+  for (const [hx, hz] of khufuWorks ? SHELTERS : []) {
     const gy = hf.heightAtCpu(hx, hz);
     if (!Number.isFinite(gy) || gy < -44) continue;
     const yaw = tr.range(0, Math.PI);
@@ -708,7 +716,7 @@ export function buildInhabitants(
   }
 
   /* --- scaffolding: the mortuary temple's SE corner, mid-build ------------ */
-  {
+  if (khufuWorks) {
     // the temple spans x 133.4–173.4 (mtX 153.38), its SE corner at z 26.25
     const bx = SCAFFOLD.bx;
     const bz = SCAFFOLD.bz;

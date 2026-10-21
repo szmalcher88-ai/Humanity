@@ -43,7 +43,8 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
   architecture, asking the user to lower the bar.
 - Document precedence: brief > canon > judgment. Canon = content law within
   Tier-1 scope (Khufu complex only; NO Khafre/Menkaure/Sphinx — historically
-  correct for 2550 BCE, they don't exist yet).
+  correct for 2550 BCE, they don't exist yet) — in the DEFAULT epoch (T2: the
+  `?epoch=` presets after it show later states; D-19).
 
 ## Verified environment facts
 
@@ -449,6 +450,30 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-1 — EPOCH PRESETS (done; plan `docs/plans/T2_PLAN.md` §3.1; D-19). Recon
+by the side planner (5 Haiku, 146/149). New `src/world/Epoch.ts`: canon IX
+§9.3's presets by name (KHUFU_EARLY, KHUFU_LATE, KHUFU_COMPLETION,
+KHAFRE_PERIOD, MENKAURE_PERIOD, EVIDENCE_VIEW), `?epoch=` parsed with the
+other params, boot-time only (the terrain is baked per boot). THE CONTRACT:
+no `?epoch=` is today's world bit for bit — every branch a boot-time `if`,
+no new draw on an existing stream. Proved: the full footprint dump before
+and after is identical (1142 of 1142, 0 changed), the default tour at bm3/
+bm7 differs by TAA noise only (> 8 levels on 0.04 % / 0.09 % of pixels),
+battery below. Built so far:
+- KHAFRE_PERIOD — Khufu's construction context cleared: the haulers' camp,
+  the D-7 ramp remnant, the royal works yard, the SE-corner scaffold, ramp
+  and gang, the haul road's two legs, the ox trains and gang shelters are
+  not built (the camp's hearths and smoke go with it); the temple's SE
+  corner stands finished. The harbour, the town, the cemeteries and the land
+  stay. Audit under the epoch clean (collisions, evidence, fleet).
+- EVIDENCE_VIEW — the default world with the I6 confidence overlay on.
+- KHUFU_EARLY / KHUFU_LATE / MENKAURE_PERIOD fall back to the nearest built
+  stage and SAY so on screen — never a silent substitution.
+Tools: `tools/audit.ts --epoch X`; `tour.ts --q "epoch=X"`, `shoot.ts --epoch
+X` work as they are.
+BATTERY (default epoch): 18/19 + the advisory perf WARN (bm1 51, bm3 65, bm7 42 —
+the known 42–45 band at bm7).
+
 I7b — THE CROP-TUFT CARD LOD (done; I7 plan §3.5.2–3). On high/ultra the
 blade tufts now live only inside ~90 m (a 0.07 m blade is one pixel at ~80 m
 at 1080p, ~105 m at 1440p — beyond, it aliases): 8 blades a tuft there (5
@@ -841,7 +866,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs DONE (above) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 
