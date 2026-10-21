@@ -25,12 +25,15 @@ import {
   instanceIndex,
   mix,
   fract,
+  floor,
   normalLocal,
   positionLocal,
   positionWorld,
   sin,
   smoothstep,
+  step,
   transformNormalToView,
+  uv,
   varying,
   vec3,
 } from 'three/tsl';
@@ -78,6 +81,29 @@ function tuftGeometry(BLADES: number): BufferGeometry {
   }
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** (v1.2 I7b) the far tuft: three crossed upright cards (~0.64 × 0.85 m)
+ *  with a uv the fragment cuts a comb of blades into — 6 triangles where a
+ *  blade tuft is 15 (or 24 near), sub-pixel blades beyond ~80 m replaced by
+ *  a silhouette that does not alias */
+function cardGeometry(): BufferGeometry {
+  const pos: number[] = [];
+  const uvs: number[] = [];
+  const W = 0.32;
+  const H = 0.85;
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * Math.PI + 0.3;
+    const cx = Math.cos(a) * W;
+    const cz = Math.sin(a) * W;
+    pos.push(-cx, 0, -cz, cx, 0, cz, cx, H, cz, -cx, 0, -cz, cx, H, cz, -cx, H, -cz);
+    uvs.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('uv', new BufferAttribute(new Float32Array(uvs), 2));
   g.computeVertexNormals();
   return g;
 }
@@ -290,7 +316,15 @@ export function buildFields(
   const oldFade = new URLSearchParams(window.location.search).get('tuftfade') === 'old';
   const fadeNear = fadeFar > FADE_NEAR || oldFade ? FADE_NEAR : 0.6 * fadeFar;
   const fade = smoothstep(fadeFar, fadeNear, camD);
-  const scale = B.w.mul(fade);
+  // (v1.2 I7b) CARD LOD on high/ultra: blades only inside ~R (a 0.07 m blade
+  // is one pixel at ~80 m at 1080p, ~105 m at 1440p — beyond, it aliases),
+  // cards from there to the far fade, a 24 m size crossfade between. The
+  // blades' cells are cut at R + 30, so the far belt costs 6 triangles a
+  // tuft instead of 15 and the near field can afford 8 blades. ?tuftlod=0
+  const lod = (preset === 'high' || preset === 'ultra') && new URLSearchParams(window.location.search).get('tuftlod') !== '0';
+  const LOD_R = 90;
+  const bladeK = lod ? float(1).sub(smoothstep(LOD_R - 12, LOD_R + 12, camD)) : fade;
+  const scale = B.w.mul(bladeK);
   const yaw = A.w;
   const cy = cos(yaw);
   const sy = sin(yaw);
@@ -327,7 +361,7 @@ export function buildFields(
   giLightMap(mat, gi, varying(nBlend) as unknown as NV3, 1.2);
   void hash;
 
-  const mesh = new InstancedMesh(tuftGeometry(BLADES_BY_PRESET[preset]), mat, count);
+  const mesh = new InstancedMesh(tuftGeometry(lod ? 8 : BLADES_BY_PRESET[preset]), mat, count);
   mesh.frustumCulled = false;
   mesh.castShadow = false; // 0.5M casters would swamp the cascades; contact+AO carry it
   mesh.receiveShadow = true;
@@ -346,9 +380,51 @@ export function buildFields(
     attachCulling(
       mesh,
       cells,
-      { name: 'tufts', padXZ: 1.5, padY: 2.2, maxDist: fadeFar + 60 },
+      { name: 'tufts', padXZ: 1.5, padY: 2.2, maxDist: lod ? LOD_R + 30 : fadeFar + 60 },
       twins,
     );
+  }
+
+  /* --- (v1.2 I7b) the far cards: same instances, same cells, own culling -- */
+  if (lod) {
+    const cm = new MeshPhysicalNodeMaterial();
+    cm.specularIntensity = 0.18;
+    const cScale = B.w.mul(smoothstep(LOD_R - 12, LOD_R + 12, camD)).mul(fade);
+    const clp = positionLocal.mul(cScale);
+    const crx = clp.x.mul(cy).sub(clp.z.mul(sy));
+    const crz = clp.x.mul(sy).add(clp.z.mul(cy));
+    const cSway = sin(uWorldTime.mul(1.3).add(ph))
+      .add(sin(uWorldTime.mul(3.1).add(ph.mul(1.9))).mul(0.5))
+      .mul(clp.y.mul(clp.y))
+      .mul(0.16);
+    cm.positionNode = vec3(A.x.add(crx).add(cSway.mul(WIND_X)), A.y.add(clp.y), A.z.add(crz).add(cSway.mul(WIND_Z)));
+    // a card lights like the sward it stands for: mostly up
+    const cn = mix(nWorld, vec3(0, 1, 0), 0.72).normalize();
+    cm.normalNode = transformNormalToView(varying(cn) as unknown as NV3);
+    // the comb: 7 blades a card, tapering, each tip at its own height
+    const cu = uv();
+    const bi = floor(cu.x.mul(7));
+    const bu = fract(cu.x.mul(7));
+    const tip = hash(bi.add(A.x.mul(0.37)).add(A.z.mul(0.11))).mul(0.32).add(0.68);
+    const hw = mix(float(0.42), float(0.05), clamp(cu.y.div(tip), 0, 1)).mul(0.5);
+    cm.opacityNode = step(bu.sub(0.5).abs(), hw).mul(step(cu.y, tip));
+    cm.alphaTest = 0.5;
+    // its far colour meets the carpet's (tone × (0.7, 0.75, 0.8)) — no seam
+    const grad = tint.mul(cu.y.mul(0.45).add(0.62));
+    cm.colorNode = mix(grad, tint.mul(vec3(0.7, 0.75, 0.8)), smoothstep(220, 700, camD));
+    cm.roughnessNode = float(0.8);
+    cm.metalnessNode = float(0);
+    cm.side = 2;
+    giLightMap(cm, gi, varying(cn) as unknown as NV3, 1.2);
+    const cards = new InstancedMesh(cardGeometry(), cm, count);
+    cards.frustumCulled = false;
+    cards.castShadow = false;
+    cards.receiveShadow = true;
+    cards.name = 'tufts-cards';
+    scene.add(cards);
+    if (perf.cull) {
+      attachCulling(cards, cells, { name: 'tufts-cards', padXZ: 1.5, padY: 2.2, maxDist: fadeFar + 60 });
+    }
   }
 
   return { count, parcels: parcels.length, fallow: parcels.filter((p) => p.density === 0), all: parcels };

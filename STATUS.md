@@ -449,6 +449,21 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+I7b — THE CROP-TUFT CARD LOD (done; I7 plan §3.5.2–3). On high/ultra the
+blade tufts now live only inside ~90 m (a 0.07 m blade is one pixel at ~80 m
+at 1080p, ~105 m at 1440p — beyond, it aliases): 8 blades a tuft there (5
+before; the ~15 m "isolated blades" read), their indirect cells cut at
+R + 30 m. Beyond, the SAME instances draw as three crossed upright cards with
+a comb of seven tapering blades cut into each by the fragment (alpha-tested,
+each tip at its own height), lit mostly upright like the sward, their far
+colour pulled to the carpet's so card and carpet meet without a seam; a
+24 m size crossfade between. Own culling registration, shared instance
+buffers and cells, no shadows, no prepass twin. `?tuftlod=0` restores the
+blades-everywhere path. A/B at 1440p (tools/perf.ts, EMA): bm1 51/47 vs 49/48,
+bm9 49/47 vs 48/48 — neutral within noise, ~1.1M fewer triangles at bm9;
+visually identical at the crossfade (closeups at 30–150 m). Battery 18/19 +
+the advisory perf WARN (bm1 55, bm3 67, bm7 45).
+
 I7 — POLISH + PERF (done except D5 → I7b; plan `docs/plans/I7_PLAN.md`). Recon by
 the side planner (5 Haiku, 148/149 verified); decisions by the main session,
 the plan's safe defaults (the user was away).
@@ -825,7 +840,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I5 | the necropolis + the monument — DONE (above; D-7, D-16, D-17) | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
-| I7b | crop tufts | the card LOD beyond ~80 m and 8 near blades (I7 plan §3.5.2–3), with an A/B at bm1/bm9; the iGPU re-measure on an idle machine (low/safe budgets) |
+| I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
 | T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
