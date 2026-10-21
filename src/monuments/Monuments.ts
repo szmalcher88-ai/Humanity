@@ -35,6 +35,8 @@ import {
   G3_GRANITE_COURSES,
   G3_PAD_Y,
   G3_SLOPE_DEG,
+  G3A_SLOPE_DEG,
+  MENKAURE_QUEENS,
 } from '../world/CANON_DIMENSIONS';
 import { atLeast, DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
 import type { Confidence } from '../world/CANON_DIMENSIONS';
@@ -189,6 +191,26 @@ export function buildMonuments(
       },
       300,
       true,
+    );
+  }
+
+  // (T2-6) Menkaure's east queen, G3-a, the one FINISHED queen (the two
+  // western are stepped cores, MenkaureComplex): a true pyramid on its own
+  // terrace and stream, LAST; skipped with the other works by `?mworks=0`
+  const qa = MENKAURE_QUEENS[0];
+  if (qa && atLeast(epoch, 'MENKAURE_PERIOD') && new URLSearchParams(window.location.search).get('mworks') !== '0') {
+    add(
+      qa.name,
+      qa.base,
+      G3A_SLOPE_DEG.value,
+      qa.x, qa.level, qa.z,
+      44, 0.95, 0.5, // Khufu's queens' course parameters
+      0,
+      {
+        conf: 'D',
+        basis: 'a true pyramid (C: Reisner); its base, row and terrace reconstructed (D-24)',
+        epoch: 'menkaure',
+      },
     );
   }
 

@@ -399,3 +399,29 @@ east doorway for the later temple. The shadow LOD as G2's (300 m).
 **Code:** `src/world/CANON_DIMENSIONS.ts` (`G3_*`), `src/world/GizaControl.ts`
 (the pad), `src/world/Epoch.ts`, `src/monuments/Monuments.ts`,
 `src/monuments/PyramidSpec.ts` (undressed rows), `src/monuments/MenkaureComplex.ts`.
+
+## D-24 — Menkaure's works shown unfinished, at his death
+**Conflict:** the canon names Menkaure's queens, temple complex,
+construction areas, stockpiles and workshops and says "construction progress
+may vary depending upon selected historical timeline" (MPB:2427-2445) — but
+gives no figure, no layout and no state for any of them.
+**Chosen (T2-6, MENKAURE_PERIOD only; plan `docs/plans/T2-6_PLAN.md`,
+defaults taken while the human was away):** the complex as it stood at the
+king's death: G3 and its east queen G3-a (44 m, 52°, C) finished; the two
+western queens stepped cores (31 m, four tiers — C for the form, D for the
+tiers); the three on their own terraces down the Main Wadi's bank, levels
+measured, retaining walls on the fill faces (D); the mortuary temple (70 ×
+45 m, D) roofless with its granite casing begun; the causeway (577.6 m — ≈
+608 m usually cited, C) laid on its upper 290 m, a graded track below, at
+most 12 % (an embankment where the bank falls faster); the valley temple
+(50 m, D) on the wadi floor, its foundations and first courses; three
+construction yards with staged blocks, a shed, sledges, chips and gangs.
+**Alternatives:** Shepseskaf's mudbrick completion (finished, plastered
+mudbrick on the stone cores — outside sources, not the canon); all three
+queens true pyramids; one row terrace at +4 (cut 8, fill 11.6 m); a
+causeway cut to ≤ 8 %.
+**Confidence:** C (the forms, the causeway's length) · D (everything else).
+**Code:** `src/world/CANON_DIMENSIONS.ts` (`MENKAURE_*`, `G3A_SLOPE_DEG`),
+`src/world/GizaControl.ts` (the terraces and pads), `src/monuments/Monuments.ts`
+(G3-a), `src/monuments/MenkaureComplex.ts`, `src/debug/TerrainScene.ts` (the
+gangs), `src/debug/Bookmarks.ts` (bm14).

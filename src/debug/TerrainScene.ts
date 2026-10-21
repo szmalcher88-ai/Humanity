@@ -12,7 +12,7 @@ import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildKhafreComplex } from '../monuments/KhafreComplex';
-import { buildMenkaureComplex } from '../monuments/MenkaureComplex';
+import { buildMenkaureComplex, menkaureLines } from '../monuments/MenkaureComplex';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
@@ -96,7 +96,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     // (v1.2 I5) — not 'trains' / 'scaffold': Inhabitants registers those once, at boot
     'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard', 'sphinx',
     'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway',
-    'menkaure-temenos', 'menkaure-pavement',
+    'menkaure-temenos', 'menkaure-pavement', 'menkaure-temple', 'menkaure-causeway',
+    'menkaure-queens', 'menkaure-terrace', 'menkaure-works',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -138,7 +139,15 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       engine.stats.counters['khafre.cwMaxAt'] = kh.cwMaxAt;
       // (T2-5) Menkaure's court and temenos (G3 itself is a monument)
       if (atLeast(engine.params.epoch, 'MENKAURE_PERIOD')) {
-        engine.stats.counters['menkaure.slabs'] = buildMenkaureComplex(structures, seed, gi).slabs;
+        // (T2-6) + the queens' cores and terraces, the unfinished temples and
+        // causeway, the construction yards
+        const mk = buildMenkaureComplex(structures, seed, hf, gi);
+        engine.stats.counters['menkaure.slabs'] = mk.slabs;
+        engine.stats.counters['menkaure.cwSegs'] = mk.cwSegs;
+        engine.stats.counters['menkaure.cwMaxGrade'] = mk.cwMaxGrade;
+        engine.stats.counters['menkaure.cwMaxAt'] = mk.cwMaxAt;
+        engine.stats.counters['menkaure.works'] = mk.works;
+        engine.stats.counters['menkaure.cwEndCm'] = mk.cwEndCm;
       }
     } else {
       engine.stats.counters['khafre.slabs'] = 0;
@@ -240,7 +249,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? southLines : []), ...harborLines], khufuWorks);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? southLines : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : [])], khufuWorks);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

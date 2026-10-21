@@ -55,7 +55,7 @@ export interface KhafreInfo {
 /** an opening in a north–south wall: a doorway, or a niche (a recess with a
  *  thin back on the wall's outer side) — `hgt` is its height; a lintel
  *  closes the wall above it */
-interface Opening {
+export interface Opening {
   z: number;
   half: number;
   hgt: number;
@@ -66,7 +66,7 @@ const BATTER = 0.04;
 
 /** a north–south wall at x from z0 to z1 with its openings; `outer` is the
  *  side its outer face looks to (−1 west, +1 east) — the niches' backs */
-function nsWall(
+export function nsWall(
   w: GeoWriter, x: number, y: number, z0: number, z1: number, th: number, h: number, tone: number,
   openings: Opening[], outer: number,
 ): void {
@@ -86,7 +86,7 @@ function nsWall(
 /** a walled rectangle as Khufu's temples: the north and south walls run the
  *  full length and batter all four faces; the west and east walls reach
  *  half-way into them, 2 cm inside their plumb ends (no coplanar faces) */
-function enclosure(
+export function enclosure(
   w: GeoWriter, x0: number, x1: number, z0: number, z1: number, y: number, h: number, th: number, tone: number,
   west: Opening[], east: Opening[],
 ): void {

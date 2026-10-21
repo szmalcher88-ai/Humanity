@@ -45,6 +45,8 @@ import {
   G2_PAD_Y,
   G3_CENTER,
   G3_PAD_Y,
+  MENKAURE_QUEENS,
+  MENKAURE_VT_Y,
   VALLEY_TEMPLE_CENTER,
   WORKER_TOWN_CENTER,
   WORKER_TOWN_PADS,
@@ -571,6 +573,29 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     const d3 = p.sub(vec2(G3_CENTER.x, G3_CENTER.z)).abs();
     g3Pad = smoothstep(88.9, 76.9, d3.x.max(d3.y));
     h = mix(h, float(G3_PAD_Y.value), g3Pad);
+    // (T2-6) Menkaure's works: a rectangle levelled with a `b` m blend
+    const rp = (x0: number, z0: number, x1: number, z1: number, b: number): NF => {
+      const dx = p.x.sub((x0 + x1) / 2).abs().sub((x1 - x0) / 2).max(0);
+      const dz = p.y.sub((z0 + z1) / 2).abs().sub((z1 - z0) / 2).max(0);
+      return smoothstep(b, 0, dx).mul(smoothstep(b, 0, dz));
+    };
+    // the mortuary temple's pad at the court's level (a 1.4 m cut)
+    const mtPad = rp(-520, 663, -442, 717, 6);
+    h = mix(h, float(G3_PAD_Y.value), mtPad);
+    // the queens' terraces stepping down the Main Wadi's north bank, at the
+    // MEASURED means of their rectangles; 2 m blends — their fill faces are
+    // retaining walls (MenkaureComplex), their cut faces bare rock
+    let qPadM: NF = float(0);
+    for (const q of MENKAURE_QUEENS) {
+      const hw = q.base / 2 + 4;
+      const k = rp(q.x - hw, q.z - hw, q.x + hw, q.z + hw, 2); // north edges at z 773
+      h = mix(h, float(q.level), k);
+      qPadM = qPadM.max(k);
+    }
+    // the valley temple's terrace on the wadi floor
+    const vtPad = rp(121, 771, 179, 829, 6);
+    h = mix(h, float(MENKAURE_VT_Y.value), vtPad);
+    g3Pad = g3Pad.max(mtPad).max(qPadM).max(vtPad);
   }
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */

@@ -59,6 +59,12 @@ export const MARKS: Mark[] = [
   // down the eye looked up into its open end instead of along its roof
   // to the pyramid (the plan's Y 4 assumed a deck 1.5 m lower). KHAFRE_PERIOD.
   { name: 'from the valley temple', p: [392, 7.0, 484], yaw: 1.145, pitch: 0.0, t: 8.0, epoch: 'KHAFRE_PERIOD' },
+  // 14 (`?bm=14` only) — (T2-6) Menkaure's works at his death, from above
+  // the Main Wadi: G3 and its unfinished temple with the casing begun, the
+  // temple yard, the causeway's staked track coming down the bank, the
+  // queens, G2 beyond. The plan's eye on the bank (−360, 800) looked into
+  // the slope; this one stands over the wadi at Y 25. MENKAURE_PERIOD.
+  { name: "Menkaure's works", p: [-250, 25, 860], yaw: 0.98, pitch: -0.05, t: 9.0, epoch: 'MENKAURE_PERIOD' },
 ];
 
 /** tour order: harbor → river → town → quarry → plateau → causeway → back */

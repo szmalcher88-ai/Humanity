@@ -450,6 +450,75 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-6 — MENKAURE'S WORKS AT HIS DEATH (done; plan `docs/plans/T2-6_PLAN.md`;
+D-24). MENKAURE_PERIOD only; both contracts hold (default 1142/1142, KHAFRE
+1120/1120, 0 changed). ★ M-1: the canon's District 3 — "Construction Areas,
+Stone Stockpiles, Workshops", "Construction progress may vary depending upon
+selected historical timeline" (MPB:2427-2445) — so the epoch shows the
+complex UNFINISHED, as it stood at Menkaure's death (Shepseskaf's mudbrick
+completion is a later state, not shown).
+- TERRACES, MEASURED (`tools/ground.ts --wrect`, the seeded ground — the
+  T2-5 lesson): the queens' at 0.1 / 4.9 / 6.7 (the plan's model −1.1 / 3.9 /
+  5.8), stepping down the Main Wadi's north bank; the valley temple's on the
+  wadi floor at −28.8 (model −30.1); the mortuary temple's pad at the court's
+  level +12 (its ground measured +13.4 — a 1.4 m cut). The queens' fill
+  faces are RETAINING WALLS (4 m runs, each foot 0.5 m under the lowest
+  ground it spans, a 0.5 m parapet), their cut faces bare rock; 2 m blends.
+- THE QUEENS: G3-a (east) a finished true pyramid, 44 m at 52° (28.2 m vs
+  the published ≈ 28.3), 2,104 stones on its own stream, LAST; G3-b and G3-c
+  stepped cores of four battered tiers of large blocks, each on its own
+  stream (their tiers differ) — two sizes, two forms (canon: "individual
+  dimensions", "avoid duplicating geometry").
+- THE MORTUARY TEMPLE (70 × 45 m, D): roofless core walls of large blocks
+  (2 × 3 m jointing), the offering hall's floor laid, the granite casing
+  begun on the east front's lower 3 m; the temenos' east wall now stops at
+  its flanks (Khafre's rule).
+- THE CAUSEWAY (577.6 m, D): laid on its upper 290 m (Khufu's pedestal and
+  floor slabs, no walls or roof), a graded rubble track below with survey
+  stakes, down the bank to the valley temple's platform (it arrives at
+  −27.5 against the platform's −27.6). GRADE: the plan's smoothing alone cut
+  under the bank's knees (8 `sunk` footprints — an open track has no walls
+  to hide a dip), clamped to the ground it followed the bank at 170 ‰; now
+  it never descends faster than 12 % — where the bank falls faster it runs
+  on as an embankment — 120 ‰ at worst (`menkaure.cwMaxGrade`, gated
+  ≤ 150 ‰); footprints in a side-cut flagged `cutting`.
+- THE VALLEY TEMPLE (50 m, D): a 1.2 m foundation platform and the first
+  2 m of its core walls, doors on the axis, blocks staged on it.
+- THE YARDS (family `menkaure-works`): the temple yard (granite and limestone
+  staged on sleepers, a masons' shed, two sledges, waste chips), the
+  causeway's working front, the valley-temple site — and their gangs (40 +
+  50 + 30 asked), appended LAST to the extras, MENKAURE only. No dust spawn
+  and no torches (the 14-light cap) — not built.
+- BOOKMARK 14 (`?bm=14`): "Menkaure's works" from above the Main Wadi
+  (−250, 25, 860) — the plan's eye on the bank looked into the slope.
+- `?mworks=0` skips the works, their footprints and gangs (the terraces stay).
+- AUDIT (`--epoch MENKAURE_PERIOD`): a G3-a row; the causeway ≥ 328 m from
+  the Wall of the Crow's west end, ≥ 368 m from Khafre's valley-temple
+  terrace, outside Khufu's quarry bowl (dq ≥ 2.13); its grade gate;
+  collisions clean.
+- PERF (`perf.ts --bm 14,4,12,1 --runs 3 --q "epoch=MENKAURE_PERIOD" --b
+  "mworks=0"`, one sitting): fps medians A = B at all four (bm14 60, bm4 40,
+  bm12 40, bm1 40 — this sitting ran a step slower than T2-5's in BOTH arms,
+  machine state); scene pass Δ +0.01 / −0.17 / +0.16 / −2.25 ms — within
+  the rule.
+BATTERY (default epoch): 17/19 + the advisory perf WARN (bm1 53, bm3 67, bm7 45)
++ the slow-adapter probe FAILED inside the battery again, then PASSED
+standalone on this tree right after (13.4 s, 25.1 fps). Since T2-3 the probe
+has failed 3 of 4 battery runs and passed 6 of 6 standalone runs, on trees
+whose default render did not change — the battery context, not the code.
+The reorder decision stays the human's.
+
+HAIKU — T2-6 (5 agents, read-only, run and verified by the side planner):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon and sources | 30 | 30 — District 3's list, the construction-site rules, the queens' "individual dimensions" |
+| B | ground south and east of G3, 9 samples | 29 | 29 — within ≈ 0.5 m of the verifier's NOISE-FREE model; the build then measured the seeded ground 1–1.3 m higher at the terraces |
+| C | builders to reuse | 30 | 29 — one wrong path |
+| D | clearances and life | 30 | 29 — one wrong row (a start cap "clipping" the temenos 70 m away) |
+| E | perf, audit, tools | 30 | 28 — `closeup --id` does split on commas; the bm7 "over the rule" misreading again |
+VERDICT: 145/149 (97.3 %). The model-vs-ground lesson held a third time: the
+recon chooses the rectangles, the build measures the levels.
+
 T2-5 — MENKAURE_PERIOD AND G3 (done; plan `docs/plans/T2-5_PLAN.md`; D-23).
 The brief was the workers' town at its Khafre-period extent (canon IX:129).
 The planner's verdict, taken: the canon gives the town NO layout, size or
@@ -1113,7 +1182,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3 DONE (above; D-20 provisional site, D-21–D-23); next T2-6 Menkaure's queens, temples, causeway | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3, T2-6 Menkaure's works at his death DONE (above; D-20 provisional site, D-21–D-24) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

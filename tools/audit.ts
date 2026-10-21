@@ -28,6 +28,8 @@ import {
   G3_COURSE_COUNT,
   G3_GRANITE_COURSES,
   G3_SLOPE_DEG,
+  G3A_SLOPE_DEG,
+  MENKAURE_CAUSEWAY,
   G1_CAUSEWAY_WIDTH,
   KHAFRE_CAUSEWAY,
   KHAFRE_VT_CENTER,
@@ -36,6 +38,7 @@ import {
   auditSelfConsistency,
 } from '../src/world/CANON_DIMENSIONS';
 import { SunSky } from '../src/sky/SunSky';
+import { QUARRY_C, QUARRY_ROT, QUARRY_RX, QUARRY_RZ } from '../src/world/GizaControl';
 
 let failures = 0;
 function check(name: string, ok: boolean, detail: string): void {
@@ -84,6 +87,12 @@ const ROWS: Row[] = [
     name: 'G3', base: G3_BASE_SIDE.value, slope: G3_SLOPE_DEG.value, survey: 65.5, baseSurvey: 103.4,
     courses: G3_COURSE_COUNT.value, c1: G1_COURSE1_HEIGHT.value, cMin: G1_COURSE_MIN_HEIGHT.value,
     granite: G3_GRANITE_COURSES.value, floor: 9000, from: 'MENKAURE_PERIOD', tol: 1.5,
+  },
+  // (T2-6) G3-a, Menkaure's finished east queen: 44 m at 52° → 28.2 m
+  // against the published ≈ 28.3 m (Reisner)
+  {
+    name: 'G3-a', base: 44, slope: G3A_SLOPE_DEG.value, survey: 28.3, baseSurvey: 44,
+    courses: 44, c1: 0.95, cMin: 0.5, granite: 0, floor: 1500, from: 'MENKAURE_PERIOD', tol: 1.5,
   },
 ];
 const seed = new WorldSeed(1);
@@ -141,6 +150,32 @@ if (atLeast(epoch, 'KHAFRE_PERIOD')) {
     Math.abs(ex - vx0) < 0.01 && ez > KHAFRE_VT_CENTER.z - KHAFRE_VT_SIDE.value / 2 && ez < KHAFRE_VT_CENTER.z,
     `(${ex}, ${ez}) vs face x ${vx0}`,
   );
+}
+
+// (T2-6) Menkaure's causeway, from the constants: clear of the town's Wall of
+// the Crow, of Khafre's valley-temple terrace and of Khufu's quarry bowl
+if (atLeast(epoch, 'MENKAURE_PERIOD')) {
+  const [ax, az] = MENKAURE_CAUSEWAY[0] as readonly [number, number];
+  const [bx, bz] = MENKAURE_CAUSEWAY[1] as readonly [number, number];
+  let crow = Infinity;
+  let terrace = Infinity;
+  let dqMin = Infinity;
+  const ca = Math.cos(QUARRY_ROT);
+  const sa = Math.sin(QUARRY_ROT);
+  for (let k = 0; k <= 400; k++) {
+    const x = ax + ((bx - ax) * k) / 400;
+    const z = az + ((bz - az) * k) / 400;
+    crow = Math.min(crow, Math.hypot(x - 434, z - 701));
+    const tdx = Math.max(372 - x, 0, x - 480);
+    const tdz = Math.max(463 - z, 0, z - 531);
+    terrace = Math.min(terrace, Math.hypot(tdx, tdz));
+    const qx = x - QUARRY_C[0];
+    const qz = z - QUARRY_C[1];
+    dqMin = Math.min(dqMin, Math.hypot((qx * ca - qz * sa) / QUARRY_RX, (qx * sa + qz * ca) / QUARRY_RZ));
+  }
+  check("Menkaure causeway clear of the Wall of the Crow's west end", crow >= 250, `${crow.toFixed(0)} m (need 250)`);
+  check("Menkaure causeway clear of Khafre's valley-temple terrace", terrace >= 200, `${terrace.toFixed(0)} m (need 200)`);
+  check("Menkaure causeway outside Khufu's quarry bowl", dqMin > 1.1, `dq ≥ ${dqMin.toFixed(2)} (need 1.1)`);
 }
 
 // --- 3. sun path cardinality (equinox) -------------------------------------------
@@ -278,6 +313,9 @@ async function collisionTest(): Promise<void> {
   await browser.close();
   check('evidence: every piece tagged (harbour, Sphinx, Khafre, Menkaure)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
   check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
+  if (atLeast(epoch, 'MENKAURE_PERIOD') && counters['menkaure.cwSegs']) {
+    check("Menkaure causeway grade ≤ 150 ‰ (an unfinished track)", (counters['menkaure.cwMaxGrade'] ?? 999) <= 150, `${counters['menkaure.cwMaxGrade']} ‰ at segment ${counters['menkaure.cwMaxAt']}`);
+  }
   if (atLeast(epoch, 'KHAFRE_PERIOD') && counters['khafre.cwSegs']) {
     check('Khafre causeway grade ≤ 100 ‰', (counters['khafre.cwMaxGrade'] ?? 999) <= 100, `${counters['khafre.cwMaxGrade']} ‰ over ${counters['khafre.cwSegs']} segments`);
   }

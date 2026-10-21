@@ -69,7 +69,7 @@ export const EVIDENCE_FAMILIES = ['harbor-works', 'harbor-district', 'vessels'];
 /** (T2) families that carry their own evidence (stamped where built, not
  *  from TABLE): the audit holds them to it too — they exist only in a later
  *  epoch, so the default world's audit is unchanged */
-const SELF_TAGGED = ['sphinx', 'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway', 'menkaure-temenos', 'menkaure-pavement'];
+const SELF_TAGGED = ['sphinx', 'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway', 'menkaure-temenos', 'menkaure-pavement', 'menkaure-temple', 'menkaure-causeway', 'menkaure-queens', 'menkaure-terrace', 'menkaure-works'];
 
 export function evidenceFor(id: string): Evidence | null {
   if (id.startsWith('vessel:')) return VESSELS[id.split(':')[1] ?? 'hull'] ?? VESSELS['hull']!;
@@ -108,6 +108,6 @@ export function stampEvidence(): number {
 /** harbour footprints with no declared confidence (must be none) */
 export function runEvidenceAudit(): string[] {
   return fpAll()
-    .filter((f) => (EVIDENCE_FAMILIES.includes(f.family) || SELF_TAGGED.includes(f.family) || /^pyramid:G[23]$/.test(f.id)) && !f.conf)
+    .filter((f) => (EVIDENCE_FAMILIES.includes(f.family) || SELF_TAGGED.includes(f.family) || /^pyramid:G(2|3|3-a)$/.test(f.id)) && !f.conf)
     .map((f) => f.id);
 }

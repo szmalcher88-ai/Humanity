@@ -304,6 +304,31 @@ export const G3_CENTER: CanonPlacement = {
 export const G3_PAD_Y = e(12.0, 'm', 'D', 'the plateau cap there (GizaControl) — D-23');
 export const G3_TEMENOS_OFFSET = e(20.2, 'm', 'D', "Khufu's court and temenos offsets reused, as G2's (D-23)");
 
+/** (T2-6) Menkaure's works AT HIS DEATH — MENKAURE_PERIOD only (D-24): the
+ *  three queens south of G3 (the east one a true pyramid, the two western
+ *  stepped cores — C for the forms, D for the row), each on its own terrace
+ *  stepping down the Main Wadi's north bank; levels MEASURED on the seeded
+ *  ground (`tools/ground.ts --wrect`, the 5 × 5 mean). [x, z, base, level] */
+export const MENKAURE_QUEENS: readonly { name: string; x: number; z: number; base: number; level: number; stepped: boolean }[] = [
+  { name: 'G3-a', x: -545, z: 799, base: 44, level: 0.1, stepped: false },
+  { name: 'G3-b', x: -594.5, z: 792.5, base: 31, level: 4.9, stepped: true },
+  { name: 'G3-c', x: -637.5, z: 792.5, base: 31, level: 6.7, stepped: true },
+];
+export const G3A_SLOPE_DEG = e(52, 'deg', 'C', 'Reisner; Maragioglio & Rinaldi (G3-a)');
+/** the mortuary temple, unfinished: 70 × 45 m (D), its west wall on G3's
+ *  temenos line, on the court's level (+12; the ground measured +13.4) */
+export const MENKAURE_MT_EW = e(70, 'm', 'D', 'reconstruction — D-24');
+export const MENKAURE_MT_NS = e(45, 'm', 'D', 'reconstruction — D-24');
+/** the causeway: the temple's front → the valley temple's west face,
+ *  577.6 m (≈ 608 m usually cited, C) down the Main Wadi's north bank; laid
+ *  on its upper 290 m, a graded track below (D-24) */
+export const MENKAURE_CAUSEWAY: readonly (readonly [number, number])[] = [[-446.1, 690], [121, 800]];
+export const MENKAURE_CAUSEWAY_LAID = e(290, 'm', 'D', 'the pedestal laid on the upper part only — D-24');
+/** the valley temple on the wadi floor: foundations and first courses */
+export const MENKAURE_VT_CENTER: CanonPlacement = { x: 150, z: 800, confidence: 'D', source: 'on the Main Wadi floor at the end of the causeway — D-24' };
+export const MENKAURE_VT_SIDE = e(50, 'm', 'D', 'reconstruction — D-24');
+export const MENKAURE_VT_Y = e(-28.8, 'm', 'D', 'the measured mean of its terrace (tools/ground.ts)');
+
 /** distance (m, plan view) from a point to the causeway's axis — the corridor
  *  the KHAFRE world keeps clear of gangs and debris (T2-4 K-10) */
 export function khafreCorridorDist(x: number, z: number): number {
