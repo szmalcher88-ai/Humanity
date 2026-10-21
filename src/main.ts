@@ -224,7 +224,8 @@ async function boot(): Promise<void> {
   if (params.epochAsked !== null) {
     showNotice(`Epoch "${params.epochAsked}" is not built yet`, [
       `Showing ${params.epoch} instead (canon IX §9.3 presets built so far:`,
-      'KHUFU_COMPLETION — the default —, KHAFRE_PERIOD, EVIDENCE_VIEW).',
+      'KHUFU_COMPLETION — the default —, KHAFRE_PERIOD, MENKAURE_PERIOD,',
+      'EVIDENCE_VIEW).',
     ]);
   }
   // eslint-disable-next-line no-console

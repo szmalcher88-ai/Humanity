@@ -29,6 +29,12 @@ import {
   G2_GRANITE_COURSES,
   G2_PAD_Y,
   G2_SLOPE_DEG,
+  G3_BASE_SIDE,
+  G3_CENTER,
+  G3_COURSE_COUNT,
+  G3_GRANITE_COURSES,
+  G3_PAD_Y,
+  G3_SLOPE_DEG,
 } from '../world/CANON_DIMENSIONS';
 import { atLeast, DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
 import type { Confidence } from '../world/CANON_DIMENSIONS';
@@ -66,6 +72,7 @@ export function buildMonuments(
     graniteCourses = 0,
     evidence?: { conf: Confidence; basis: string; epoch: string },
     shadowLod?: number,
+    graniteUndressed = false,
   ): void => {
     const [cx, cz] = edPos(`pyramid:${name}`, cx0, cz0);
     const H = heightFromSlope(baseSide, slopeDeg);
@@ -81,6 +88,7 @@ export function buildMonuments(
       courseMin,
       graniteCourses,
       ...(shadowLod !== undefined ? { shadowLod } : {}),
+      ...(graniteUndressed ? { graniteUndressed } : {}),
       rng: seed.rng(`monument-${name}`),
     });
     const lod = buildPyramid(spec, gi);
@@ -158,6 +166,29 @@ export function buildMonuments(
         epoch: 'khafre',
       },
       300, // the shadow LOD (perf A/B, T2-3 §3.5): the far shell casts beyond 300 m
+    );
+  }
+
+  // (T2-5) Menkaure's pyramid, MENKAURE_PERIOD on — LAST, on its own stream;
+  // its sixteen granite courses left undressed. `?g3=0` skips it (the pad
+  // stays): the perf A/B switch, as `?g2=0`
+  if (atLeast(epoch, 'MENKAURE_PERIOD') && new URLSearchParams(window.location.search).get('g3') !== '0') {
+    add(
+      'G3',
+      G3_BASE_SIDE.value,
+      G3_SLOPE_DEG.value,
+      G3_CENTER.x, G3_PAD_Y.value, G3_CENTER.z,
+      G3_COURSE_COUNT.value,
+      G1_COURSE1_HEIGHT.value,
+      G1_COURSE_MIN_HEIGHT.value,
+      G3_GRANITE_COURSES.value,
+      {
+        conf: 'D',
+        basis: 'the published base and slope (C); the course count an estimate, the site moved 53 m north off the Main Wadi (D-23)',
+        epoch: 'menkaure',
+      },
+      300,
+      true,
     );
   }
 

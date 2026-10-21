@@ -35,6 +35,11 @@ export interface PyramidParams {
    *  stones cost ~2.8 ms of cascades at 0.4–1.1 km (perf A/B); absent = the
    *  stones cast wherever they are drawn */
   shadowLod?: number;
+  /** (T2-5) the granite rows left UNDRESSED (G3): each stone's own drawn
+   *  facet residual ×15 (±0.5°: faces never dressed flat to their
+   *  neighbours) and the face-wide wave ×1.5 — the same draws in the same
+   *  order, so nothing moves; roughened in the builder */
+  graniteUndressed?: boolean;
   /** micro-variation stream */
   rng: Rng;
 }
@@ -112,8 +117,11 @@ export function solveCourses(p: PyramidParams): CourseRow[] {
 export function layCasing(p: PyramidParams, courses: CourseRow[]): CasingStone[] {
   const rng = p.rng.fork('casing');
   const stones: CasingStone[] = [];
+  const undressedRows = p.graniteUndressed ? (p.graniteCourses ?? 0) : 0;
   for (let ci = 0; ci < courses.length; ci++) {
     const row = courses[ci] as CourseRow;
+    const tw = ci < undressedRows ? 1.5 : 1;
+    const tr = ci < undressedRows ? 15 : 1;
     const faceW = row.halfMid * 2;
     if (faceW < 0.55) break; // apex region: the pyramidion caps it
     // stone width scales down with height (big blocks low, small high)
@@ -149,8 +157,8 @@ export function layCasing(p: PyramidParams, courses: CourseRow[]): CasingStone[]
           w,
           tone: fr.range(0.97, 1.015),
           rough: fr.range(-0.04, 0.05),
-          tiltU: 0.0035 * wave(17, 29) + fr.range(-0.0006, 0.0006),
-          tiltV: 0.003 * wave(23, 13) + fr.range(-0.0006, 0.0006),
+          tiltU: 0.0035 * wave(17, 29) * tw + fr.range(-0.0006, 0.0006) * tr,
+          tiltV: 0.003 * wave(23, 13) * tw + fr.range(-0.0006, 0.0006) * tr,
         });
         s += w;
       }

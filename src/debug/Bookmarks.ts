@@ -11,6 +11,7 @@
 
 import type { Engine } from '../core/Engine';
 import type { CamPose } from '../core/Hooks';
+import { atLeast, parseEpoch, type Epoch } from '../world/Epoch';
 
 interface Mark {
   name: string;
@@ -114,7 +115,9 @@ export function attachBookmarks(engine: Engine): void {
     } else if (e.code === 'Equal' || e.code === 'NumpadAdd') {
       const m = MARKS[11]; // bookmark 12 — the Sphinx (KHAFRE_PERIOD)
       const q = new URLSearchParams(window.location.search);
-      if (m?.epoch && (q.get('epoch') ?? '').toUpperCase() !== m.epoch) {
+      // (T2-5) a LATER epoch shows it too (the Sphinx stands in MENKAURE_PERIOD):
+      // reload only when the current world is earlier than the mark's
+      if (m?.epoch && !atLeast(parseEpoch(q.get('epoch')).epoch, m.epoch as Epoch)) {
         // a view of another epoch: reload into it, never half-switch
         q.set('epoch', m.epoch);
         q.set('bm', '12');

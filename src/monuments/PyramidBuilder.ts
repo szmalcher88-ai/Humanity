@@ -307,7 +307,8 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   if (uGraniteTop) {
     const gk = varying(A.y.lessThan(uGraniteTop).select(float(1), float(0))) as unknown as NF;
     mat.colorNode = mix(turaCol, vec3(...GRANITE).mul(tone), gk);
-    mat.roughnessNode = mix(turaRough, float(0.6), gk);
+    // (T2-5) undressed granite (G3) is rough-faced, G2's dressed band honed
+    mat.roughnessNode = mix(turaRough, float(p.graniteUndressed ? 0.78 : 0.6), gk);
   }
   mat.metalnessNode = float(0);
   // shaded casing faces pick up sand/sky bounce from the probe field —

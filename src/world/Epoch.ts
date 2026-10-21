@@ -28,11 +28,12 @@ export const EPOCH_ORDER: readonly Epoch[] = [
 export const DEFAULT_EPOCH: Epoch = 'KHUFU_COMPLETION';
 
 /** built so far; the rest fall back to the nearest built stage — and SAY so */
-const IMPLEMENTED: readonly Epoch[] = ['KHUFU_COMPLETION', 'KHAFRE_PERIOD', 'EVIDENCE_VIEW'];
+// (T2-5) MENKAURE_PERIOD = the KHAFRE world (every `atLeast(…, 'KHAFRE_PERIOD')`
+// holds for it) + what is gated on `atLeast(…, 'MENKAURE_PERIOD')`: G3
+const IMPLEMENTED: readonly Epoch[] = ['KHUFU_COMPLETION', 'KHAFRE_PERIOD', 'MENKAURE_PERIOD', 'EVIDENCE_VIEW'];
 const FALLBACK: Partial<Record<Epoch, Epoch>> = {
   KHUFU_EARLY: 'KHUFU_COMPLETION',
   KHUFU_LATE: 'KHUFU_COMPLETION',
-  MENKAURE_PERIOD: 'KHAFRE_PERIOD',
 };
 
 export interface EpochChoice {

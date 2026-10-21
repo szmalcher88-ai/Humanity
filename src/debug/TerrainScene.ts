@@ -12,6 +12,7 @@ import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildKhafreComplex } from '../monuments/KhafreComplex';
+import { buildMenkaureComplex } from '../monuments/MenkaureComplex';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
@@ -95,6 +96,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     // (v1.2 I5) — not 'trains' / 'scaffold': Inhabitants registers those once, at boot
     'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard', 'sphinx',
     'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway',
+    'menkaure-temenos', 'menkaure-pavement',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -134,6 +136,10 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       engine.stats.counters['khafre.cwSegs'] = kh.cwSegs;
       engine.stats.counters['khafre.cwMaxGrade'] = kh.cwMaxGrade;
       engine.stats.counters['khafre.cwMaxAt'] = kh.cwMaxAt;
+      // (T2-5) Menkaure's court and temenos (G3 itself is a monument)
+      if (atLeast(engine.params.epoch, 'MENKAURE_PERIOD')) {
+        engine.stats.counters['menkaure.slabs'] = buildMenkaureComplex(structures, seed, gi).slabs;
+      }
     } else {
       engine.stats.counters['khafre.slabs'] = 0;
     }

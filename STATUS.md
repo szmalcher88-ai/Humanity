@@ -450,6 +450,66 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-5 — MENKAURE_PERIOD AND G3 (done; plan `docs/plans/T2-5_PLAN.md`; D-23).
+The brief was the workers' town at its Khafre-period extent (canon IX:129).
+The planner's verdict, taken: the canon gives the town NO layout, size or
+period split, the repo holds no excavated plan, and the default town
+already draws every named component but a Western Town — a "Khafre
+extent" would be D from memory. So ★ T2-5 = MENKAURE_PERIOD + G3, the town
+growth kept as plan T2-5b, and the canon tension (the Khufu town already
+shows the later plan) recorded in D-6 for the human (T-1).
+- THE EPOCH: MENKAURE_PERIOD is built — the KHAFRE world (every
+  `atLeast(…, 'KHAFRE_PERIOD')` holds) + what is gated on MENKAURE; no
+  more fallback notice. CONTRACT, both ways: the default dump identical
+  (1142 of 1142) AND the KHAFRE world's (1120 of 1120, `fpdump.ts --q`, new).
+- G3 (`Monuments.ts`, LAST, stream `monument-G3`): 103.4 m, 51.3° → 64.5 m,
+  92 courses (estimate), 10,332 stones, the lowest sixteen courses red
+  granite and UNDRESSED (`PyramidParams.graniteUndressed`: facet residual
+  ×15 after the draws, roughness 0.78 — honest: it reads only as a rougher,
+  faintly faceted face; real bosses need geometry), the 300 m shadow LOD as
+  G2's. Site (−588, 690): the WGS84 delta moved 53 m north off the Main
+  Wadi's slope (D-23). `?g3=0` skips it.
+- THE PAD (`GizaControl`, under MENKAURE): half 76.9 m at +12.0; measured on
+  the seeded ground (surfaceProbe in the KHAFRE world): a cut ≤ 1.8 m, a
+  fill ≤ 1.9 m at the SE corner — the plan's model said fill ≤ 2.9, the
+  Haiku's hand estimate ≈ 3.8: both noise-free, both high.
+- THE COURT AND WALL (new `src/monuments/MenkaureComplex.ts`): a copy of
+  Khafre's first block on its own streams (sharing it would risk the KHAFRE
+  world's float order): the court slabs, an 8 m temenos, an east doorway.
+- FIX (Haiku F's row 25): the `=` key in a MENKAURE view reloaded into
+  KHAFRE — the bookmark now reloads only when the world is EARLIER than its
+  epoch (`atLeast`).
+- AUDIT: a G3 row on the world's stream, its derived height checked against
+  the PUBLISHED ≈ 65.5 m within 1.5 m (64.5 — a real check, not a constant
+  against its copy), the granite band (16.3 m); the evidence gate covers
+  `pyramid:G2/G3` and the Menkaure families. `audit.ts --epoch
+  MENKAURE_PERIOD` all PASS, collisions clean.
+- PERF (`perf.ts --bm 4,1,12,2 --runs 3 --q "epoch=MENKAURE_PERIOD" --b
+  "g3=0"`, one sitting): fps medians A = B at all four (60; one bm1 A round
+  at 40), scene pass Δ +0.01 / −0.06 / −0.16 / +0.07 ms — G3 is a fifth of
+  G2's stones and casts by its far shell beyond 300 m.
+BATTERY (default epoch): 18/19 + the advisory perf WARN (bm1 53, bm3 69, bm7 44)
+— and "slow-adapter device survival" PASSED inside the battery this time
+(after failing there in T2-3 and T2-4 on code that also passed standalone):
+the flaky-context reading holds; the reorder question stays the human's.
+Follow-ups (recon, not this step): G2/G3 are Inspector-editable but their
+pads and courts do not follow an edit (the pads are baked constants); the
+bakery hearth lights stand ≈ 14 m off their bakeries (`Torches.ts:63`);
+`WALL_OF_CROW_*` are read by nothing; the town enclosure's "south" run
+stands at v +2 with no north run (`WorkerTown.ts:424-448`).
+
+HAIKU — T2-5 (5 agents, read-only, run and verified by the side planner —
+its C reported late — plus a 6th here on the ★ scope, G3's site):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon and sources (town, Menkaure) | 30 | 30 — "layout facts in canon: 2"; the D-6 vs header contradiction; `WALL_OF_CROW_*` unused |
+| B | the town as built | 30 | 30 — the enclosure's "south" run at v +2, no north run |
+| C | around the town: terrain, water, the valley temples, bookmarks | 29 | 29 — the Main Wadi's mouth, every neighbour ≥ 180 m off |
+| F | G3's site: terrain, structures, scatter, bookmarks, epoch gates (main session) | 30 | 7 checked, 6 confirmed — the `=` key bug (fixed), the bm13 bearing, the wadi line, the West Field extent, the debris anchors, the gates; WRONG: its pad-fill hand estimate (≈ 3.8 m; measured 1.9). The other 23 rows unchecked one by one — the MENKAURE collision audit (clean) covers their footprint claims, not the scatter ones |
+| D | the people, lights, smoke | 30 | 30 — every present gang moves every figure; the 14-light cap |
+| E | perf, audit, epochs | 30 | 29 — T2-4's bm7 −1.83 ms called "over the rule" (it is a saving) |
+VERDICT: the planner's five 148/149 (99.3 %); F 6/7 checked (its 23 unchecked rows not counted).
+
 T2-4 — KHAFRE'S TEMPLES AND CAUSEWAY (done; plan `docs/plans/T2-4_PLAN.md`;
 D-22). Recon by the side planner (5 Haiku, 145/150 — table below).
 KHAFRE_PERIOD only; the default world untouched (footprint dump identical,
@@ -1053,7 +1113,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway DONE (above; D-20 provisional site, D-21, D-22) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3 DONE (above; D-20 provisional site, D-21–D-23); next T2-6 Menkaure's queens, temples, causeway | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

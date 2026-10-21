@@ -70,6 +70,15 @@ adopting one source's triple is deferred until the values can be verified.
 at the epoch of the newly completed pyramid. The excavated gallery phases
 date mainly to Khafre/Menkaure; we render a Khufu-era extent (smaller gallery
 blocks + bakeries + enclosures) at the documented location.
+**(T2-5, recorded — the human's call, T-1):** "smaller" is unquantified, and
+the town as built already draws nearly every component of the later plan
+(four gallery blocks, the Eastern Town, nine bakeries, the RAB, the Wall of
+the Crow) in EVERY epoch — canon IX:129 says the later plan "must not be
+transplanted unchanged into Khufu's reign". The builder's header says
+"shown as the Khufu-era settlement per AERA's dating" (`WorkerTown.ts:3`).
+Shrinking the default town is a default-world change; a Khafre-period
+growth (a Western Town) has no layout source in the canon or the repo —
+both are left to the human (plan `docs/plans/T2-5_PLAN.md` §5, T2-5b).
 **Confidence:** D.
 **Code:** `src/monuments/WorkerTown.ts` (galleries, eastern town, bakeries, RAB, Wall of
 the Crow), on the terraces of `WORKER_TOWN_PADS` in `CANON_DIMENSIONS.ts`.
@@ -367,3 +376,26 @@ rest). Every footprint carries conf/basis/epoch.
 **Code:** `src/world/CANON_DIMENSIONS.ts` (`KHAFRE_*`, `SPHINX_TEMPLE_*`,
 `khafreCorridorDist`), `src/world/GizaControl.ts` (the terraces and the
 pad), `src/monuments/KhafreComplex.ts`.
+
+## D-23 — Menkaure's pyramid G3: site, form, course count, undressed granite, court
+**Conflict:** the canon names Menkaure's pyramid in the southern district
+(the Bible's District 3) but gives no figure; its WGS84 delta from G1,
+(−588, 743), falls on the authored Main Wadi's slope — the court there
+would stand on ≈ 22 m of fill.
+**Chosen (T2-5, MENKAURE_PERIOD only; plan `docs/plans/T2-5_PLAN.md`,
+defaults taken while the human was away):** the site moved 53 m north to
+(−588, 690) on the plateau cap (+12.0 world), a pad of half 76.9 m —
+measured on the seeded ground a cut ≤ 1.8 m with a fill ≤ 1.9 m at its SE
+corner; base 103.4 m (the mean of the published 102.2 × 104.6, C), 51.3°
+(Petrie, C) → 64.5 m; 92 courses (G1's scaled by height — an ESTIMATE, D);
+the lowest sixteen courses red granite, UNDRESSED (C — widely published):
+each stone's facet residual ×15 and roughness 0.78 (it reads as a rougher,
+faintly faceted face; real bosses would need geometry — a follow-up); the
+court (individual slabs) and an 8 m temenos at Khufu's offsets (D) with an
+east doorway for the later temple. The shadow LOD as G2's (300 m).
+**Alternatives:** the WGS84 delta on a 22 m terrace, or (−588, 713) on a
+10.8 m one; the 104.6 m side (65.3 m); G3's granite dressed like G2's band.
+**Confidence:** C (form) · D (site, courses, court) — `pyramid:G3` carries D.
+**Code:** `src/world/CANON_DIMENSIONS.ts` (`G3_*`), `src/world/GizaControl.ts`
+(the pad), `src/world/Epoch.ts`, `src/monuments/Monuments.ts`,
+`src/monuments/PyramidSpec.ts` (undressed rows), `src/monuments/MenkaureComplex.ts`.

@@ -285,6 +285,25 @@ export const SPHINX_TEMPLE_CENTER: CanonPlacement = { x: 405, z: 431, confidence
 export const SPHINX_TEMPLE_SIDE = e(46, 'm', 'D', 'reconstruction — D-22');
 export const SPHINX_TEMPLE_H = e(9, 'm', 'D', 'reconstruction — D-22');
 
+/** (T2-5) Menkaure's pyramid G3 — MENKAURE_PERIOD only (D-23). The canon
+ *  names it (the Bible's southern district) but gives no figures. */
+/** the mean of the published 102.2 × 104.6 m base (Petrie; Maragioglio &
+ *  Rinaldi) — the builder takes a square */
+export const G3_BASE_SIDE = e(103.4, 'm', 'C', 'mean of 102.2 × 104.6 m (Petrie 1883; Maragioglio & Rinaldi)');
+/** ≈ 51°20′ (Petrie) → 64.5 m; ≈ 65.5 m is usually cited with the 104.6 side */
+export const G3_SLOPE_DEG = e(51.3, 'deg', 'C', 'Petrie 1883 (≈ 51°20′)');
+export const G3_COURSE_COUNT = e(92, 'count', 'D', "ESTIMATE: G1's 210 scaled by height (64.5 / 146.6)");
+/** the lowest sixteen courses in red granite, left UNDRESSED (its working
+ *  faces never dressed down — widely published) */
+export const G3_GRANITE_COURSES = e(16, 'count', 'C', 'the lowest sixteen courses red granite, undressed (widely published)');
+/** the WGS84 delta (−588, 743) moved 53 m north off the authored Main Wadi's
+ *  band — at the delta its court would stand on 22.6 m of fill (D-23) */
+export const G3_CENTER: CanonPlacement = {
+  x: -588, z: 690, confidence: 'D', source: 'the WGS84 delta (−588, 743) moved 53 m north — DEVIATIONS D-23',
+};
+export const G3_PAD_Y = e(12.0, 'm', 'D', 'the plateau cap there (GizaControl) — D-23');
+export const G3_TEMENOS_OFFSET = e(20.2, 'm', 'D', "Khufu's court and temenos offsets reused, as G2's (D-23)");
+
 /** distance (m, plan view) from a point to the causeway's axis — the corridor
  *  the KHAFRE world keeps clear of gangs and debris (T2-4 K-10) */
 export function khafreCorridorDist(x: number, z: number): number {

@@ -43,6 +43,8 @@ import {
   SPHINX_FLOOR_Y,
   G2_CENTER,
   G2_PAD_Y,
+  G3_CENTER,
+  G3_PAD_Y,
   VALLEY_TEMPLE_CENTER,
   WORKER_TOWN_CENTER,
   WORKER_TOWN_PADS,
@@ -559,6 +561,17 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     h = mix(h, float(G2_PAD_Y.value), mtPad);
     g2Pad = g2Pad.max(mtPad);
   }
+  // (T2-5) G3's levelled platform, MENKAURE_PERIOD on: half 76.9 (base,
+  // court, wall + 5 m), 12 m blend, at the plateau cap — MEASURED on the
+  // seeded ground (surfaceProbe, KHAFRE world): a cut ≤ 1.8 m over most of
+  // it, a fill ≤ 1.9 m at its SE corner where the Main Wadi's slope begins
+  // (the plan's noise-free model said fill ≤ 2.9 m)
+  let g3Pad: NF = float(0);
+  if (atLeast(gp.epoch, 'MENKAURE_PERIOD')) {
+    const d3 = p.sub(vec2(G3_CENTER.x, G3_CENTER.z)).abs();
+    g3Pad = smoothstep(88.9, 76.9, d3.x.max(d3.y));
+    h = mix(h, float(G3_PAD_Y.value), g3Pad);
+  }
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */
   if (!full) {
@@ -610,7 +623,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     quarry: quarryMask,
     bedrockExposure,
     moisture,
-    worked: clamp(g1Pad.max(qPad).max(townPad).max(sphinxEnc).max(g2Pad), 0, 1),
+    worked: clamp(g1Pad.max(qPad).max(townPad).max(sphinxEnc).max(g2Pad).max(g3Pad), 0, 1),
   };
 }
 

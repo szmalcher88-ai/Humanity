@@ -7,6 +7,7 @@
  *   npx tsx tools/fpdump.ts --id mastaba:w: --out shots/fp-before.json
  *   npx tsx tools/fpdump.ts --id mastaba:w:,chapel: --out shots/fp-after.json
  *   npx tsx tools/fpdump.ts --id vessel:,pier: --fleet 0,600 --out shots/fp.json
+ *   npx tsx tools/fpdump.ts --q "epoch=KHAFRE_PERIOD" --out shots/fp-khafre.json
  *     (--fleet: also the moving fleet at those world times, v1.2 I6)
  *
  * The dev server must be running.
@@ -26,7 +27,11 @@ async function main(): Promise<void> {
   const { browser } = await launchWebGPU();
   const page = await browser.newPage({ viewport: { width: 640, height: 360 }, deviceScaleFactor: 1 });
   page.on('pageerror', (err) => console.error('[pageerror]', err.message));
-  await page.goto(akhetUrl({ scene: 'world', freeze: true, extra: { clean: '1' } }), { waitUntil: 'domcontentloaded' });
+  // --q "epoch=KHAFRE_PERIOD": extra URL params (T2-5 — the KHAFRE world's
+  // own before/after check, as tour.ts and closeup.ts take them)
+  const extra: Record<string, string> = { clean: '1' };
+  for (const [k, v] of new URLSearchParams(arg('q') ?? '')) extra[k] = v;
+  await page.goto(akhetUrl({ scene: 'world', freeze: true, extra }), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(
     () => window.__akhet && (window.__akhet.ready || window.__akhet.error !== null),
     undefined,

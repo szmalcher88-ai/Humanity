@@ -24,6 +24,10 @@ import {
   G2_COURSE_COUNT,
   G2_GRANITE_COURSES,
   G2_SLOPE_DEG,
+  G3_BASE_SIDE,
+  G3_COURSE_COUNT,
+  G3_GRANITE_COURSES,
+  G3_SLOPE_DEG,
   G1_CAUSEWAY_WIDTH,
   KHAFRE_CAUSEWAY,
   KHAFRE_VT_CENTER,
@@ -59,17 +63,27 @@ const epoch = parseEpoch(epochArg ?? null).epoch;
 interface Row {
   name: string; base: number; slope: number; survey: number; baseSurvey: number;
   courses: number; c1: number; cMin: number; granite: number; floor: number; from: Epoch;
+  /** the height tolerance against the survey (m) */
+  tol: number;
 }
 const ROWS: Row[] = [
   {
     name: 'G1', base: G1_BASE_SIDE.value, slope: G1_SLOPE_DEG.value, survey: G1_HEIGHT.value, baseSurvey: 230.363,
     courses: G1_COURSE_COUNT.value, c1: G1_COURSE1_HEIGHT.value, cMin: G1_COURSE_MIN_HEIGHT.value,
-    granite: 0, floor: 40000, from: 'KHUFU_EARLY',
+    granite: 0, floor: 40000, from: 'KHUFU_EARLY', tol: 0.5,
   },
   {
     name: 'G2', base: G2_BASE_SIDE.value, slope: G2_SLOPE_DEG.value, survey: 143.5, baseSurvey: 215.25,
     courses: G2_COURSE_COUNT.value, c1: G1_COURSE1_HEIGHT.value, cMin: G1_COURSE_MIN_HEIGHT.value,
-    granite: G2_GRANITE_COURSES.value, floor: 45000, from: 'KHAFRE_PERIOD',
+    granite: G2_GRANITE_COURSES.value, floor: 45000, from: 'KHAFRE_PERIOD', tol: 0.5,
+  },
+  // (T2-5) G3: its height is DERIVED from the mean base and Petrie's slope
+  // (64.5 m), checked against the published ≈ 65.5 m (which goes with the
+  // 104.6 m side) — a real check, not the constant against its own copy
+  {
+    name: 'G3', base: G3_BASE_SIDE.value, slope: G3_SLOPE_DEG.value, survey: 65.5, baseSurvey: 103.4,
+    courses: G3_COURSE_COUNT.value, c1: G1_COURSE1_HEIGHT.value, cMin: G1_COURSE_MIN_HEIGHT.value,
+    granite: G3_GRANITE_COURSES.value, floor: 9000, from: 'MENKAURE_PERIOD', tol: 1.5,
   },
 ];
 const seed = new WorldSeed(1);
@@ -83,7 +97,7 @@ for (const r of ROWS.filter((x) => atLeast(epoch, x.from))) {
   const sa = auditSpec(spec);
   check(`${r.name} spec consistency`, sa.ok, sa.notes.join('; ') || `${spec.courses.length} courses`);
   check(`${r.name} base within survey tolerance`, Math.abs(r.base - r.baseSurvey) < 0.01, `${r.base}`);
-  check(`${r.name} height within 0.5 m of survey`, Math.abs(h - r.survey) < 0.5, `${h.toFixed(3)} vs ${r.survey}`);
+  check(`${r.name} height within ${r.tol} m of survey`, Math.abs(h - r.survey) < r.tol, `${h.toFixed(3)} vs ${r.survey}`);
   const last = spec.courses[spec.courses.length - 1];
   const top = last ? last.y0 + last.h : 0;
   check(`${r.name} courses sum to the slope's height`, Math.abs(top - h) < h * 0.005, `${top.toFixed(3)} vs ${h.toFixed(3)}`);
@@ -262,7 +276,7 @@ async function collisionTest(): Promise<void> {
   // (v1.2 I6) harbour evidence tags and the moving fleet's clearance
   const counters = await page.evaluate(() => window.__akhet.stats?.counters ?? {});
   await browser.close();
-  check('evidence: every piece tagged (harbour, Sphinx, Khafre)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
+  check('evidence: every piece tagged (harbour, Sphinx, Khafre, Menkaure)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
   check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
   if (atLeast(epoch, 'KHAFRE_PERIOD') && counters['khafre.cwSegs']) {
     check('Khafre causeway grade ≤ 100 ‰', (counters['khafre.cwMaxGrade'] ?? 999) <= 100, `${counters['khafre.cwMaxGrade']} ‰ over ${counters['khafre.cwSegs']} segments`);
