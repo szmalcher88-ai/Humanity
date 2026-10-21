@@ -68,3 +68,12 @@ export function building(e: Epoch): boolean {
   if (atLeast(e, 'KHUFU_COMPLETION')) return false;
   return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('klate') !== '0';
 }
+
+/** (T3-2) the rest of the complex in its construction state and the
+ *  logistics (the queens rising, the temples at their footings, the quarry
+ *  and the Tura transport at work) — under `building`; `?lworks=0` turns
+ *  only these off (back to the T3-1 world) */
+export function lateWorks(e: Epoch): boolean {
+  if (!building(e)) return false;
+  return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('lworks') !== '0';
+}

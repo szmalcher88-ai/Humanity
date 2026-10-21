@@ -1428,6 +1428,9 @@ export function buildHarbor(
   seed: WorldSeed,
   hf: Heightfield,
   gi: ProbeGI | null,
+  /** (T3-2) KHUFU_LATE, "advanced construction and limestone transport"
+   *  (IX:121): a SECOND Tura barge on the Merer route, half a cycle behind */
+  late = false,
 ): number {
   const rng = seed.rng('harbor');
   // crews draw from their OWN stream: the fleet's draws stay as they were
@@ -1883,6 +1886,17 @@ export function buildHarbor(
     add('traveller-south', (wm) => traveler(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'sailing'), 'S', 2.2);
     const shuttle = add('harbour-shuttle', (wm) => cargoBoat(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew, 'rowing'));
     const fer = add('ferry', (wm) => ferry(wm, traffic, det, 0, 0, 0, NILE_WATER_Y, crew));
+    // (T3-2) appended AFTER the ferry, its hull on its OWN streams: every
+    // earlier mover keeps its traffic draw; the kind keeps "barge" for the
+    // evidence dispatch (the Merer class)
+    const tura2Out = { sink: 0 };
+    const tura2 = late
+      ? add('tura-barge-late', (wm) => {
+          const t2 = seed.rng('harbor-tura-late');
+          return barge(wm, t2, t2, 0, 0, 0, NILE_WATER_Y, seed.rng('harbor-tura-late-crew'), 'underway', { moving: true, unloads: true, out: tura2Out });
+        })
+      : null;
+    if (tura2) tura2.sink = tura2Out.sink;
 
     // the river lanes on the PROBED deep channel (meander noise moves the
     // bank ±40 m off the spline): southbound west of the axis, northbound east
@@ -1928,6 +1942,12 @@ export function buildHarbor(
         tura.track = tb.finish();
         // at world time 0 (frozen shots) the barge is half unloaded
         tura.phase = (dockAt + 400) / (tura.track.length - 1);
+        // (T3-2) the second barge on the same track, half a cycle behind:
+        // on the river laden or returning while the first unloads
+        if (tura2) {
+          tura2.track = tura.track;
+          tura2.phase = (tura.phase + 0.5) % 1;
+        }
       } else {
         // no clear water across the basin this seed: it passes downstream
         // (v1.2 I6: no longer silent — Haiku I6-C)

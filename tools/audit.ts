@@ -11,7 +11,7 @@
 
 import { Vector3 } from 'three';
 import { WorldSeed } from '../src/core/Seed';
-import { atLeast, building, parseEpoch, type Epoch } from '../src/world/Epoch';
+import { atLeast, building, lateWorks, parseEpoch, type Epoch } from '../src/world/Epoch';
 import { G1_BUILT_FRAC } from '../src/monuments/Monuments';
 import { buildSpec, auditSpec } from '../src/monuments/PyramidSpec';
 import {
@@ -31,6 +31,8 @@ import {
   G3_SLOPE_DEG,
   G3A_SLOPE_DEG,
   MENKAURE_CAUSEWAY,
+  QUEENS_BASE_SIDE,
+  QUEENS_SLOPE_DEG,
   G1_CAUSEWAY_WIDTH,
   KHAFRE_CAUSEWAY,
   KHAFRE_VT_CENTER,
@@ -142,6 +144,20 @@ if (building(epoch)) {
   check('G1 under construction: built to the course passing H/2', !!b && b.courses === k + 1 && b.top > h / 2, b ? `${b.courses} courses, top ${b.top.toFixed(2)} m` : 'no build');
   check('G1 under construction: the built stones (>30k)', spec.stones.length > 30000, `${spec.stones.length}`);
   check('G1 under construction: no stone above the top', spec.stones.every((st) => st.y0 < (b?.top ?? 0)), '');
+  // (T3-2) the queens rising: G1-b half built, G1-c begun — on their streams
+  if (lateWorks(epoch)) {
+    const qh = (QUEENS_BASE_SIDE.value / 2) * Math.tan((QUEENS_SLOPE_DEG.value * Math.PI) / 180);
+    for (const [name, frac] of [['G1-b', 0.5], ['G1-c', 0.15]] as const) {
+      const qs = buildSpec({
+        baseSide: QUEENS_BASE_SIDE.value, height: qh, slopeDeg: QUEENS_SLOPE_DEG.value, cx: 0, cy: 0, cz: 0,
+        courseCount: 46, course1: 0.95, courseMin: 0.5, builtFrac: frac, undressedCourses: 46,
+        rng: seed.rng(`monument-${name}`),
+      });
+      const top = qs.built?.top ?? 0;
+      const one = qs.courses[qs.built?.courses ?? 0]?.h ?? 1.5;
+      check(`${name} under construction: built to ${frac} of its height`, top > frac * qh && top < frac * qh + one + 0.01, `top ${top.toFixed(2)} of ${qh.toFixed(1)} m, ${qs.built?.courses} courses`);
+    }
+  }
 }
 
 // (T2-4) Khafre's causeway, from the constants: clear of the Sphinx
@@ -334,6 +350,10 @@ async function collisionTest(): Promise<void> {
   await browser.close();
   check('evidence: every piece tagged (harbour, Sphinx, Khafre, Menkaure)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
   check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
+  if (lateWorks(epoch)) {
+    check('KHUFU_LATE: the second Tura barge on the river', (counters['harbor.vessels'] ?? 0) === 37, `${counters['harbor.vessels']} vessels (36 + 1)`);
+    check('KHUFU_LATE: the quarry at work, the Tura yard', (counters['late.faceBlocks'] ?? 0) > 20 && (counters['late.turaStaged'] ?? 0) > 15, `${counters['late.faceBlocks']} face blocks, ${counters['late.turaStaged']} Tura blocks staged`);
+  }
   if (atLeast(epoch, 'MENKAURE_PERIOD') && counters['menkaure.cwSegs']) {
     check("Menkaure causeway grade ≤ 150 ‰ (an unfinished track)", (counters['menkaure.cwMaxGrade'] ?? 999) <= 150, `${counters['menkaure.cwMaxGrade']} ‰ at segment ${counters['menkaure.cwMaxAt']}`);
   }

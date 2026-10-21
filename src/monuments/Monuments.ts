@@ -38,7 +38,7 @@ import {
   G3A_SLOPE_DEG,
   MENKAURE_QUEENS,
 } from '../world/CANON_DIMENSIONS';
-import { atLeast, building, DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
+import { atLeast, building, DEFAULT_EPOCH, lateWorks, type Epoch } from '../world/Epoch';
 import type { Confidence } from '../world/CANON_DIMENSIONS';
 import { buildPyramid, type PyramidLod } from './PyramidBuilder';
 import { buildSpec, solveCourses, type PyramidSpec } from './PyramidSpec';
@@ -99,8 +99,9 @@ export function buildMonuments(
     evidence?: { conf: Confidence; basis: string; epoch: string },
     shadowLod?: number,
     graniteUndressed = false,
-    /** (T3-1) under construction: built to G1_BUILT_FRAC, its casing undressed */
-    underConstruction = false,
+    /** (T3-1, T3-2) under construction: built to this fraction of the
+     *  height (the first course whose top passes it), its casing undressed */
+    builtFrac?: number,
   ): void => {
     const [cx, cz] = edPos(`pyramid:${name}`, cx0, cz0);
     const H = heightFromSlope(baseSide, slopeDeg);
@@ -117,7 +118,7 @@ export function buildMonuments(
       graniteCourses,
       ...(shadowLod !== undefined ? { shadowLod } : {}),
       ...(graniteUndressed ? { graniteUndressed } : {}),
-      ...(underConstruction ? { builtFrac: G1_BUILT_FRAC, undressedCourses: courseCount } : {}),
+      ...(builtFrac !== undefined ? { builtFrac, undressedCourses: courseCount } : {}),
       rng: seed.rng(`monument-${name}`),
     });
     const lod = buildPyramid(spec, gi);
@@ -158,7 +159,7 @@ export function buildMonuments(
       { conf: 'D', basis: 'mid-height construction (canon preset); the course by height (D-25)', epoch: 'khufu-late' },
       undefined,
       false,
-      true,
+      G1_BUILT_FRAC,
     );
   } else {
     add(
@@ -172,26 +173,48 @@ export function buildMonuments(
     );
   }
 
-  // queens' row terrace at −1.2 (GizaControl qPad)
+  // queens' row terrace at −1.2 (GizaControl qPad); (T3-2) in KHUFU_LATE
+  // G1-a (the earliest) stands finished, G1-b half built, G1-c begun (D-26)
   const qNames = ['G1-a', 'G1-b', 'G1-c'];
+  const late = lateWorks(epoch);
+  const QUEEN_LATE: (number | undefined)[] = [undefined, 0.5, 0.15];
   QUEENS_CENTERS.forEach((c, i) => {
-    add(
-      qNames[i] ?? `G1-q${i}`,
-      QUEENS_BASE_SIDE.value,
-      QUEENS_SLOPE_DEG.value,
-      c.x, -1.2, c.z,
-      46, 0.95, 0.5,
-    );
+    const frac = late ? QUEEN_LATE[i] : undefined;
+    if (frac !== undefined) {
+      add(
+        qNames[i] ?? `G1-q${i}`,
+        QUEENS_BASE_SIDE.value,
+        QUEENS_SLOPE_DEG.value,
+        c.x, -1.2, c.z,
+        46, 0.95, 0.5,
+        0,
+        { conf: 'D', basis: 'a queen rising in the reign (the order reconstructed, D-26)', epoch: 'khufu-late' },
+        undefined,
+        false,
+        frac,
+      );
+    } else {
+      add(
+        qNames[i] ?? `G1-q${i}`,
+        QUEENS_BASE_SIDE.value,
+        QUEENS_SLOPE_DEG.value,
+        c.x, -1.2, c.z,
+        46, 0.95, 0.5,
+      );
+    }
   });
 
-  // satellite pyramid on the G1 platform
-  add(
-    'G1-d',
-    G1D_BASE_SIDE.value,
-    G1D_SLOPE_DEG.value,
-    G1D_CENTER.x, 0, G1D_CENTER.z,
-    24, 0.75, 0.42,
-  );
+  // satellite pyramid on the G1 platform — (T3-2) not yet in KHUFU_LATE: it
+  // belongs to the final works (its stream is named: nothing else moves)
+  if (!late) {
+    add(
+      'G1-d',
+      G1D_BASE_SIDE.value,
+      G1D_SLOPE_DEG.value,
+      G1D_CENTER.x, 0, G1D_CENTER.z,
+      24, 0.75, 0.42,
+    );
+  }
 
   // (T2-3) Khafre's pyramid, KHAFRE_PERIOD on — LAST, on its own stream, so
   // nothing before it moves; on the terrain's levelled platform (G2_PAD_Y).

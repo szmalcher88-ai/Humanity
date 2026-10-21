@@ -118,7 +118,8 @@ causeway, valley temple and the Sphinx Temple (D-22; `?ktemples=0` skips them; `
 the valley temple); MENKAURE_PERIOD adds Menkaure's pyramid G3 with its sixteen granite courses,
 court and wall (D-23; `?g3=0`) and his works as they stood at his death — the queens, the
 unfinished temples and causeway, the construction yards (D-24; `?mworks=0`; `?bm=14`); KHUFU_LATE shows the Great Pyramid under construction at mid-height
-with its supply ramp and the zigzag on the south face (D-25; `?klate=0`; `?bm=15&epoch=KHUFU_LATE`);
+with its supply ramp and the zigzag on the south face (D-25; `?klate=0`; `?bm=15&epoch=KHUFU_LATE`), the
+queens rising, the temples at their footings, the quarry and the Tura transport at work (D-26; `?lworks=0`);
 KHUFU_EARLY falls back to it with a notice) ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·

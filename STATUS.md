@@ -450,6 +450,63 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T3-2 — KHUFU_LATE: THE COMPLEX AND THE LOGISTICS (done; plan
+`docs/plans/T3-2_PLAN.md`; D-26). The canon gives NO construction order for
+the complex — its one order: the Tura limestone arrives while the pyramid
+rises (IX:828); every state below is D. Three contracts bit for bit
+(default 1142, KHAFRE 1120, MENKAURE 1179); behind `lateWorks(epoch)`
+(`building` + `?lworks≠0` — `?lworks=0` gives the T3-1 world back).
+- THE COMPLEX AT MID-HEIGHT: G1-a finished (the earliest queen); G1-b half
+  built (21 courses, 14.8 m) and G1-c begun (6 courses, 4.8 m), their casing
+  undressed — the T3-1 `builtFrac` path, now a number on `add()`; only G1-a's
+  chapel; G1-d absent (the final works); the mortuary temple at its footing
+  courses (≈ 1 m, the basalt not laid, no SE-corner scaffold — its canon
+  gang k5 kept: a canon line is never removed); the causeway its bare
+  FOUNDATION — pedestal and floor slabs, no walls or roof — the materials
+  road from the harbour; the valley temple its platform and footings.
+  Every parent fork still taken (`mt-pillars`, `causeway`, `boatpits`, the
+  inhabitants' `scaffold`); only bodies shortened.
+- THE QUARRY AT WORK (`KhufuLateWorks.ts`, family `quarry-works`): two
+  extraction faces on the free floors (the west floor, the ENE arm) — 36
+  blocks proud in their channels on the trench grid's 2.6 m pitch, gaps
+  where blocks went, one levered on rockers, chips, a sledge team at each;
+  a TRANSPORT RAMP from the floor at the haul road's start (90, 390) to the
+  north lip (70, 306) — the wall there rises 16–17 % (MEASURED), so the ramp
+  is built DOWN from the lip, never steeper than 12 %, running on as an
+  embankment and ending 1.3 m over the floor; sleepers, a sledge coming up,
+  blocks staged at its head; 40 quarrymen walking (appended last).
+- LIMESTONE TRANSPORT: a SECOND Tura barge on the Merer route half a cycle
+  behind the first (`Vessels.ts`, appended after the ferry on its own
+  streams — every earlier mover keeps its draw; 37 vessels), a staging yard
+  of 21 Tura casing blocks by size at the slipway (family `tura-yard`), and
+  three Tura sledges with their teams hauling up the causeway's foundation.
+- THE STAIRS FIXED: the supply ramp's and the zigzag's decks are now SLOPED
+  (each 3 m body tops out 0.3 m low and a sloped quad, wound to face up,
+  carries the deck) — in LATE whatever `lworks` says (a fix, not a work).
+- AUDIT (`--epoch KHUFU_LATE`): G1-b / G1-c built to their fractions (± one
+  course), the second barge (37 vessels), the quarry works and the Tura
+  yard present; collisions clean on the first boot.
+- THE FIRST LATE BASELINE: `fpdump --q "epoch=KHUFU_LATE"` → 1190
+  footprints (`shots/t2/fp-late-base.json`) — from T3-3 on, LATE holds a
+  contract too.
+- PERF (`perf.ts --bm 15,7,1,3 --runs 3 --q "epoch=KHUFU_LATE" --b
+  "lworks=0"`, one sitting — B the T3-1 world): fps medians A = B at all four
+  (60 / 40 / 60 / 60); scene pass Δ −0.14 / +0.06 / +0.03 / +0.16 ms — the
+  shrunken temples and causeway pay for the quarry, the yard and the barge.
+BATTERY (default epoch): 18/19 + the advisory perf WARN (bm1 53, bm3 67, bm7 45);
+the slow-adapter probe PASSED in the battery (its tally since T2-3: 3 of 6
+battery runs, 6 of 6 standalone).
+
+HAIKU — T3-2 (5 agents, read-only, run and verified by the side planner):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon on order | 30 | 29 — the canon gives no order; one wrong row (the Tura barge plays in every epoch) |
+| B | the complex's builders | 30 | 30 — the fork order, the draw-free bodies; the scaffold showed in LATE |
+| C | the quarry at work | 30 | 30 — the two free floors; the reusable pieces |
+| D | the harbour and Tura | 30 | 30 — the per-mover traffic draw; the kind-based evidence |
+| E | the T3-1 code and tools | 30 | 29 — `ColorWriter.quad` exists (no new primitive needed) |
+VERDICT: 148/150 (98.7 %).
+
 T3-1 — KHUFU_LATE: THE GREAT PYRAMID UNDER CONSTRUCTION (done; plan
 `docs/plans/T3-1_PLAN.md`; D-25). The T2 roadmap was done; the planner's T3
 roadmap: T3-1 the pyramid and its ramps (this), T3-2 the complex and the
@@ -1249,7 +1306,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
 | T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3, T2-6 Menkaure's works at his death DONE (above; D-20 provisional site, D-21–D-24) |
-| T3 | the Khufu construction stages (canon IX §9.3, the brief's Tier 3) — T3-1 KHUFU_LATE the pyramid at mid-height + ramps DONE (above; D-25) | T3-2 the complex and the logistics in KHUFU_LATE; T3-3 KHUFU_EARLY; T3-4 "several decades after" (the human's call) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T3 | the Khufu construction stages (canon IX §9.3, the brief's Tier 3) — T3-1 KHUFU_LATE the pyramid at mid-height + ramps, T3-2 the complex and the logistics DONE (above; D-25, D-26) | T3-3 KHUFU_EARLY; T3-4 "several decades after" (the human's call) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

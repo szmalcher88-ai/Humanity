@@ -315,6 +315,9 @@ export interface ComplexInfo {
   causewayEnd: Vector3;
   westTombs: WestTomb[];
   twins: TwinTomb[];
+  /** (T3-2) the causeway's graded deck per segment (the materials road's
+   *  sledges stand on it) */
+  causewayDeck: Float32Array;
 }
 
 export function buildKhufuComplex(
@@ -327,6 +330,11 @@ export function buildKhufuComplex(
    *  the pits cut after the funeral (D-25). Their forks are still taken, so
    *  every stream after them draws as in the finished world */
   underConstruction = false,
+  /** (T3-2) the rest of the complex at its construction state (KHUFU_LATE):
+   *  the mortuary temple at its footing courses, the causeway its bare
+   *  foundation (the materials road), the valley temple its platform, only
+   *  G1-a's chapel (D-26). Forks still taken; only bodies shortened */
+  lateWorks = false,
 ): ComplexInfo {
   const rng = seed.rng('khufu-complex');
   /** terrain height under a structure — everything off the leveled court
@@ -426,7 +434,22 @@ export function buildKhufuComplex(
   const mtW = G1_MORTUARY_TEMPLE_EW.value; // 40 E-W
   const mtL = G1_MORTUARY_TEMPLE_NS.value; // 52.5 N-S
   const mtX = half + temenosD + court + mtW / 2 - 2;
-  {
+  if (lateWorks) {
+    // its footing courses: the plan's outline, ≈ 1 m of local limestone
+    const th = 2.2;
+    local.box(mtX, 0, -mtL / 2 + th / 2, mtW, 1.0, th, 0.96, 0.02, 0, 0.02);
+    local.box(mtX, 0, mtL / 2 - th / 2, mtW, 1.0, th, 0.95, 0.02, 0, 0.02);
+    for (const xw of [mtX - mtW / 2 + th / 2 + 0.02, mtX + mtW / 2 - th / 2 - 0.02]) {
+      local.box(xw, 0, 0, th, 1.0, mtL - th, 0.96, 0.02, 0, 0);
+    }
+    rng.fork('mt-pillars');
+    fpReg({
+      id: 'mortuary-temple', family: 'temple', x: mtX, z: 0,
+      hx: mtW / 2, hz: mtL / 2, y0: 0, y1: 1.0,
+      ground: 'platform', allow: ['temenos', 'pavement', 'causeway'],
+      conf: 'D', basis: 'its footing courses at mid-height construction (D-26)', epoch: 'khufu-late',
+    });
+  } else {
     const h = 7;
     const th = 2.2;
     // basalt court floor
@@ -473,6 +496,7 @@ export function buildKhufuComplex(
   // valley temple is a canon placement — editable; the causeway END follows
   const [vtX, vtZ] = edPos('valley-temple', VALLEY_TEMPLE_CENTER.x, VALLEY_TEMPLE_CENTER.z);
   const cwStart = new Vector3(mtX + mtW / 2, 0, 0);
+  let cwDeck: Float32Array = new Float32Array(0);
   const cwEnd = new Vector3(vtX - 22, -41.0, vtZ);
   {
     const dir = cwEnd.clone().sub(cwStart);
@@ -508,6 +532,7 @@ export function buildKhufuComplex(
         ys[i] = (a + 2 * b + c) / 4;
       }
     }
+    cwDeck = ys;
     for (let i = 0; i < segN; i++) {
       const f0 = i / segN;
       const f1 = (i + 1) / segN;
@@ -543,18 +568,20 @@ export function buildKhufuComplex(
       tura.box(xm, ym - 0.02, zm, L, 0.16 + rise, w - wallTh * 2, t.range(0.94, 1.0), 0, yaw);
       // side walls (raised by the local grade rise so segments seal)
       const off = (w / 2 - wallTh / 2);
-      local.box(
+      // (T3-2) under construction the foundation is the materials road: no
+      // walls, no roof (their tone draws are on this child only)
+      if (!lateWorks) local.box(
         xm - Math.sin(yaw) * off, ym, zm + Math.cos(yaw) * off,
         L, wallH + rise, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
       );
-      local.box(
+      if (!lateWorks) local.box(
         xm + Math.sin(yaw) * off, ym, zm - Math.cos(yaw) * off,
         L, wallH + rise, wallTh, 0.97 + t.range(-0.02, 0.02), 0.03, yaw,
       );
       // roof slabs with the central light slit (two runs; the 0.45 in the
       // formula is not the gap — the slabs' 0.35 m trim widens it to 0.8 m)
       const roofHalf = (w - 0.45) / 4 + 0.45 / 2;
-      for (const s of [-1, 1]) {
+      for (const s of lateWorks ? [] : [-1, 1]) {
         local.box(
           xm - Math.sin(yaw) * s * roofHalf, ym + wallH, zm + Math.cos(yaw) * s * roofHalf,
           L, 0.5 + rise, (w - 0.45) / 2 - 0.35, 0.96, 0, yaw,
@@ -594,26 +621,33 @@ export function buildKhufuComplex(
     local.box(vx, vy - 5, vz, W + 10, 5.2, L + 10, 0.92, 0.04);
     // floor top 2 cm ABOVE the pedestal top (both at vy+0.20 z-fought)
     tura.box(vx, vy + 0.02, vz, W + 8, 0.2, L + 8, 0.97);
-    // heavy walls, west door (to causeway) + two east doors (from harbor)
-    // end walls batter all four faces (corner wedges — see the temenos)
-    local.box(vx, vy, vz - L / 2 + th / 2, W, h, th, 0.99, 0.05, 0, 0.05);
-    local.box(vx, vy, vz + L / 2 - th / 2, W, h, th, 0.98, 0.05, 0, 0.05);
-    const dHalf = 2.0;
-    // (v1.1) side runs reach HALF-WAY into the end walls: stopping at the end
-    // wall's inner face left a daylight slit up every corner once that
-    // battered face receded 0.4 m at the top. Inset 2 cm so no faces lie
-    // coplanar with the end walls' plumb ends.
-    const sRun = L / 2 - dHalf - th / 2;
-    for (const xw of [vx - W / 2 + th / 2 + 0.02, vx + W / 2 - th / 2 - 0.02]) {
-      local.box(xw, vy, vz - (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
-      local.box(xw, vy, vz + (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
-      // lintel battered on its faces only, and as thick as the jambs ARE at
-      // that height — a plumb lintel stood proud of the leaning wall face
-      local.box(xw, vy + h - 1.5, vz, th - 2 * 0.05 * (h - 1.5), 1.5, dHalf * 2, 0.97, 0.05, 0, 0);
+    // (T3-2) under construction: its platform and footing courses only
+    if (lateWorks) {
+      local.box(vx, vy, vz - L / 2 + th / 2, W, 1.0, th, 0.97, 0.02, 0, 0.02);
+      local.box(vx, vy, vz + L / 2 - th / 2, W, 1.0, th, 0.96, 0.02, 0, 0.02);
+      for (const xw of [vx - W / 2 + th / 2 + 0.02, vx + W / 2 - th / 2 - 0.02]) local.box(xw, vy, vz, th, 1.0, L - th, 0.97, 0.02, 0, 0);
+    } else {
+      // heavy walls, west door (to causeway) + two east doors (from harbor)
+      // end walls batter all four faces (corner wedges — see the temenos)
+      local.box(vx, vy, vz - L / 2 + th / 2, W, h, th, 0.99, 0.05, 0, 0.05);
+      local.box(vx, vy, vz + L / 2 - th / 2, W, h, th, 0.98, 0.05, 0, 0.05);
+      const dHalf = 2.0;
+      // (v1.1) side runs reach HALF-WAY into the end walls: stopping at the end
+      // wall's inner face left a daylight slit up every corner once that
+      // battered face receded 0.4 m at the top. Inset 2 cm so no faces lie
+      // coplanar with the end walls' plumb ends.
+      const sRun = L / 2 - dHalf - th / 2;
+      for (const xw of [vx - W / 2 + th / 2 + 0.02, vx + W / 2 - th / 2 - 0.02]) {
+        local.box(xw, vy, vz - (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
+        local.box(xw, vy, vz + (dHalf + sRun / 2), th, h, sRun, 0.99, 0.05);
+        // lintel battered on its faces only, and as thick as the jambs ARE at
+        // that height — a plumb lintel stood proud of the leaning wall face
+        local.box(xw, vy + h - 1.5, vz, th - 2 * 0.05 * (h - 1.5), 1.5, dHalf * 2, 0.97, 0.05, 0, 0);
+      }
     }
     fpReg({
       id: 'valley-temple', family: 'temple', x: vx, z: vz,
-      hx: (W + 10) / 2, hz: (L + 10) / 2, y0: vy - 5, y1: vy + h,
+      hx: (W + 10) / 2, hz: (L + 10) / 2, y0: vy - 5, y1: vy + (lateWorks ? 1.0 : h),
       ground: 'grounded', allow: ['causeway'], editable: true,
     });
   }
@@ -667,6 +701,7 @@ export function buildKhufuComplex(
 
   /* --- queens' chapels (follow the queens' canon/edited positions) ---------- */
   for (const [qi, qz0] of ([52, 104, 156] as const).entries()) {
+    if (lateWorks && qi > 0) continue; // (T3-2) only the finished queen's
     const name = ['G1-a', 'G1-b', 'G1-c'][qi] ?? `q${qi}`;
     const [qcx, qz] = edPos(`pyramid:${name}`, 190, qz0);
     const qx = qcx + 23 + 4.5;
@@ -838,5 +873,5 @@ export function buildKhufuComplex(
     scene.add(m);
   }
 
-  return { causewayStart: cwStart, causewayEnd: cwEnd, westTombs, twins };
+  return { causewayStart: cwStart, causewayEnd: cwEnd, westTombs, twins, causewayDeck: cwDeck };
 }

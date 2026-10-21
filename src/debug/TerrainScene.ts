@@ -14,13 +14,14 @@ import { buildMonuments, g1BuiltTop, updateMonumentLods, type MonumentSite } fro
 import { buildKhafreComplex } from '../monuments/KhafreComplex';
 import { buildMenkaureComplex, menkaureLines } from '../monuments/MenkaureComplex';
 import { buildG1Works, g1WorksLines } from '../monuments/G1Works';
+import { buildKhufuLateWorks, khufuLateLines } from '../monuments/KhufuLateWorks';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
 import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
-import { atLeast, building } from '../world/Epoch';
+import { atLeast, building, lateWorks } from '../world/Epoch';
 import { buildSphinx } from '../monuments/Sphinx';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
@@ -100,6 +101,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     'khafre-temenos', 'khafre-pavement', 'khafre-temple', 'khafre-causeway',
     'menkaure-temenos', 'menkaure-pavement', 'menkaure-temple', 'menkaure-causeway',
     'menkaure-queens', 'menkaure-terrace', 'menkaure-works', 'g1-ramp', 'g1-works',
+    'quarry-works', 'tura-yard',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -121,7 +123,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       structures.remove(c);
     }
     sites = buildMonuments(structures, seed, gi, engine.params.epoch);
-    const complex = buildKhufuComplex(structures, seed, hf, gi, building(engine.params.epoch));
+    const complex = buildKhufuComplex(structures, seed, hf, gi, building(engine.params.epoch), lateWorks(engine.params.epoch));
     // (v1.2 I5) the necropolis' family courts, the D-7 ramp remnant and the
     // royal works yard south of the enclosure
     const courts = buildFamilyCourts(structures, seed, hf, gi, complex.westTombs, complex.twins);
@@ -168,8 +170,16 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
         engine.stats.counters['g1.zigzagLegs'] = g1w.zigzagLegs;
         engine.stats.counters['g1.builtTopCm'] = Math.round(top * 100);
       }
+      // (T3-2) the logistics at work: the quarry's faces and transport ramp,
+      // the Tura yard at the slipway, Tura sledges on the causeway's foundation
+      if (lateWorks(engine.params.epoch)) {
+        const lw = buildKhufuLateWorks(structures, seed, hf, gi, complex);
+        engine.stats.counters['late.faceBlocks'] = lw.faceBlocks;
+        engine.stats.counters['late.quarryRamp'] = lw.rampSegments;
+        engine.stats.counters['late.turaStaged'] = lw.turaStaged;
+      }
     }
-    engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi);
+    engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi, lateWorks(engine.params.epoch));
     engine.stats.counters['harbor.crew'] = crewCount;
     engine.stats.counters['harbor.moving'] = movingCount;
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
@@ -260,7 +270,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : [])], khufuWorks);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : []), ...(lateWorks(engine.params.epoch) ? khufuLateLines : [])], khufuWorks, lateWorks(engine.params.epoch));
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

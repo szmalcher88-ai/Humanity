@@ -67,6 +67,14 @@ export function buildG1Works(
   const local = new GeoWriter();
   const wood = new GeoWriter();
   const info: G1WorksInfo = { rampSegments: 0, zigzagLegs: 0, rampTop: 0 };
+  /** (T3-2) a SLOPED deck quad over a segment whose body tops out 0.3 m
+   *  low: a, b at its low end, c, d at its high end — wound to face up (the
+   *  flat-topped boxes stepped 0.3 m every 3 m and read as a stair) */
+  const slope = (a: C3, b: C3, c: C3, d: C3): void => {
+    const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+    if (ny > 0) fill.quad(a, b, c, d, FILL);
+    else fill.quad(a, d, c, b, FILL);
+  };
 
   /* --- the supply ramp: toe → the face, at 10 % ------------------------------ */
   const LEN0 = Math.hypot(TOE[0] - HEAD[0], TOE[1] - HEAD[1]);
@@ -84,7 +92,14 @@ export function buildG1Works(
     const y = gToe + GRADE * (s + SEG);
     if (z - DECK / 2 < zf(y)) break; // the deck has reached the face
     const lo = Math.min(grd(x, z), grd(x + uz * 8.4, z - ux * 8.4), grd(x - uz * 8.4, z + ux * 8.4)) - 0.3;
-    fill.box(x, lo, z, SEG + 0.04, y - lo, 15.6, FILL, YAW);
+    fill.box(x, lo, z, SEG + 0.04, y - 0.3 - lo, 15.6, FILL, YAW);
+    {
+      const px = uz * 7.8;
+      const pz = -ux * 7.8;
+      const [lx, lz] = [TOE[0] + ux * s, TOE[1] + uz * s];
+      const [hx, hz] = [TOE[0] + ux * (s + SEG + 0.04), TOE[1] + uz * (s + SEG + 0.04)];
+      slope([lx + px, y - 0.3, lz + pz], [lx - px, y - 0.3, lz - pz], [hx - px, y, hz - pz], [hx + px, y, hz + pz]);
+    }
     for (const side of [-1, 1]) {
       const wx = x + side * uz * 8.4;
       const wz = z - side * ux * 8.4;
@@ -112,7 +127,10 @@ export function buildG1Works(
     const zi = zf(y) - 0.3;
     const zo = zi + DECK;
     const base = Math.max(0, y - 13.5);
-    fill.box((x0 + x1) / 2, base, (zi + zo) / 2, Math.abs(x1 - x0) + 0.04, y - base, DECK, FILL);
+    fill.box((x0 + x1) / 2, base, (zi + zo) / 2, Math.abs(x1 - x0) + 0.04, y - 0.3 - base, DECK, FILL);
+    // the deck rises from x0 (low) to x1 (high)
+    const xe = x1 + Math.sign(x1 - x0) * 0.04;
+    slope([x0, y - 0.3, zi], [x0, y - 0.3, zo], [xe, y, zo], [xe, y, zi]);
     mud.box((x0 + x1) / 2, base, zo + 0.5, Math.abs(x1 - x0) + 0.04, y + 0.6 - base, 1.0, rng.range(0.52, 0.6), 0, 0, 0.08);
   };
   let x = sx;

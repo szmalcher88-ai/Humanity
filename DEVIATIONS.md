@@ -450,3 +450,22 @@ D (the course, the geometry, the platform's state).
 frustum), `src/gpu/passes/ProbeGI.ts` (the top plane),
 `src/monuments/Monuments.ts`, `src/monuments/KhufuComplex.ts`,
 `src/monuments/SouthWorks.ts`, `src/monuments/G1Works.ts`.
+
+## D-26 — KHUFU_LATE: the complex's construction states and the logistics
+**Conflict:** the canon gives no construction order for the complex (every
+component carries a "construction phase" field with no values) — its one
+order is the Tura limestone arriving while the pyramid rises (IX:828).
+**Chosen (T3-2, KHUFU_LATE only; plan `docs/plans/T3-2_PLAN.md`, defaults
+taken while the human was away; all D):** the complex finished from the
+pyramid outward (outside picture, C): G1-a finished, G1-b half, G1-c begun;
+G1-d absent; the mortuary and valley temples at their footings; the
+causeway's foundation laid as the materials road (no walls or roof); the
+quarry at work (two faces, a transport ramp out at ≤ 12 %); a second Tura
+barge, a Tura staging yard at the slipway, Tura sledges on the causeway.
+**Alternatives:** every building finished but the pyramid (the T3-1 state,
+`?lworks=0`); the queens all finished.
+**Confidence:** D (the states, the layout) · C (the Tura route, Merer).
+**Code:** `src/world/Epoch.ts` (`lateWorks`), `src/monuments/Monuments.ts`,
+`src/monuments/KhufuComplex.ts`, `src/monuments/Inhabitants.ts`,
+`src/monuments/KhufuLateWorks.ts`, `src/water/Vessels.ts`,
+`src/monuments/G1Works.ts` (the sloped decks).

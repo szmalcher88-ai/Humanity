@@ -359,6 +359,10 @@ export function buildInhabitants(
   /** (T2) Khufu's construction works (haul road, trains, shelters, the SE
    *  scaffold) — false from KHAFRE_PERIOD on; the default draws as before */
   khufuWorks = true,
+  /** (T3-2) KHUFU_LATE's complex at its construction state: the SE-corner
+   *  scaffold is not up yet (the temple stands at its footings) — its canon
+   *  gang k5 stays (a canon line is never removed: the index filter) */
+  late = false,
 ): InhabitantCounts {
   const rng = seed.rng('inhabitants');
   const budget = FIGURE_BUDGET[preset];
@@ -402,7 +406,7 @@ export function buildInhabitants(
     if (!Number.isFinite(g) || g < -44) continue;
     fpReg({ id: `shelter:${k}`, family: 'trains', x: hx, z: hz, hx: 2.9, hz: 2.9, y0: g, y1: g + 2.25, ground: 'none' });
   }
-  {
+  if (!late) {
     const g = hf.heightAtCpu(SCAFFOLD.bx, SCAFFOLD.bz);
     const [fx0, fz0] = SCAFFOLD.foot;
     const [hx1, hz1] = SCAFFOLD.head;
@@ -716,7 +720,8 @@ export function buildInhabitants(
   }
 
   /* --- scaffolding: the mortuary temple's SE corner, mid-build ------------ */
-  if (khufuWorks) {
+  if (khufuWorks && late) rng.fork('scaffold'); // its body draws nothing
+  if (khufuWorks && !late) {
     // the temple spans x 133.4–173.4 (mtX 153.38), its SE corner at z 26.25
     const bx = SCAFFOLD.bx;
     const bz = SCAFFOLD.bz;
