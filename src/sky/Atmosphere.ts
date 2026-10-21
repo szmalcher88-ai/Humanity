@@ -116,6 +116,9 @@ function transmittanceUv(r: NF, mu: NF): NV2 {
 
 const RAYLEIGH_PHASE_K = 3 / (16 * Math.PI);
 
+/** (v1.2 I7) the Earth's shadow in the transmittance read; ?earthshadow=0 */
+const EARTH_SHADOW = typeof window === 'undefined' || new URLSearchParams(window.location.search).get('earthshadow') !== '0';
+
 function rayleighPhase(nu: NF): NF {
   return nu.mul(nu).add(1).mul(RAYLEIGH_PHASE_K);
 }
@@ -152,9 +155,21 @@ export class Atmosphere {
     return t;
   }
 
-  /** sample transmittance toward the sun/top from radius r, cos zenith mu */
+  /** sample transmittance toward the sun/top from radius r, cos zenith mu.
+   *  (v1.2 I7) with the EARTH'S SHADOW: below the horizon cosine
+   *  muH = −√(1 − (RG/r)²) the sun ray hits the ground. The LUT mapping
+   *  clamps mu, so every sunset ray used to read the horizon-grazing texel —
+   *  one red transmittance for any sun below the horizon, baked into the
+   *  night sky-view LUT and from there into the aerial in-scatter, the IBL,
+   *  clouds and froxels: the red escarpment rim at night (Haiku I7-D). Every
+   *  consumer is a sun ray, so this one place fixes them all; with the sun up
+   *  mu never meets the test, so day frames do not change. ?earthshadow=0
+   *  restores the old read for the A/B. */
   sampleTransmittance(r: NF, mu: NF): NV3 {
-    return texture(this.transmittanceLUT, transmittanceUv(r, mu)).rgb;
+    const t = texture(this.transmittanceLUT, transmittanceUv(r, mu)).rgb;
+    if (!EARTH_SHADOW) return t;
+    const muH = sqrt(max(0, float(1).sub(float(RG).div(r).pow(2)))).negate();
+    return t.mul(smoothstep(muH.sub(0.004), muH.add(0.004), mu));
   }
 
   private sampleMultiScatter(r: NF, muS: NF): NV3 {
@@ -345,7 +360,7 @@ export class Atmosphere {
    * sky (water, cirrus ambient) must see stars and moon too, or the world
    * mirrors an empty black dome after dusk.
    */
-  nightSky: { radiance(dir: NV3): NV3 } | null = null;
+  nightSky: { radiance(dir: NV3): NV3; ambient(dir: NV3): NV3 } | null = null;
 
   /** sky radiance INCLUDING the night terms — use this for reflections */
   skyFull(dir: NV3): NV3 {
@@ -428,7 +443,9 @@ export class Atmosphere {
     const dustSpectrum = vec3(0.88, 1.0, 1.18);
 
     const T = vexp3(tauR.add(tauM).add(dustSpectrum.mul(tauF)).negate());
-    const sky = this.skyColor(viewDir);
+    // (v1.2 I7) the night's smooth airglow too: distant ground fades into
+    // the night sky's blue, not into the LUT's dim glow (zero by day)
+    const sky = this.nightSky ? this.skyColor(viewDir).add(this.nightSky.ambient(viewDir)) : this.skyColor(viewDir);
     // in-scatter: sky radiance, warmed toward sand tone by the dust share
     const dustShare = tauF.div(tauF.add(tauM).add(0.35).max(1e-3)).clamp(0, 1);
     const src = mix(sky, sky.mul(vec3(1.12, 1.0, 0.82)), dustShare.mul(0.7));

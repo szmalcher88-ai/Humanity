@@ -6,7 +6,7 @@
  * and ditch lines, with per-parcel crop/maturity variation (late-peret
  * green-gold, D-2).
  *
- * One tuft = 5 crossed blades (10 tris). Parcels rejection-tested against
+ * One tuft = 5 crossed blades (3 tris each: 15 per tuft). Parcels rejection-tested against
  * the CPU height mirror (dry plain only). Distance handling: tufts beyond
  * FADE_FAR collapse to degenerate triangles in the vertex stage; the
  * parcel-tinted terrain splat underneath carries the far read.
@@ -282,7 +282,14 @@ export function buildFields(
   const B = bufB.element(instanceIndex);
   const camD = A.xyz.sub(cameraPosition).length();
   // collapse far tufts to zero size (degenerate tris rasterize nothing)
-  const fade = smoothstep(fadeFar, FADE_NEAR, camD);
+  // (v1.2 I7) on low/safe fadeFar (560/380) < FADE_NEAR (700), and
+  // smoothstep(fadeFar, FADE_NEAR) ran BACKWARDS: tufts zero-size near the
+  // camera and full-size only past the cull — the iGPU presets drew no crop
+  // since PERF II (Haiku I7-E). The near edge now sits inside fadeFar there;
+  // high/ultra are unchanged. ?tuftfade=old restores it for the A/B.
+  const oldFade = new URLSearchParams(window.location.search).get('tuftfade') === 'old';
+  const fadeNear = fadeFar > FADE_NEAR || oldFade ? FADE_NEAR : 0.6 * fadeFar;
+  const fade = smoothstep(fadeFar, fadeNear, camD);
   const scale = B.w.mul(fade);
   const yaw = A.w;
   const cy = cos(yaw);

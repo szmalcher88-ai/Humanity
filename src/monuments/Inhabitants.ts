@@ -770,10 +770,12 @@ export function buildInhabitants(
   const stone = new Mesh(w.build(), limestoneMaterial([0.66, 0.62, 0.52], gi, 0.5));
   stone.castShadow = true;
   stone.receiveShadow = true;
+  stone.name = 'works-stone'; // (v1.2 I7) sledges, oxen, the SE-corner ramp
   scene.add(stone);
   const timber = new Mesh(wood.build(), limestoneMaterial([0.31, 0.24, 0.16], gi, 0.24, 0.32));
   timber.castShadow = true;
   timber.receiveShadow = true;
+  timber.name = 'works-timber'; // falsework, shelters, yokes
   scene.add(timber);
 
   return { figures: figureCount, oxen, sledges };

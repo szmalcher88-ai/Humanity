@@ -552,6 +552,9 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
  * terrain must keep the corridor viable): straight line from the mortuary
  * temple front to the valley temple at the authored azimuth.
  */
+// (v1.2 I7) a REFERENCE line, used by nothing: the canon placement's 825 m
+// at 8° (pyramid centre → valley temple). The built corridor runs 632 m
+// from the mortuary temple's front (KhufuComplex cwStart/cwEnd; D-4 note).
 export function causewayAxis(): { ax: number; az: number; bx: number; bz: number } {
   const az = (G1_CAUSEWAY_AZIMUTH_N_OF_E.value * Math.PI) / 180;
   const bx = VALLEY_TEMPLE_CENTER.x;

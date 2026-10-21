@@ -113,7 +113,9 @@ export const G1_ENTRANCE_EAST_OFFSET = e(7.29, 'm', 'A', 'Petrie 1883 (287.1 in 
 /** Tura-limestone court pavement width around the pyramid base. */
 export const G1_COURT_PAVEMENT_WIDTH = e(10.1, 'm', 'C', 'Lehner 1997 p.109 (≈10 m paved court)');
 
-/** Temenos (enclosure) wall: distance from pyramid base and height. */
+/** Temenos (enclosure) wall: distance from the COURT'S OUTER EDGE (the
+ *  geometry puts the wall's centreline at base + pavement + this = 135.38 m
+ *  from the centre; v1.2 I7, D-3 note) and height. */
 export const G1_TEMENOS_DISTANCE = e(10.1, 'm', 'C', 'Lehner 1997 p.109');
 export const G1_TEMENOS_HEIGHT = e(8.0, 'm', 'D', 'Reconstruction; wall footings only — DEVIATIONS D-3');
 
@@ -278,11 +280,6 @@ export const VALLEY_TEMPLE_CENTER: CanonPlacement = {
   x: 817, z: -115, confidence: 'C',
   source: 'Basalt paving + causeway trace; Hawass 1990s observations — DEVIATIONS D-4',
 };
-
-/** Derived: causeway end = mortuary temple east front. */
-export function causewayStart(): { x: number; z: number } {
-  return { x: G1_BASE_SIDE.value / 2 + G1_MORTUARY_TEMPLE_EW.value, z: 0 };
-}
 
 /* ------------------------------------------------------------------ */
 /* Derived helpers (geometry AND audit consume these — one truth)       */

@@ -37,9 +37,16 @@ async function measure(url: string, label: string): Promise<void> {
   await browser.close();
 }
 
-const base = 'http://localhost:5173/?scene=world&T=9&freeze=1&hud=0';
+// (v1.2 I7) --q "casters=all&tuftfade=old" appends a query (the A/B arms);
+// --only fields,quarry limits the framings (label substrings)
+const qArg = process.argv.indexOf('--q');
+const extraQ = qArg >= 0 ? `&${process.argv[qArg + 1] ?? ''}` : '';
+const onlyArg = process.argv.indexOf('--only');
+const only = onlyArg >= 0 ? (process.argv[onlyArg + 1] ?? '').split(',') : null;
+const base = `http://localhost:5173/?scene=world&T=9&freeze=1&hud=0${extraQ}`;
 (async () => {
   const safe = async (u: string, l: string): Promise<void> => {
+    if (only && !only.some((o) => l.includes(o))) return;
     try {
       await measure(u, l);
     } catch (e) {

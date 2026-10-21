@@ -13,7 +13,7 @@
  * Freeze-deterministic: advection runs on engine worldTime.
  */
 
-import { Mesh, PlaneGeometry } from 'three';
+import { BufferAttribute, BufferGeometry, Mesh, PlaneGeometry } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
 import {
   cameraPosition,
@@ -44,7 +44,7 @@ export class NileWater {
   constructor(hf: Heightfield, atmosphere: Atmosphere) {
     const noiseA = hf.noiseA as NonNullable<typeof hf.noiseA>;
 
-    const mkMaterial = (flowSpeed: number, waveK = 1): MeshPhysicalNodeMaterial => {
+    const mkMaterial = (flowSpeed: number, waveK = 1, upright = false): MeshPhysicalNodeMaterial => {
       const m = new MeshPhysicalNodeMaterial();
       const wxz = positionWorld.xz;
       const t = float(this.uTime);
@@ -131,7 +131,8 @@ export class NileWater {
       // facing away from every light source is never black (no-black law)
       const dome = atmosphere.skyFull(vec3(0, 1, 0) as unknown as NV3);
 
-      m.colorNode = body;
+      // (upright: the body is now sunlit too — darker albedo, same look)
+      m.colorNode = upright ? body.mul(0.5) : body;
       m.emissiveNode = sky
         .mul(fresnel.clamp(0, 0.9))
         .add(glint)
@@ -139,13 +140,119 @@ export class NileWater {
       m.normalNode = transformNormalToView(n);
       m.roughnessNode = float(0.09).add(smoothstep(1.2, 0.05, depth).mul(0.1));
       m.metalnessNode = float(0);
-      m.specularIntensity = 1.0;
+      // (v1.2 I7) the v1.2 sheets were planes rotated −90° about x, and
+      // `transformNormalToView` takes an OBJECT-space normal: their world-space
+      // ripple normal came out lying flat, facing north, so the PBR specular
+      // saw little sky. On the meshes (identity transform) it sees all of it
+      // — on top of the sky reflection and the glint this material already
+      // carries in emissive: the sky counted twice. Upright, the PBR lobe is
+      // turned down to the approved look.
+      m.specularIntensity = upright ? 0.12 : 1.0;
       m.polygonOffset = true;
       m.polygonOffsetFactor = 2;
       m.polygonOffsetUnits = 8;
       return m;
     };
 
+    // (v1.2 I7) ?water=planes: the v1.2 sheets (one iteration's A/B)
+    if (new URLSearchParams(window.location.search).get('water') === 'planes') {
+      this.buildPlanes(mkMaterial);
+      return;
+    }
+    this.buildMeshes(hf, mkMaterial);
+  }
+
+  /**
+   * (v1.2 I7) WATER AS SHORELINE MESHES — canon IX §9.10.1 "Do not create a
+   * single giant water plane covering the entire map. Water geometry must
+   * follow the shape of the actual waterways." Built on the CPU from the
+   * height mirror after the bake: a cell grid (4 m on high/ultra, 8 m low,
+   * 16 m safe) over the valley; a cell is water when any corner lies below
+   * the water + 0.25 m, so the mesh runs a little under every bank and the
+   * terrain's own depth test draws the true shoreline. One mesh per body —
+   * river, harbour + approach, canals — each with its own material, NO
+   * overlaps (the v1.2 harbour sheet lay coplanar over the river's for
+   * 105 m: OPEN item 3's straight-edged patch), chunked at 200 m so each
+   * chunk frustum-culls. Beyond the heightfield the river's far caps stay
+   * planes, edge to edge with the grid.
+   */
+  private buildMeshes(hf: Heightfield, mkMaterial: (flow: number, waveK?: number, upright?: boolean) => MeshPhysicalNodeMaterial): void {
+    const cell = Math.max(4, Math.round(16384 / hf.res));
+    const X0 = 850;
+    const X1 = 2450;
+    const Z0 = -1848; // the heightfield's own extent in z
+    const Z1 = 2248;
+    const nx = Math.ceil((X1 - X0) / cell);
+    const nz = Math.ceil((Z1 - Z0) / cell);
+    const g = new Float32Array((nx + 1) * (nz + 1));
+    for (let j = 0; j <= nz; j++) {
+      for (let i = 0; i <= nx; i++) g[j * (nx + 1) + i] = hf.heightAtCpu(X0 + i * cell, Z0 + j * cell);
+    }
+    const WET = NILE_WATER_Y + 0.25;
+    // 0 river, 1 harbour + approach, 2 canals (each canal ends ~150 m short of
+    // its river-side end, where the cut opens into the river)
+    const bodyOf = (x: number, z: number): number => {
+      for (const c of CANALS) if (Math.abs(z - c.z) < CANAL_TOP_HALF + 3 && x > c.x0 - 12 && x < c.x1 - 150) return 2;
+      if (x < 1830 && z > -420 && z < 160) return 1;
+      return 0;
+    };
+    const CH = Math.max(1, Math.round(200 / cell));
+    const chunks = new Map<string, number[]>();
+    let cells = 0;
+    for (let j = 0; j < nz; j++) {
+      for (let i = 0; i < nx; i++) {
+        const a = g[j * (nx + 1) + i] as number;
+        const b = g[j * (nx + 1) + i + 1] as number;
+        const c = g[(j + 1) * (nx + 1) + i] as number;
+        const d = g[(j + 1) * (nx + 1) + i + 1] as number;
+        if (Math.min(a, b, c, d) >= WET) continue;
+        const x0 = X0 + i * cell;
+        const z0 = Z0 + j * cell;
+        const body = bodyOf(x0 + cell / 2, z0 + cell / 2);
+        const key = `${body}:${Math.floor(i / CH)}:${Math.floor(j / CH)}`;
+        let arr = chunks.get(key);
+        if (!arr) chunks.set(key, (arr = []));
+        const x1 = x0 + cell;
+        const z1 = z0 + cell;
+        const y = NILE_WATER_Y;
+        // up-facing: (x0,z0) (x0,z1) (x1,z1) | (x0,z0) (x1,z1) (x1,z0)
+        arr.push(x0, y, z0, x0, y, z1, x1, y, z1, x0, y, z0, x1, y, z1, x1, y, z0);
+        cells++;
+      }
+    }
+    const mats = [mkMaterial(0.55, 1, true), mkMaterial(0.12, 0.42, true), mkMaterial(0.035, 0.3, true)];
+    const names = ['water-river', 'water-harbour', 'water-canal'];
+    for (const [key, arr] of chunks) {
+      const body = Number(key.split(':')[0]);
+      const geo = new BufferGeometry();
+      geo.setAttribute('position', new BufferAttribute(new Float32Array(arr), 3));
+      const nrm = new Float32Array(arr.length);
+      for (let k = 1; k < nrm.length; k += 3) nrm[k] = 1;
+      geo.setAttribute('normal', new BufferAttribute(nrm, 3));
+      geo.computeBoundingSphere();
+      const m = new Mesh(geo, mats[body] as MeshPhysicalNodeMaterial);
+      m.receiveShadow = true;
+      m.name = names[body] as string;
+      this.meshes.push(m);
+    }
+    // the river beyond the heightfield (the far shell carves it, without
+    // water): its two caps, edge to edge with the grid
+    for (const [za, zb] of [[-2100, Z0], [Z1, 2500]] as const) {
+      const cap = new Mesh(new PlaneGeometry(700, zb - za, 8, 4), mats[0] as MeshPhysicalNodeMaterial);
+      cap.rotateX(-Math.PI / 2);
+      cap.position.set(2050, NILE_WATER_Y, (za + zb) / 2);
+      cap.receiveShadow = true;
+      cap.name = 'water-river';
+      this.meshes.push(cap);
+    }
+    this.cells = cells;
+  }
+
+  /** water cells built (counter) */
+  cells = 0;
+
+  /** the v1.2 sheets: river, harbour, canals (?water=planes) */
+  private buildPlanes(mkMaterial: (flow: number, waveK?: number) => MeshPhysicalNodeMaterial): void {
     const river = new Mesh(new PlaneGeometry(700, 4600, 8, 60), mkMaterial(0.55));
     river.rotateX(-Math.PI / 2);
     river.position.set(2050, NILE_WATER_Y, TERRAIN_CZ);

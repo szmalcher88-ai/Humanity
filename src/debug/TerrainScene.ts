@@ -22,7 +22,7 @@ import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
 import { installPositionInvariance } from '../render/DepthPrepass';
 import { clearCulling, cullingActive, updateInstanceCulling } from '../render/InstanceCull';
-import { setupSunShadows } from '../render/ShadowSetup';
+import { applyCasterPolicy, setupSunShadows } from '../render/ShadowSetup';
 import { Clouds } from '../sky/Clouds';
 import { SunSky } from '../sky/SunSky';
 import { buildFields } from '../vegetation/Fields';
@@ -222,11 +222,14 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   birds.setNight(sunSky.nightAmount);
   gi.gain.value = 1 - sunSky.nightAmount * 0.98;
   engine.stats.counters['torches'] = torches.count;
+  // (v1.2 I7) reduced presets: small casters stop casting (OPEN item 1)
+  engine.stats.counters['shadow.castersOff'] = applyCasterPolicy(scene, engine.params.preset);
 
   // --- Nile + harbor water (flow, sky reflection, depth absorption) --------
   ctx.progress(0.91, 'water: the Nile');
   const water = new NileWater(hf, sunSky.atmosphere);
   for (const m of water.meshes) scene.add(m);
+  engine.stats.counters['water.cells'] = water.cells; // (v1.2 I7) shoreline meshes
   engine.onUpdate((_dt, worldTime) => {
     water.tick(worldTime);
     setWorldTime(worldTime); // vessel bobbing + vegetation wind sway
@@ -293,9 +296,10 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     camera,
     (wxz) => clouds.shadowAt(wxz),
     // PERF II: the reduced preset's shadow pass measured 17.5 ms of a 70 ms
-    // iGPU frame — it is CASTER-BOUND (terrain patches + palms + every
-    // structure re-rasterized per cascade), so the fix is a shorter throw and
-    // a smaller map, not a cheaper filter
+    // iGPU frame — it is CASTER-BOUND (palms + every structure re-rasterized
+    // per cascade; v1.2 I7: the terrain itself never cast — and on low/safe
+    // the small casters now opt out, applyCasterPolicy), so the fix is a
+    // shorter throw and a smaller map, not a cheaper filter
     engine.params.preset === 'safe'
       ? { maxFar: 700, lightMargin: 320, cascades: 1, mapSize: 512 }
       : lowQ

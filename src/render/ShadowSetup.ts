@@ -5,7 +5,7 @@
  * the post stack and pick up what cascade resolution can't.
  */
 
-import type { DirectionalLight, PerspectiveCamera, Texture } from 'three';
+import type { DirectionalLight, Mesh, Object3D, PerspectiveCamera, Texture } from 'three';
 import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
 import { CachedCsmShadowNode } from './CsmCached';
 import {
@@ -197,4 +197,33 @@ export function setupSunShadows(
   requestAnimationFrame(armRefresh);
   void camera;
   return { csm };
+}
+
+/**
+ * (v1.2 I7) The caster allow-list for the reduced presets (OPEN item 1).
+ * On `low`/`safe` the CSM is one cascade refreshed every frame, so the
+ * caster COUNT is the shadow pass's only lever (Haiku I7-C: the terrain
+ * itself never cast — OPEN 1's terrain clause was stale). Small and fine
+ * casters go: figures and townsfolk, shore clumps and reed harvests, debris,
+ * hulls, waders, irrigation earthworks, farms, falsework timber — contact
+ * shadows and AO carry them, as they already carry tufts and chips.
+ * Buildings, pyramids, palms and shore trees keep casting. `safe` also drops
+ * the instanced work gangs. high/ultra are untouched. ?casters=all skips it.
+ * Returns how many meshes stopped casting.
+ */
+export function applyCasterPolicy(scene: Object3D, preset: 'safe' | 'low' | 'high' | 'ultra'): number {
+  if (preset !== 'low' && preset !== 'safe') return 0;
+  if (new URLSearchParams(window.location.search).get('casters') === 'all') return 0;
+  const drop = ['papyrus-', 'reed-', 'debris-', 'vessels', 'birds-', 'irrigation', 'farms', 'works-timber'];
+  if (preset === 'safe') drop.push('workers-');
+  let n = 0;
+  scene.traverse((o) => {
+    const m = o as Mesh;
+    if (!m.isMesh || !m.castShadow) return;
+    if (m.userData['figures'] || drop.some((p) => m.name.startsWith(p))) {
+      m.castShadow = false;
+      n++;
+    }
+  });
+  return n;
 }

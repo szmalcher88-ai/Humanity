@@ -449,6 +449,109 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+I7 — POLISH + PERF (done except D5 → I7b; plan `docs/plans/I7_PLAN.md`). Recon by
+the side planner (5 Haiku, 148/149 verified); decisions by the main session,
+the plan's safe defaults (the user was away).
+1. THE bm7 "DRIFT" WAS THE TDR GUARD (D1 — measure first). New
+   `tools/perf.ts`: URL pinned (`preset=high&force=1&dpr=1&T=15`), a fresh page
+   per arm and round, bookmarks rotated, 8 s of rAF intervals → median and
+   p10, a reading INVALID when the guard cut the render scale. First reading:
+   bm7 60 fps — INVALID, 1 cut. Then guard on vs `?noguard=1`: EVERY guarded
+   boot cut once (bm1 / bm3 / bm7 all), the unguarded pages read bm1 ≈ 46,
+   bm3 ≈ 58, bm7 ≈ 39 fps (EMA) at 2560×1440. The guard (4 frames over
+   250 ms → pixel ratio × 0.6) fired on the boot's pipeline compiles — on the
+   dev RTX, on every boot, for good: the app has been rendering at 0.6 scale
+   after start-up, and the battery's 62 at bm7 was that page. FIX: the guard
+   watches the GPU's own frame time (render + compute timestamps) when the
+   adapter reports it — the watchdog it exists for kills long GPU jobs, a
+   compile stall is CPU/driver time — else wall-clock time after a 30-frame
+   warm-up; `?noguard=1` for the A/B. Verified: guarded = unguarded, no cut,
+   bm1 46 / bm7 39. The battery's slow-adapter gate then caught the first
+   version: on the Intel UHD a timestamp resolve lags several frames and
+   summed them past 250 ms while frames took 42 ms — a false cut, and the
+   mid-flight resize hung the device, twice in a row. Final rule: cut only
+   when BOTH the clock and the GPU (per frame — normalized by the frames a
+   resolve covers) are slow. The Intel's random device losses remain, as
+   recorded since v1.0 — measured fairly: the I6 tree and the I7 tree
+   alternated on the gate, 3/3 PASS each, and I7 boots FASTER there (26.3–
+   27.0 fps vs 24.1–24.4: the caster policy). The battery now prints each reading's cut count. The
+   honest 1440p numbers sit under the 45 fps advisory gate on this RTX 3050
+   Laptop (below the 3060 target class): bm7 ≈ 39 — the next perf work
+   starts from there, not from 62. (The "two triangle states" of I5 were the
+   cascades' refresh cycle — 7.9M to 23M tris for one pose — a red herring.)
+2. WATER AS SHORELINE MESHES (D2, canon IX §9.10.1 "Do not create a single
+   giant water plane"): built on the CPU from the height mirror — a 4 m cell
+   grid (8 m low, 16 m safe), a cell is water when a corner lies below the
+   water + 0.25 m, so the mesh runs a little under every bank and the
+   terrain's depth test draws the shoreline; one mesh per body (river,
+   harbour + approach, canals), each its own material, NO overlaps (the v1.2
+   harbour sheet lay coplanar over the river's for 105 m — OPEN item 3's
+   straight-edged patch), chunked at 200 m so each chunk frustum-culls; the
+   river's caps beyond the heightfield stay planes, edge to edge. A LATENT
+   BUG on the way: the v1.2 sheets were planes rotated −90° about x and
+   `transformNormalToView` takes an OBJECT-space normal — their world-space
+   ripple normal lay flat, facing north, so the body was barely sunlit and
+   the PBR specular saw little sky. Upright meshes light correctly; the
+   approved look is kept (PBR specular 1.0 → 0.12 — the sky reflection and
+   the glint already live in emissive — and the body albedo ×0.5): bm9's sky
+   128.2 vs 127.9, sand 142.3 vs 141.6 (exposure unchanged), water a touch
+   deeper and bluer. `?water=planes` keeps the v1.2 sheets for one iteration.
+3. THE RED RIM AT NIGHT (D4): `transmittanceUv` clamps mu and
+   `sampleTransmittance` had no ground-hit test, so every sunset ray read
+   the horizon-grazing texel — one red transmittance for any sun below the
+   horizon, baked into the night sky-view LUT and from there into the aerial
+   in-scatter, the IBL, clouds and froxels (planner's Haiku D7). Fixed at the
+   source: the Earth's shadow (smoothstep across muH = −√(1 − (RG/r)²));
+   the aerial in-scatter and the IBL cube add the night sky's smooth airglow
+   (`NightSky.ambient` — the full radiance, three star layers on 3D cell
+   hashes in every pixel's aerial perspective, was a first try the iGPU gate
+   flagged); the dusk light blends to moonlight by how far the sun has set. Day frames unchanged (bm3 noon: mean diff 0.7, 0.18 % of pixels
+   > 2 — TAA noise); bm10 at 21.4 h: the sky band's R/G 0.82 → 0.78, the
+   horizon's 0.825 → 0.79. `?earthshadow=0` for the A/B.
+4. CASTERS ON THE REDUCED PRESETS (D3, OPEN item 1): `applyCasterPolicy` in
+   ShadowSetup — on low/safe, figures and townsfolk (flagged at their mesh),
+   shore clumps and reed harvests, debris, hulls, waders, irrigation works,
+   farms and falsework timber stop casting (contact shadows + AO carry them,
+   as they carry tufts and chips); buildings, pyramids, palms and trees keep
+   casting; safe also drops the work gangs; high/ultra untouched; `?casters=all`.
+   The terrain never cast (OPEN 1's terrain clause was stale).
+5. THE INVERTED CROP FADE (D5b): on low/safe fadeFar < FADE_NEAR, and
+   smoothstep(fadeFar, FADE_NEAR) ran backwards — zero-size tufts near the
+   camera, full-size only past the cull: the iGPU presets drew no crop since
+   PERF II. Fixed (near edge at 0.6 × fadeFar there; high/ultra unchanged;
+   `?tuftfade=old`). iGPU (Intel UHD, tools/probe-igpu.ts --q/--only, new):
+   the quarry with the fix 16.6 fps vs 16.4 without; fields: the shadow pass
+   5.6 → 3.2 ms with the policy and the fix — NOT a clean A/B (the arms ran
+   at different render scales and the device was lost on the re-run); the
+   iGPU must be re-measured on an idle machine before the low/safe budgets
+   are retuned.
+6. LEFTOVERS: bm11 already frames the re-laid scaffold ramp (OPEN item 5
+   closed, no new bookmark); the causeway's 825 m is the pyramid-centre →
+   valley-temple placement and the built corridor is 632 m (D-4 note; the dead
+   `causewayStart()` removed, `causewayAxis()` marked as a reference line,
+   WalkRig's comment fixed); the temenos distance is read from the court's
+   outer edge (D-3 note, the constant's label fixed).
+DEFERRED → I7b: the crop-tuft CARD LOD beyond ~80 m and 8 near blades
+(plan §3.5.2–3) — a new alpha-tested card shader with a dither crossfade
+under TAA, sharing the tufts' indirect cells; it is the perf lever for the
+fields framings and belongs in one sitting with the honest perf numbers above.
+BATTERY: 19/19 PASS — perf bm1 53, bm3 66, bm7 45 fps @1440p, every reading
+now at FULL resolution (no cut). The two runs before it each failed the
+iGPU gate: the first on the guard's false cut (fixed), the second on the
+Intel's background device loss (the alternated I6/I7 A/B above).
+
+HAIKU — ITERATION I7 (5 agents run by the side planner, read-only, every row
+verified by it; plan §7):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A7 | perf history, the measuring tools, what can silently change a reading | 30 | 30 — the single EMA read, the TDR guard, the bench cap, live `src/` per boot: a measurement question |
+| B7 | the water sheets and every consumer of water | 30 | 30 — `RIVER_W_EDGE`, GPU-only bank noise (→ the CPU mirror), the far shell's dry caps |
+| C7 | every shadow caster and setting | 30 | 29 — the terrain casts nothing; one wrong lever (a palm `maxDist` would cull them from view too) |
+| D7 | where red enters at night | 30 | 30 — the clamped transmittance read with no Earth-shadow test |
+| E7 | crop tufts, bm11, the causeway and pavement numbers | 29 | 29 — the inverted low/safe fade, the blade-pixel distance, the stale `causewayStart()` |
+VERDICT: 148/149. And the I7 measurement found what no recon could: the
+guard cut on every boot.
+
 I6 — THE HARBOUR PER CANON IX §9.11–9.13 (done; plan `docs/plans/I6_PLAN.md`;
 D-14 rewritten, D-18). Recon by the side planner (5 Haiku, 149/149 verified);
 the user was away and handed the three decisions to the main session, which
@@ -721,7 +824,8 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I4 | the land — DONE (above; D-15) | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
 | I5 | the necropolis + the monument — DONE (above; D-7, D-16, D-17) | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
-| I7 | polish + perf | bm7 (quarry): NOT drift — the same pose renders 11.5M tris (59–62 fps) or 15.4M (42–45) run to run (I5, `tools/perf.ts`); find what toggles (shadow cascades? culling? terrain LOD?) and pin it; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
+| I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
+| I7b | crop tufts | the card LOD beyond ~80 m and 8 near blades (I7 plan §3.5.2–3), with an A/B at bm1/bm9; the iGPU re-measure on an idle machine (low/safe budgets) |
 | T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
@@ -998,6 +1102,12 @@ VERIFIED on the Intel UHD: auto (no preset) → `5.2 ns → cap safe`, PASS at
    geometry. Next levers, in order: a caster allow-list on `low` (drop shore/
    debris casters), a distance-gated stone LOD switch for the complex, and a
    cheaper terrain shadow position node.
+   (v1.2 I7) The caster allow-list is BUILT (`applyCasterPolicy`, low/safe);
+   the terrain never cast (`TerrainTiles` castShadow false) — that clause and
+   the "cheaper terrain shadow node" lever were stale. The low/safe crop fade
+   ran backwards since PERF II (no tufts at all on the iGPU) — fixed, so the
+   iGPU numbers above were taken WITHOUT crops. Re-measure on an idle machine
+   (`tools/probe-igpu.ts --q … --only …`) before retuning budgets.
 2. **D-1 reference frames still outstanding.** The colour work to date is
    calibrated against WRITTEN criteria plus physical reflectances (D-12). The
    1-3 human photographs, when they arrive, should be run through
@@ -1008,12 +1118,17 @@ VERIFIED on the Intel UHD: auto (no preset) → `5.2 ns → cap safe`, PASS at
    rectangular edge is visible from bookmark 10's left margin; crop tufts read
    as isolated blades inside ~15 m (a card/far-tuft LOD is the queued fix, and
    it also fixes the >120 m aliasing noted in Phase 5).
+   (v1.2 I7) The red rim: fixed at its source (the Earth's shadow in the
+   transmittance read). The water edge: the sheets are now shoreline meshes
+   with no overlap. The tufts: OPEN — the card LOD is I7b.
 4. The depth prepass ships OPT-IN because it measured a loss on this content
    (see PERF I). Re-measure if materials get heavier (e.g. if veg ever gains
    translucency/SSS) — the technique is built and verified, only the trade is
    currently wrong.
 5. The scaffolding tableau at the mortuary temple's SE corner deserves its own
-   bookmark; it is small in every existing framing.
+   bookmark; it is small in every existing framing. (v1.2 I7: CLOSED — bm11
+   frames it, and since I5 the camera looks straight up the re-laid ramp to
+   the falsework.)
 
 ### ROADMAP — 10 iterations (agreed 2026-07-23, ALL DONE 2026-07-25)
 1. **PERF I — DONE 2026-07-24.** `src/render/InstanceCull.ts`: scatter

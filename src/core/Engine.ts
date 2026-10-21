@@ -43,6 +43,10 @@ export class Engine {
   private settleWaiters: { frames: number; resolve: () => void }[] = [];
   private timestampsSupported = false;
   private timestampPending = false;
+  /** GPU time per frame of the last resolve (render + compute passes), ms */
+  private lastGpuMs = 0;
+  /** frames since the last timestamp resolve began (a resolve covers them all) */
+  private gpuFrames = 0;
   private profiler: GpuProfiler | null = null;
 
   private constructor(renderer: WebGPURenderer, params: AkhetParams, hooks: AkhetHooks) {
@@ -191,6 +195,8 @@ export class Engine {
     }
   }
 
+  private static readonly noGuard = new URLSearchParams(window.location.search).get('noguard') === '1';
+
   /**
    * TDR guard. Windows resets the display driver if one GPU job runs past
    * ~2 s — the monitor blanks, the device is lost, and the app goes black.
@@ -203,8 +209,22 @@ export class Engine {
    * world, immediate effect on every full-res pass.
    */
   private guardFrameTime(ms: number): void {
-    if (this.dprCuts >= 3) return;
-    this.slowRun = ms > 250 ? this.slowRun + 1 : 0;
+    // (v1.2 I7) ?noguard=1 switches it off (the perf A/B's arm)
+    if (this.dprCuts >= 3 || Engine.noGuard) return;
+    // (v1.2 I7) THE GUARD FIRED ON EVERY BOOT: the first frames compile
+    // pipelines, wall-clock frames ran past 250 ms, and the page stayed at
+    // 0.6 render scale for good — on the dev RTX too (tools/perf.ts: every
+    // guarded boot cut once; that was the battery's 62 fps at bm7, the true
+    // 1440p figure is ~40). A compile stall is CPU/driver time; the watchdog
+    // the guard exists for kills long GPU jobs. So: GPU time when the
+    // adapter reports it, else wall-clock time after a 30-frame warm-up.
+    // BOTH must be slow: a compile stall is slow on the clock only; on a slow
+    // iGPU the timestamp resolves lag and a lagging resolve once summed
+    // several frames past 250 ms while frames took 42 ms — a false cut, and
+    // the mid-flight resize hung the Intel device (the battery's iGPU gate)
+    const gpuKnown = this.timestampsSupported && this.lastGpuMs > 0;
+    const slow = ms > 250 && (gpuKnown ? this.lastGpuMs > 250 : this.frameCounter >= 30);
+    this.slowRun = slow ? this.slowRun + 1 : 0;
     // four frames, not twelve: at 350 ms a frame, twelve is four seconds —
     // long past the point where the driver has already decided to reset
     if (this.slowRun < 4) return;
@@ -241,13 +261,17 @@ export class Engine {
 
     // resolve EVERY frame: the 2048-query pool only resets its write index on
     // resolve — a slower cadence overflows it and kills per-pass attribution
+    this.gpuFrames++;
     if (this.timestampsSupported && !this.timestampPending) {
       this.timestampPending = true;
+      const frames = this.gpuFrames;
+      this.gpuFrames = 0;
       Promise.all([
         this.renderer.resolveTimestampsAsync(TimestampQuery.RENDER),
         this.renderer.resolveTimestampsAsync(TimestampQuery.COMPUTE),
       ])
         .then(() => {
+          this.lastGpuMs = ((this.renderer.info.render.timestamp ?? 0) + (this.renderer.info.compute.timestamp ?? 0)) / Math.max(1, frames);
           if (this.profiler) {
             this.profiler.collect(s.gpuPasses);
           } else {

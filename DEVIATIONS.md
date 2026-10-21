@@ -30,6 +30,13 @@ weaken the field-geometry floor); mid-November (early growth, low sun).
 **Alternatives:** footings only survive; published reconstructions range
 ~6–10 m.
 **Confidence:** D.
+**Note (v1.2 I7):** the court is paved 10.1 m wide (G1_COURT_PAVEMENT_WIDTH)
+and the enclosure wall stands a further 10.1 m out — G1_TEMENOS_DISTANCE is
+read as court edge → wall, so the wall's centreline is at 135.38 m from the
+centre (the constant's label once said "from the pyramid base", which would
+put it at 125.28). The boat pits, the mortuary temple, the queens'
+clearances and I5's south works are all keyed to that radius; the label was
+fixed, the use was not changed.
 **Code:** CANON_DIMENSIONS.G1_TEMENOS_HEIGHT.
 
 ## D-4 — Causeway: straight, roofed, azimuth 8° north of east
@@ -40,7 +47,15 @@ N of E toward the valley temple under Nazlet el-Samman.
 escarpment lip (simplified straight — the bend's exact geometry is
 unpublished).
 **Confidence:** C (roofing), D (exact bearing/bend).
-**Code:** CANON_DIMENSIONS G1_CAUSEWAY_*.
+**Note (v1.2 I7):** 825 m and 8° are the distance and bearing from the
+PYRAMID'S CENTRE to the valley temple (the canon placement, C: hypot(817,
+115) = 825.05, atan(115/817) = 8.01°). The walled corridor itself runs 632 m
+from the mortuary temple's front at 10.5° N of E. A corridor of 825 m would
+put the valley temple ~195 m further east (x ≈ 1012) — rejected while the
+harbour basin, the approach channel, the fields' keep-out, the I6 landings
+and the fleet are keyed to the placement; an owner decision for later.
+**Code:** CANON_DIMENSIONS G1_CAUSEWAY_* (the placement); the corridor in
+`src/monuments/KhufuComplex.ts` (cwStart/cwEnd).
 
 ## D-5 — Queens' pyramids: uniform 46 m base pending per-monument sources
 **Chosen:** G1-a/b/c at 46.0 m base, 51.75° slope, individualized only by

@@ -3,7 +3,8 @@
  * whatever it is standing on.
  *
  * Flying is how you inspect a site; WALKING is how you feel its scale. The
- * causeway is 825 m long and the difference between "a ramp in a plan" and
+ * causeway's corridor is 632 m long (825 m from the pyramid's centre to the
+ * valley temple) and the difference between "a ramp in a plan" and
  * "a walled corridor you climb for ten minutes" only lands on foot.
  *
  * WHAT IT STANDS ON. The terrain is easy (the CPU height mirror). Structures

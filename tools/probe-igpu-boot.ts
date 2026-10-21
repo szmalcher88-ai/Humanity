@@ -25,7 +25,9 @@ const URL =
   'http://localhost:5173/?scene=world&T=9&freeze=1&hud=0&cam=1700,60,300,1.1,-0.12' +
   (BAND ? `&band=${BAND}` : '') +
   (PRESET ? `&preset=${PRESET}` : '') +
-  (FORCE ? '&force=1' : '');
+  (FORCE ? '&force=1' : '') +
+  // (v1.2 I7) --q appends a query (A/B arms)
+  (process.argv.indexOf('--q') > 0 ? `&${process.argv[process.argv.indexOf('--q') + 1] ?? ''}` : '');
 
 (async () => {
   const browser = await chromium.launch({ headless: true, channel: 'chromium' });

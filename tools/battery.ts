@@ -192,19 +192,23 @@ async function main(): Promise<void> {
     // standalone. A perf gate that measures the harness is worse than no gate.
     await page.close();
     const big = await browser.newPage({ viewport: { width: 2560, height: 1440 } });
-    const results: [number, number][] = [];
+    // (v1.2 I7) every reading carries the TDR guard's cut count: until I7
+    // the guard fired on EVERY boot (compile stalls) and this sweep measured
+    // a 0.6-scale page — bm7's "62" was that; full 1440p reads ~39
+    const results: [number, number, number][] = [];
     for (const bm of [1, 3, 7]) {
       await boot(big, { T: '15', bm: String(bm), hud: '0' });
       await big.evaluate(async () => window.__akhet.settle?.(90));
       const fps = await big.evaluate(() => window.__akhet.stats?.fps ?? 0);
-      results.push([bm, fps]);
+      const cuts = await big.evaluate(() => window.__akhet.stats?.counters?.['perf.dprCuts'] ?? 0);
+      results.push([bm, fps, cuts]);
     }
     await big.close();
     const worst = Math.min(...results.map((r) => r[1]));
     record(
       'perf ≥45 fps @1440p (dev GPU)',
       worst >= 45,
-      results.map(([b, f]) => `bm${b} ${f.toFixed(0)}`).join('  '),
+      results.map(([b, f, c]) => `bm${b} ${f.toFixed(0)}${c > 0 ? ' (dpr CUT — invalid)' : ''}`).join('  '),
       false, // the dev RTX 3050 is BELOW the 3060 target class — advisory
     );
   }

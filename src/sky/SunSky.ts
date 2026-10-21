@@ -70,10 +70,11 @@ export class SunSky {
     this.engine.scene.backgroundNode = this.atmosphere
       .backgroundNode()
       .add(this.night.radiance(positionWorldDirection.normalize() as unknown as Parameters<NightSky['radiance']>[0]));
-    // IBL env: sky only — the sun's direct term comes from the DirectionalLight
-    this.iblScene.backgroundNode = this.atmosphere.skyColor(
-      positionWorldDirection.normalize(),
-    );
+    // IBL env: sky only — the sun's direct term comes from the DirectionalLight.
+    // (v1.2 I7) with the night terms (zero by day): the surfaces' ambient
+    // after dusk is the night sky's, not the LUT's leftover red glow
+    const iblDir = positionWorldDirection.normalize() as unknown as Parameters<NightSky['radiance']>[0];
+    this.iblScene.backgroundNode = this.atmosphere.skyColor(iblDir).add(this.night.ambient(iblDir));
     await this.setTimeOfDay(this.timeOfDay);
   }
 
@@ -133,7 +134,10 @@ export class SunSky {
       this.sun.intensity = this.sun.intensity * (1 - nk) + moonI * nk;
       // sunlit-by-day → moonlit-by-night: cool, slightly desaturated
       const dayCol = new Color(tr / m, tg / m, tb / m);
-      this.sun.color = dayCol.lerp(new Color(0.72, 0.8, 1.0), nk);
+      // (v1.2 I7) in the dusk band the transmittance is red and nk only
+      // 0.23 at the horizon: a red moonlit key for minutes after sunset —
+      // blend by how far the sun has gone down, too
+      this.sun.color = dayCol.lerp(new Color(0.72, 0.8, 1.0), Math.max(nk, 1 - above));
       // swing the shadow-casting direction to the moon
       const dir = this.sunDirWorld.clone().lerp(this.moonDirWorld, nk).normalize();
       this.sun.position.copy(dir).multiplyScalar(SUN_DISTANCE);

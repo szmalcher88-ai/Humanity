@@ -368,6 +368,7 @@ export function townsfolkMesh(w: ColorWriter, gi: ProbeGI | null, name: string):
   m.castShadow = true;
   m.receiveShadow = true;
   m.name = name;
+  m.userData['figures'] = true; // (v1.2 I7) small casters: ShadowSetup's policy
   return m;
 }
 

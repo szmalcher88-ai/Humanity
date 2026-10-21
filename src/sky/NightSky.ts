@@ -154,6 +154,16 @@ export class NightSky {
     return stars.add(milky.mul(0.06)).add(moonCol).add(haloCol).add(glow).mul(k);
   }
 
+  /** (v1.2 I7) the night sky's smooth part alone — the airglow, horizon
+   *  brighter than zenith — for the aerial in-scatter and the IBL cube. The
+   *  full radiance (three star layers on 3D cell hashes, the Milky Way, the
+   *  moon's disc) evaluated in every pixel's aerial perspective cost the
+   *  Intel UHD enough to hang the device on boot (the battery's iGPU gate). */
+  ambient(dir: NV3): NV3 {
+    const k = float(this.nightK);
+    return vec3(0.016, 0.023, 0.045).mul(smoothstep(0.75, -0.05, dir.y).mul(0.7).add(0.5)).mul(k);
+  }
+
   /** the atmosphere's sun-direction uniform — the moon's phase needs it */
   private sunDirRef: Atmosphere['sunDir'] = uniform(new Vector3(0, 1, 0));
   setSunRef(u: Atmosphere['sunDir']): void {
