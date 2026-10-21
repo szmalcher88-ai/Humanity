@@ -161,7 +161,10 @@ function reedGeometry(rng: Rng): BufferGeometry {
   return g.build();
 }
 
-function sycamoreGeometry(rng: Rng): BufferGeometry {
+/** `density` > 1 closes the crown (v1.2 I4: pruned orchard figs read as
+ *  hollow rings from above at the wild trees' leaf count); the default
+ *  path draws exactly as before */
+export function sycamoreGeometry(rng: Rng, density = 1): BufferGeometry {
   const g = new Grow();
   const trunkH = rng.range(2.0, 3.0);
   const R = 0.36;
@@ -184,14 +187,14 @@ function sycamoreGeometry(rng: Rng): BufferGeometry {
     g.blade(0, trunkH * 0.85, 0, az, rng.range(0.5, 0.9), crx * 0.62, 0.13, 0.5, 0, 2);
   }
   // dense crown shell: tangent leaf-cluster quads on the ellipsoid
-  const N = Math.round(rng.range(46, 62));
+  const N = Math.round(rng.range(46, 62) * density);
   for (let i = 0; i < N; i++) {
     const u = rng.float() * Math.PI * 2;
     const v = Math.acos(rng.range(-0.55, 1)); // bias upward — flat shaded base
     const px = Math.sin(v) * Math.cos(u) * crx;
     const py = Math.cos(v) * cry + cy;
     const pz = Math.sin(v) * Math.sin(u) * crx;
-    const s = rng.range(0.55, 0.95);
+    const s = rng.range(0.55, 0.95) * (density > 1 ? 1.12 : 1);
     // tangent basis (approx): azimuthal + polar directions
     const tx = -Math.sin(u) * s;
     const tz = Math.cos(u) * s;
@@ -244,7 +247,7 @@ function tamariskGeometry(rng: Rng): BufferGeometry {
 /* instanced spawner (palms' per-variant slice pattern)                 */
 /* ------------------------------------------------------------------ */
 
-interface ClassSpec {
+export interface ClassSpec {
   name: string;
   grow: (rng: Rng) => BufferGeometry;
   stemTone: Tone;
@@ -257,7 +260,7 @@ interface ClassSpec {
   sway: number;
 }
 
-function spawnClass(
+export function spawnClass(
   scene: Object3D,
   rng: Rng,
   spots: [number, number, number][],

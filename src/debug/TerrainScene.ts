@@ -14,6 +14,7 @@ import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monume
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
+import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
@@ -28,6 +29,8 @@ import { buildPalms } from '../vegetation/Palms';
 import { buildShore } from '../vegetation/Shore';
 import { buildBirds } from '../vegetation/Birds';
 import { buildReedHarvest } from '../vegetation/ReedHarvest';
+import { buildIrrigationWorks } from '../vegetation/Basins';
+import { buildOrchards, pickCanalPlots } from '../vegetation/Orchards';
 import { NileWater } from '../water/NileWater';
 import { buildHarbor, crewCount, fleetAt, movingCount } from '../water/Vessels';
 import { setWorldTime } from '../render/WorldClock';
@@ -82,7 +85,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const STRUCT_FAMILIES = [
     'pyramids', 'temenos', 'temple', 'causeway', 'boatpits', 'chapels',
     'mastabas-west', 'mastabas-east', 'pavement', 'vessels', 'harbor-works',
-    'worker-town', 'harbor-district', 'industry',
+    'worker-town', 'harbor-district', 'industry', 'work-camp',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -108,6 +111,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
     engine.stats.counters['harbor.district'] = buildHarborDistrict(structures, seed, hf, gi);
     engine.stats.counters['industry'] = buildIndustryDistrict(structures, seed, hf, gi);
+    engine.stats.counters['camp.shelters'] = buildWorkCamp(structures, seed, hf, gi);
     engine.stats.counters['monuments.stones'] = sites.reduce(
       (a, s) => a + s.lod.stoneCount,
       0,
@@ -140,6 +144,19 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     `[akhet] farmsteads: ${farms.farms}, cattle ${farms.cattle}; floors ` +
       farms.floors.slice(0, 4).map(([x, z]) => `(${x.toFixed(0)}, ${z.toFixed(0)})`).join(' '),
   );
+  // (v1.2 I4) the land: the bare plots by the canals become orchards; the
+  // earthworks (canal banks, sluices, bridges, dykes, field huts), then the
+  // orchards and the farmstead gardens
+  const canalPlots = pickCanalPlots(fields.fallow, farms.parcels, hf);
+  const bare = fields.fallow.filter((p) => !farms.parcels.includes(p) && !canalPlots.some((c) => c.p === p));
+  const works = buildIrrigationWorks(scene, seed, hf, gi, canalPlots, bare);
+  const orchards = buildOrchards(scene, seed, hf, gi, canalPlots, farms.parcels, perf);
+  engine.stats.counters['irrigation.banks'] = Math.round(works.banks);
+  engine.stats.counters['irrigation.intakes'] = works.intakes;
+  engine.stats.counters['irrigation.huts'] = works.huts;
+  engine.stats.counters['orchards'] = orchards.orchards;
+  engine.stats.counters['gardens'] = orchards.gardens;
+  engine.stats.counters['orchard.trees'] = orchards.figs + orchards.palms;
 
   ctx.progress(0.905, 'shorelines: papyrus, reeds, shade trees');
   const shore = buildShore(scene, seed, hf, gi, engine.params.preset, perf.cull);
@@ -169,7 +186,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines]);
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...campLines]);
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

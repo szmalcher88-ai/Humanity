@@ -25,6 +25,7 @@ import {
   abs,
   clamp,
   float,
+  max,
   min,
   mix,
   mx_fractal_noise_float,
@@ -44,6 +45,7 @@ import {
   WORKER_TOWN_YAW,
 } from './CANON_DIMENSIONS';
 import { FLOODPLAIN_Y, NILE_BED_Y, HARBOR_BED_Y, aslToY } from './WorldConst';
+import { CANALS, CANAL_BED_HALF, CANAL_BED_Y, CANAL_TOP_HALF } from './Irrigation';
 
 /* ------------------------------------------------------------------ */
 /* Authored anchors (world frame, meters from G1 center; +X E, +Z S)   */
@@ -364,6 +366,17 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     h = h.add(plainMicro);
   }
 
+  /* --- (v1.2 I4) irrigation canals: east–west cuts from the river into the
+   *      west-bank plain, the bed 1.1 m below the low river so they hold its
+   *      water (Irrigation.ts). After the micro-relief: the bed is level ---- */
+  let canalD: NF = float(1e4);
+  for (const c of CANALS) {
+    const dx = max(max(float(c.x0).sub(p.x), p.x.sub(c.x1)), 0);
+    canalD = min(canalD, vec2(dx, abs(p.y.sub(c.z))).length());
+  }
+  const canalCut = smoothstep(CANAL_TOP_HALF, CANAL_BED_HALF, canalD).mul(plainMask);
+  h = min(h, mix(h, float(CANAL_BED_Y), canalCut));
+
   /* --- quarry bowl (pre-terracing depth potential) ------------------------ */
   const ca = Math.cos(QUARRY_ROT);
   const sa = Math.sin(QUARRY_ROT);
@@ -510,7 +523,9 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
       .mul(1.0)
       .max(harborAll.mul(0.9))
       .max(smoothstep(320, 40, nileDist).mul(0.55))
-      .max(plainMask.mul(0.3)),
+      .max(plainMask.mul(0.3))
+      // (v1.2 I4) the irrigation gradient: damp ground along the canals
+      .max(smoothstep(48, 7, canalD).mul(plainMask).mul(0.72)),
     0,
     1,
   );

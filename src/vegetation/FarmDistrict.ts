@@ -30,6 +30,9 @@ export interface FarmInfo {
   cattle: number;
   /** threshing-floor centres — Inhabitants puts the threshers there */
   floors: [number, number][];
+  /** (v1.2 I4) the parcel each farmstead stands on — its garden and
+   *  orchard take the free south part (Orchards.ts) */
+  parcels: Parcel[];
 }
 
 export function buildFarmsteads(
@@ -46,7 +49,7 @@ export function buildFarmsteads(
   const earth = new GeoWriter(); // packed threshing floors
   const grain = new GeoWriter();
   const beasts = new GeoWriter();
-  const info: FarmInfo = { farms: 0, cattle: 0, floors: [] };
+  const info: FarmInfo = { farms: 0, cattle: 0, floors: [], parcels: [] };
 
   const lowAt = (x: number, z: number, hx: number, hz: number): number =>
     Math.min(grd(x - hx, z - hz), grd(x + hx, z - hz), grd(x + hx, z + hz), grd(x - hx, z + hz));
@@ -161,6 +164,7 @@ export function buildFarmsteads(
         });
       }
     }
+    info.parcels.push(p);
     info.farms++;
   }
 

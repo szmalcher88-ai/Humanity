@@ -27,6 +27,7 @@ import { attribute, float, mix, positionLocal, sin, uniform, vec3 } from 'three/
 import type { WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import { GeoWriter, limestoneMaterial } from './KhufuComplex';
+import { CAMP_HEARTHS } from './WorkCamp';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { WORKER_TOWN_CENTER } from '../world/CANON_DIMENSIONS';
@@ -94,6 +95,9 @@ export class Torches {
     spots.push({ x: 1262, z: -74, h: 2.0, s: 0.95, lit: true });
     // causeway watch fires, halfway up the ramp
     spots.push({ x: 700, z: -166, h: 1.4, s: 1.0, lit: true });
+    // (v1.2 I4) the haulers' camp: its hearths burn low through the night
+    // (no lights of their own — embers, not lamps)
+    for (const [x, z] of CAMP_HEARTHS) spots.push({ x, z, h: 0.05, s: 0.9, lit: false });
 
     /* --- geometry: post + bowl (solid) and flame (emissive) ---------------- */
     const solid = new GeoWriter();

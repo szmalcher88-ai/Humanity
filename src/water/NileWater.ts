@@ -35,6 +35,7 @@ import type { Heightfield } from '../world/Heightfield';
 import type { NV3 } from '../gpu/TSLTypes';
 import { PERIOD_FBM } from '../gpu/passes/NoiseBake';
 import { NILE_WATER_Y, TERRAIN_CZ } from '../world/WorldConst';
+import { CANALS, CANAL_TOP_HALF } from '../world/Irrigation';
 
 export class NileWater {
   readonly meshes: Mesh[] = [];
@@ -156,6 +157,24 @@ export class NileWater {
     harbor.position.set(1330, NILE_WATER_Y, -130);
     harbor.receiveShadow = true;
     this.meshes.push(harbor);
+
+    // (v1.2 I4) the irrigation canals: still water at the river's own low
+    // stage — they are cut below it and open to it (Irrigation.ts), so this
+    // is the river standing in them, not a level chosen by eye. Each sheet
+    // runs from the canal's blind west end to the river sheet's west edge
+    // (x 1700); beyond it the river sheet already lies at the same level.
+    const RIVER_W_EDGE = 2050 - 700 / 2;
+    const still = mkMaterial(0.035, 0.3);
+    for (const c of CANALS) {
+      const xa = c.x0 - CANAL_TOP_HALF;
+      const len = RIVER_W_EDGE - xa;
+      const sheet = new Mesh(new PlaneGeometry(len, CANAL_TOP_HALF * 2 + 1, Math.ceil(len / 40), 1), still);
+      sheet.rotateX(-Math.PI / 2);
+      sheet.position.set(xa + len / 2, NILE_WATER_Y, c.z);
+      sheet.receiveShadow = true;
+      sheet.name = 'canal-water';
+      this.meshes.push(sheet);
+    }
   }
 
   /** advance flow (call with engine worldTime — freeze-safe) */

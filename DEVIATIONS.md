@@ -143,3 +143,27 @@ ramps and cargo yards, each tagged with a confidence level.
 (rejected by the brief floor).
 **Confidence:** D (reasoned reconstruction; the plan is not excavated).
 **Code:** `src/water/Vessels.ts` (quay and piers in `buildHarbor`).
+
+## D-15 — Irrigation of the west-bank belt in the low-water season
+**Conflict:** the brief §2 asks for "irrigation basins and canals obeying
+gravity (canon: no decorative water)"; the epoch (D-2) is the spring
+equinox, the river at its low stage 2 m below the plain. Basin irrigation
+filled the basins from the flood (Akhet); the Old Kingdom basin and canal
+layout at Giza is not excavated.
+**Chosen:** three main canals cut east–west from the river into the plain
+(fixed works, like the harbour approach), their beds 1.1 m below the low
+river so they hold its water — still, at the river's own level, nothing
+uphill. The basins between the transverse dykes are DRY (drained since the
+flood, harvest beginning); their intakes are shut with earth plugs. Water for
+orchards and gardens is lifted from the canals by hand, in jars on a yoke —
+the shaduf is a New Kingdom device and is not shown. Stone-faced regulators
+stand open (stop-planks stacked on the bank). Canal positions follow the
+parcel plan's row gaps for the default seed.
+**Alternatives:** flooded basins (wrong season, D-2); field ditches with water
+at plain level (water uphill — banned by the brief); a shaduf at each canal
+(anachronism).
+**Confidence:** D (layout reasoned; the practice — basin irrigation, hand
+watering of gardens — is attested in Old Kingdom tomb scenes).
+**Code:** `src/world/Irrigation.ts` (layout), `src/world/GizaControl.ts`
+(the cut), `src/water/NileWater.ts` (canal water), `src/vegetation/Basins.ts`
+(earthworks), `src/vegetation/Orchards.ts`.

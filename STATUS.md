@@ -449,6 +449,74 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+I4 — THE LAND (done; canon Vol IV District 10, the CANAL SYSTEM, brief §2; D-15):
+1. GRAVITY FIRST (Haiku I4-C found it): the plain stands 2 m above the low
+   river, so no basin on it can hold river water in this season. So: three
+   MAIN CANALS cut east–west from the river into the west-bank plain (new
+   `src/world/Irrigation.ts`; the cut in GizaControl, after the micro-relief
+   so the bed is level), their beds 1.1 m below the low river — they hold
+   its water, still, at its own level (canal sheets in NileWater, ending at
+   the river sheet's edge so no two sheets overlap). The BASINS between nine
+   transverse dykes are dry and drained, harvest beginning. The damp ground
+   along the canals comes from the analytic moisture (the brief's
+   "irrigation moisture gradients"). No shaduf: New Kingdom.
+2. EARTHWORKS (new `src/vegetation/Basins.ts`): spoil banks along both sides
+   of every canal (a rounded, hand-heaped section whose crest wanders, easing
+   down at the ends), broken by INTAKES shut with damp earth plugs, WATER
+   STAIRS at the orchard gates (one kneels at the water filling a jar, one
+   shoulders the yoke), a stone-faced REGULATOR near each mouth standing open
+   (stop-planks stacked on the bank, a palm-log deck over it), a timber
+   LANDING beside it, a palm-log FOOTBRIDGE on trestles half-way; the
+   transverse DYKES, their crests the field paths, each stopping at any
+   building in its line; FIELD HUTS — the watchmen's A-frame reed shelters
+   at the corners of bare plots. Canon: "stone reinforcements, wooden docks,
+   sluice structures where appropriate, small bridges" — all four.
+3. ORCHARDS AND GARDENS (new `src/vegetation/Orchards.ts`): the bare plots
+   that border a canal became walled DATE GROVES and FIG ORCHARDS on a
+   regular grid, every tree in its own damp watering basin, a feeder channel
+   along each row, the gate toward the canal and its water stair; a GARDEN
+   behind each farmstead in the part of its plot the house, floor and pen
+   leave free: the chequerboard of square beds of the tomb scenes (onions and
+   leeks, lettuce, melon and cucumber vines, a bed fresh-sown), date palms
+   along the wall, figs, the big water jars at the gate, a gardener at the
+   beds, a carrier with the yoke. Trees through the existing spawners:
+   `spawnPalms` split out of buildPalms (same draws — the wild groves did
+   not move), Shore's `spawnClass` and `sycamoreGeometry` exported, the
+   latter with a crown `density` (pruned orchard figs read as hollow rings at
+   the wild trees' leaf count; the default path draws exactly as before).
+4. THE HAULERS' CAMP (new `src/monuments/WorkCamp.ts`) on plateau rock 50 m
+   west of the haul road (Haiku I4-D's candidate F, re-derived: dq ≥ 1.27
+   from the quarry bowl): two rows of reed-mat lean-tos on a lane, sleeping
+   mats, jars, men resting; three hearths with pots and cooks (smoke, and
+   embers at night — no new lights); a WATER STATION (the plateau has no
+   water: donkeys bring it up in jars; storage jars on a mud bench) and a
+   RATION POINT (baskets of loaves, sealed beer jars, a seated scribe and an
+   overseer, a queue) — provisioned, not "miserable camps" (the Bible).
+   Reed mats are now built of strips of varying tone with bound edges
+   (`reedMat` / `reedRoof` in Townsfolk) — single flat panels read as glass.
+5. FIELDS: parcels that ran into a canal or dyke are cut back to its bank
+   after the plan (`clipToCorridors`) — the plan's draws are untouched, so
+   farmsteads, threshers and reed sites stay where they were.
+6. COUNTS: 3 canals, 10 km of spoil bank and dyke, 6 intakes, 9 water stairs,
+   3 regulators with landings, 3 footbridges, 12 field huts; 9 orchards
+   (date groves and fig orchards) and 13 farmstead gardens with 473 trees;
+   a camp of 12 shelters. Figures 1033 (+37: water carriers, camp ↔ haul
+   road); parcels still 754, tufts still 750k; collision audit clean.
+BATTERY: 19/19 PASS — perf bm1 66, bm3 65, bm7 62 fps @1440p. bm7 had sat at
+43–45 through v1.2 (the I7 "drift" item); this run had the in-app browser
+pane closed — it had been rendering the world beside earlier batteries. Not
+proven yet: re-measure A/B (pane open vs closed) in one sitting in I7.
+
+HAIKU — ITERATION I4 (5 agents, read-only, every finding verified):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon + brief requirements for the land and the camps | 22 | 21 — "no canal water" anywhere: the approach channel is cut and watered (the harbour sheet covers it) |
+| B | fields + farmsteads layout, free space | 20 | 20 — incl. the draw coupling that decided "clip after the plan" |
+| C | water and wet ground for canals and basins | 18 | 17 — misread `full` (the bake vs the far shell) as a quality preset; its level arithmetic (plain 2 m above the low river) set the whole design |
+| D | the camp site by the haul road | 20 | 20 — one line-number drift (mortuary temple formula at :388, cited :425); candidate F used as found |
+| E | tree systems for orchard rows | 18 | 18 — the spawner reuse plan, as built |
+VERDICT: 96/98.
+
 ### CANON VOLS VII–IX (added 2026-10-20) — what they change
 
 Precedence stays: brief > canon > model judgment (brief, "What this
@@ -495,10 +563,10 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I1 | crews + life on the water | DONE (above) |
 | I2 | the river at work (canon IX §9.14–9.22) — DONE (above; wakes deferred to I7) | boats UNDERWAY on a navigation graph (spline-following in the vertex stage, wakes); the Tura limestone route as the flagship sequence (loaded barge arriving, unloading to a staging area, a scribe recording — Merer's diary, nothing invented); loaded hulls sitting lower; a general cargo vessel and a ceremonial vessel class; reed and papyrus cutters with bundles; a ferry crossing |
 | I3 | town life (canon VIII) — DONE (above) | a brewery beside the bakeries (vats, mash jars), a weaving terrace (ground looms), a stone-carving shed, a public court in the eastern town; a physicians' house, a scribal office, managed ash and sherd dumps; donkeys, goats and geese; children carrying water |
-| I4 | the land | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
+| I4 | the land — DONE (above; D-15) | orchards (sycomore figs, date rows) at the farmsteads, irrigation basins with dykes and small feeder canals, a temporary workers' camp of reed shelters by the haul road |
 | I5 | the necropolis + the monument | family tomb groups sharing walled courts in the mastaba fields; D-7 south-face ramp remnants (dismantling debris, staged); quarry fine-limestone staging + granite storage |
 | I6 | the harbour per canon IX §9.11–9.13 | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
-| I7 | polish + perf | bm7 (quarry) drifted from 45–47 to 43–45 fps over v1.2 with no single cause found by A/B (fleet, townsfolk: zero cost) — profile it; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
+| I7 | polish + perf | bm7 (quarry) drifted from 45–47 to 43–45 fps over v1.2 with no single cause found by A/B (fleet, townsfolk: zero cost); the I4 battery read 62 with the in-app browser pane closed — A/B pane open vs closed first, then profile; water as shoreline-polygon meshes instead of two big planes (canon IX §9.10.1; fixes OPEN item 3's water edge), OPEN item 1 (iGPU caster allow-list), the red escarpment rim at night, crop-tuft card LOD, a bookmark for the scaffolding tableau |
 | T2 | Tier 2 (canon VII) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)

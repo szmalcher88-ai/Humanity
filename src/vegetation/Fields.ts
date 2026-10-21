@@ -44,6 +44,7 @@ import { attachCulling, cellSortVec4 } from '../render/InstanceCull';
 import { depthPrepassTwin } from '../render/DepthPrepass';
 import { fbm2, valueNoise2 } from '../gpu/noise/NoiseTSL';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
+import { clipToCorridors } from '../world/Irrigation';
 
 /** tuft budget by quality preset (reduced preset: fewer instances and a
  *  shorter fade — never fewer systems; brief §6) */
@@ -148,6 +149,13 @@ export function buildFields(
       }
       z += d + PATH;
     }
+  }
+  // (v1.2 I4) the canals and dykes are fixed works: west-bank parcels that
+  // run into one are cut back to its bank. The plan's draws are untouched —
+  // only those edges move (farmsteads and orchards follow their parcels)
+  for (const p of parcels) {
+    if (p.x0 > 2100) continue;
+    [p.z0, p.d] = clipToCorridors(p.z0, p.d);
   }
 
   /* --- scatter tufts into parcels (CPU, height-mirror validated) ----------- */

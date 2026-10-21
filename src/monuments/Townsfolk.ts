@@ -165,6 +165,80 @@ export function person(
   w.count++;
 }
 
+/** tone of the k-th reed strip: a mat is never one flat sheet */
+const strip = (t: C3, k: number): C3 => {
+  const f = [1, 0.88, 0.95, 0.91, 1.03][k % 5] as number;
+  return [t[0] * f, t[1] * f, t[2] * f];
+};
+
+/**
+ * (v1.2 I4) An upright reed mat `len` × `h` on its foot at (x, y, z),
+ * running along yaw: vertical strips of alternating tone, bound top and
+ * bottom with a darker cord.
+ */
+export function reedMat(w: ColorWriter, x: number, y: number, z: number, len: number, h: number, yaw: number, t: C3): void {
+  const n = Math.max(2, Math.round(len / 0.28));
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  for (let k = 0; k < n; k++) {
+    const u = -len / 2 + ((k + 0.5) * len) / n;
+    w.box(x + u * c, y, z + u * s, len / n, h * (k % 4 === 1 ? 0.97 : 1), 0.05, strip(t, k), yaw);
+  }
+  const cord: C3 = [t[0] * 0.62, t[1] * 0.6, t[2] * 0.55];
+  for (const hy of [0.1, h - 0.12]) w.box(x, y + hy, z, len + 0.04, 0.05, 0.07, cord, yaw);
+}
+
+/**
+ * (v1.2 I4) A reed-mat roof over the four corners (back-left, back-right,
+ * front-right, front-left, each [x, y, z]): strips running front to back,
+ * faced both ways so it reads from under the eaves as well.
+ */
+export function reedRoof(w: ColorWriter, bl: C3, br: C3, fr: C3, fl: C3, t: C3): void {
+  const lerp = (a: C3, b: C3, u: number): C3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+  const len = Math.hypot(br[0] - bl[0], br[2] - bl[2]);
+  const n = Math.max(2, Math.round(len / 0.3));
+  for (let k = 0; k < n; k++) {
+    const u0 = k / n;
+    const u1 = (k + 1) / n;
+    const a = lerp(bl, br, u0);
+    const b = lerp(bl, br, u1);
+    const c = lerp(fl, fr, u1);
+    const d = lerp(fl, fr, u0);
+    const tk = strip(t, k);
+    // up-facing for a roof whose front is +f of a left→right back edge
+    const nrm = (p: C3, q: C3, r: C3): number =>
+      (q[2] - p[2]) * (r[0] - p[0]) - (q[0] - p[0]) * (r[2] - p[2]);
+    if (nrm(a, b, c) >= 0) w.quad(a, b, c, d, tk);
+    else w.quad(d, c, b, a, tk);
+    const lo = (p: C3): C3 => [p[0], p[1] - 0.04, p[2]];
+    if (nrm(a, b, c) >= 0) w.quad(lo(d), lo(c), lo(b), lo(a), tk);
+    else w.quad(lo(a), lo(b), lo(c), lo(d), tk);
+  }
+}
+
+/**
+ * (v1.2 I4) A water carrier: a yoke across the back of the shoulders and a
+ * jar slung from each end — the Old Kingdom gardener of the tomb scenes
+ * (the shaduf is a New Kingdom device). `full` jars hang lower.
+ */
+export function yokeCarrier(
+  w: ColorWriter, rng: Rng, x: number, y: number, z: number, yaw: number, full = true,
+): void {
+  person(w, rng, x, y, z, yaw, 'stand');
+  const P = frame(x, y, z, yaw);
+  const wood: C3 = [0.4, 0.29, 0.18];
+  const jar: C3 = [0.6, 0.4, 0.26];
+  const hang = full ? 0.84 : 0.92;
+  w.beam(P(-0.13, 1.47, -0.78), P(-0.13, 1.47, 0.78), 0.032, wood);
+  for (const sd of [-0.72, 0.72]) {
+    w.beam(P(-0.13, 1.45, sd), P(-0.13, hang + 0.08, sd), 0.008, [0.55, 0.48, 0.35]);
+    const b = P(-0.13, hang - 0.36, sd);
+    w.box(b[0], b[1], b[2], 0.29, 0.36, 0.29, jar, yaw + Math.PI / 4); // the belly, turned: reads round
+    const n = P(-0.13, hang, sd);
+    w.box(n[0], n[1], n[2], 0.13, 0.08, 0.13, jar, yaw);
+  }
+}
+
 const DONKEY: C3 = [0.43, 0.41, 0.39];
 const DONKEY_PALE: C3 = [0.66, 0.63, 0.58];
 const GOAT_TONES: C3[] = [[0.26, 0.2, 0.15], [0.12, 0.1, 0.09], [0.55, 0.47, 0.38], [0.7, 0.66, 0.6]];

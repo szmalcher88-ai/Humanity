@@ -14,6 +14,7 @@ import {
   InstancedMesh,
   Vector2,
   type Mesh,
+  type Object3D,
   type Scene,
 } from 'three';
 import { MeshPhysicalNodeMaterial } from 'three/webgpu';
@@ -187,6 +188,23 @@ export function buildPalms(
     }
   }
 
+  return spawnPalms(scene, rng, spots, gi, perf);
+}
+
+/**
+ * Instanced date palms at explicit spots (x, z, ground y). buildPalms'
+ * groves and (v1.2 I4) the planted orchards share it; `name` keeps their
+ * meshes apart, `scale` is the per-instance size range.
+ */
+export function spawnPalms(
+  scene: Object3D,
+  rng: Rng,
+  spots: [number, number, number][],
+  gi: ProbeGI | null,
+  perf: { cull: boolean; prepass: boolean },
+  name = 'palm',
+  scaleRange: [number, number] = [0.74, 1.22],
+): number {
   // --- per-variant instance slices -------------------------------------------
   // each variant mesh owns its own buffers: instanceIndex restarts at 0 per
   // InstancedMesh, so a shared buffer would render every variant at the
@@ -208,7 +226,7 @@ export function buildPalms(
       dataB[i * 4 + 0] = rng.range(-0.09, 0.09);
       dataB[i * 4 + 1] = rng.range(-0.09, 0.09);
       dataB[i * 4 + 2] = rng.range(0.85, 1.12);
-      dataB[i * 4 + 3] = rng.range(0.74, 1.22);
+      dataB[i * 4 + 3] = rng.range(scaleRange[0], scaleRange[1]);
     }
     // spatial cells for indirect-draw culling (PERF I) — permutes the buffers
     // into contiguous per-cell slices before the GPU sees them
@@ -263,7 +281,7 @@ export function buildPalms(
     mesh.frustumCulled = false;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    mesh.name = `palm-${v}`;
+    mesh.name = `${name}-${v}`;
     scene.add(mesh);
     const twins: Mesh[] = [];
     if (perf.prepass) {
@@ -274,7 +292,7 @@ export function buildPalms(
     }
     if (perf.cull) {
       // casts: true — a grove behind the camera still throws shadows into view
-      const bb = geoBounds(geo, 1.22); // 1.22 = largest per-instance scale
+      const bb = geoBounds(geo, scaleRange[1]); // the largest per-instance scale
       attachCulling(
         mesh,
         cells,
