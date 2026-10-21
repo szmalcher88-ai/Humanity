@@ -70,6 +70,8 @@ adopting one source's triple is deferred until the values can be verified.
 at the epoch of the newly completed pyramid. The excavated gallery phases
 date mainly to Khafre/Menkaure; we render a Khufu-era extent (smaller gallery
 blocks + bakeries + enclosures) at the documented location.
+**(2026-10-21, the human: LEAVE IT as it is — the tension stays recorded
+here.)**
 **(T2-5, recorded — the human's call, T-1):** "smaller" is unquantified, and
 the town as built already draws nearly every component of the later plan
 (four gallery blocks, the Eastern Town, nine bakeries, the RAB, the Wall of
@@ -287,6 +289,9 @@ a live switch (the terrain is baked per boot — a re-bake and a full rebuild).
 **Code:** `src/world/Epoch.ts`, `src/core/Params.ts`, `src/debug/TerrainScene.ts`.
 
 ## D-20 — The Sphinx site elevation (provisional)
+**(2026-10-21, the human chose alternative A: move the escarpment and put
+the Sphinx at its real level in all epochs — plan T2-7; this entry is
+rewritten when it lands.)**
 **Conflict:** the Sphinx enclosure floor lies at ≈ 20 m ASL; the code's
 plateau at the real site (325, 431) stands at ≈ 61 m ASL (+1.2 world) —
 the escarpment crest at that latitude is ≈ 138 m east of the site, about

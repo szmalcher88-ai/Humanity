@@ -181,6 +181,14 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
 
 ## Key decisions log
 
+- 2026-10-21 (the human, back from the autonomous run T2-2 … T3-2):
+  D-20 → option A — move the escarpment ~200 m west and put the Sphinx at
+  its real level in ALL epochs (a default-world change; plan T2-7, before
+  T3-3); D-6 → leave the town as it is; merge v1.2-detail → main now
+  (fast-forward; GitHub Pages stays off); the slow-adapter probe runs FIRST
+  in the battery (`tools/battery.ts`). Also asked: why the Sphinx does not
+  show at `localhost:5173` — by design, the default is 2550 BCE; the later
+  worlds are `?epoch=` presets (an in-app epoch switch offered).
 - 2026-07-10: three pinned 0.184.0 (D-8). World frame: origin = G1 center,
   +X east, +Z south, Y up (world Y = ASL − 60 m). World extent x[−1200,2800],
   z[−1800,2200]. Epoch = newly completed pyramid (canon Vol V preferred).

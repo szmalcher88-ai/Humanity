@@ -46,6 +46,28 @@ async function main(): Promise<void> {
   const quick = process.argv.includes('--quick');
   mkdirSync('shots/battery', { recursive: true });
 
+  // ---- 0. the slow-adapter probe FIRST, on a cool machine (the human's
+  // call, 2026-10-21): fourth in line it hung the Intel iGPU in 3 of 6
+  // battery runs while it passed 6 of 6 standalone, on trees whose default
+  // render had not changed — the iGPU shares the CPU's package, and three
+  // CPU-heavy world boots ran before it. It still catches a preset gate that
+  // stops firing or a GPU job long enough to trip the Windows watchdog.
+  const smoke = (label: string, script: string): void => {
+    try {
+      execFileSync('npx', ['tsx', script], { encoding: 'utf8', shell: true });
+      record(label, true, 'smoke test clean');
+    } catch (e) {
+      // the probe's own verdict is on stdout — show its tail, not just
+      // "Command failed" (v1.2: a slow-adapter FAIL arrived with no reason)
+      const out = (e as { stdout?: string }).stdout ?? '';
+      const tail = out.trim().split(/\r?\n/).slice(-3).join(' | ');
+      record(label, false, (tail || (e instanceof Error ? e.message : 'threw')).slice(0, 240));
+    }
+  };
+  // the black-screen regression: boots on the SLOW adapter and asserts the
+  // device survives
+  if (!quick) smoke('slow-adapter device survival', 'tools/probe-igpu-boot.ts');
+
   // ---- 1. the standalone audits (canon, spec, cardinality, collisions) ----
   try {
     const out = execFileSync('npx', ['tsx', 'tools/audit.ts'], {
@@ -57,25 +79,8 @@ async function main(): Promise<void> {
   } catch (e) {
     record('canon + geometry audit', false, e instanceof Error ? e.message.slice(0, 120) : 'threw');
   }
-  for (const [label, script] of [
-    ['bookmark poses', 'tools/test-bookmarks.ts'],
-    ['inspector round-trip', 'tools/test-inspector.ts'],
-    // the black-screen regression: boots on the SLOW adapter and asserts the
-    // device survives. Catches both a preset gate that stops firing and any
-    // new GPU job long enough to trip the Windows watchdog.
-    ...(quick ? [] : [['slow-adapter device survival', 'tools/probe-igpu-boot.ts'] as const]),
-  ] as const) {
-    try {
-      execFileSync('npx', ['tsx', script], { encoding: 'utf8', shell: true });
-      record(label, true, 'smoke test clean');
-    } catch (e) {
-      // the probe's own verdict is on stdout — show its tail, not just
-      // "Command failed" (v1.2: a slow-adapter FAIL arrived with no reason)
-      const out = (e as { stdout?: string }).stdout ?? '';
-      const tail = out.trim().split(/\r?\n/).slice(-3).join(' | ');
-      record(label, false, (tail || (e instanceof Error ? e.message : 'threw')).slice(0, 240));
-    }
-  }
+  smoke('bookmark poses', 'tools/test-bookmarks.ts');
+  smoke('inspector round-trip', 'tools/test-inspector.ts');
 
   const { browser } = await launchWebGPU();
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
