@@ -275,3 +275,27 @@ Boot-time only.
 a live switch (the terrain is baked per boot — a re-bake and a full rebuild).
 **Confidence:** n/a (method).
 **Code:** `src/world/Epoch.ts`, `src/core/Params.ts`, `src/debug/TerrainScene.ts`.
+
+## D-20 — The Sphinx site elevation (provisional)
+**Conflict:** the Sphinx enclosure floor lies at ≈ 20 m ASL; the code's
+plateau at the real site (325, 431) stands at ≈ 61 m ASL (+1.2 world) —
+the escarpment crest at that latitude is ≈ 138 m east of the site, about
+200 m east of where the real drop is (T2 plan, finding 6). A plateau
+re-tilt cannot fix it (it would bury the worker town, and
+`min(plateau, crest)` would erase the escarpment — finding 6b); the fix is
+a LOCAL terrain change in the default world too (the slope existed in
+Khufu's reign).
+**Chosen (T2-2, plan default E5, taken while the human was away):** the
+Sphinx and its enclosure under KHAFRE_PERIOD only, at the real x/z, the
+floor cut 14 m into the CURRENT ground (−12.8 world ≈ 47 m ASL) — deep
+enough that the body's back line lies under the old surface and the head
+clears the rim. The default world is unchanged (footprint dump identical).
+**Alternatives:** (A, recommended for the human) move the escarpment crest
+~200 m west between z ≈ 250 and 650 with its crest heights and author the
+Sphinx amphitheatre, for ALL epochs — the correct geography; it changes the
+default world (the east end of Khufu's quarry, bm7, its gangs and debris,
+the Shore loop) and needs a full re-verification iteration; (C) a separate
+`?scene=sphinx` test scene with no world placement.
+**Confidence:** D (the site height); the form B (Lehner's survey).
+**Code:** `src/world/CANON_DIMENSIONS.ts` (`SPHINX_*`),
+`src/world/GizaControl.ts` (the KHAFRE_PERIOD block), `src/monuments/Sphinx.ts`.

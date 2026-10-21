@@ -39,12 +39,15 @@ import type { NF, NV2 } from '../gpu/TSLTypes';
 import {
   G1_CAUSEWAY_AZIMUTH_N_OF_E,
   QUARRY_KHUFU_CENTER,
+  SPHINX_CENTER,
+  SPHINX_FLOOR_Y,
   VALLEY_TEMPLE_CENTER,
   WORKER_TOWN_CENTER,
   WORKER_TOWN_PADS,
   WORKER_TOWN_YAW,
 } from './CANON_DIMENSIONS';
 import { FLOODPLAIN_Y, NILE_BED_Y, HARBOR_BED_Y, aslToY } from './WorldConst';
+import { DEFAULT_EPOCH, atLeast, type Epoch } from './Epoch';
 import { CANALS, CANAL_BED_HALF, CANAL_BED_Y, CANAL_TOP_HALF } from './Irrigation';
 
 /* ------------------------------------------------------------------ */
@@ -138,9 +141,12 @@ const BEDROCK_KNOLLS: [number, number, number, number][] = [
 export interface GizaParams {
   /** micro-detail noise domain offsets (THE ONLY seed influence) */
   off: Record<'detail' | 'strata' | 'plain' | 'dune' | 'hard' | 'far', [number, number]>;
+  /** (T2) the epoch preset: later epochs add terrain features (the Sphinx
+   *  enclosure) inside boot-time ifs — the default graph is unchanged */
+  epoch: Epoch;
 }
 
-export function makeGizaParams(seed: WorldSeed): GizaParams {
+export function makeGizaParams(seed: WorldSeed, epoch: Epoch = DEFAULT_EPOCH): GizaParams {
   const rng = seed.rng('giza-detail-offsets');
   const off = (): [number, number] => [rng.range(-500, 500), rng.range(-500, 500)];
   return {
@@ -152,6 +158,7 @@ export function makeGizaParams(seed: WorldSeed): GizaParams {
       hard: off(),
       far: off(),
     },
+    epoch,
   };
 }
 
@@ -405,6 +412,38 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
   }
 
 
+  /* --- (T2-2) the Sphinx enclosure, KHAFRE_PERIOD on (D-20: PROVISIONAL
+   *      depth — cut 14 m into the current ground, which stands ~40 m above
+   *      the real site): its west, north and south sides steep quarry faces,
+   *      open to the east where the floor rises toward the temple site; the
+   *      Sphinx's BODY is the rock left standing in it — a lion's massing, its
+   *      back line below the old surface; the head, chest and paws are mesh
+   *      (Sphinx.ts). Before the strata block, so the walls get bedding. ---- */
+  let sphinxWall: NF = float(0);
+  let sphinxEnc: NF = float(0);
+  if (atLeast(gp.epoch, 'KHAFRE_PERIOD')) {
+    const lx = p.x.sub(SPHINX_CENTER.x);
+    const lz = p.y.sub(SPHINX_CENTER.z);
+    const az = lz.abs();
+    const floorY = float(SPHINX_FLOOR_Y.value);
+    // inside the walls: x ≥ −58 (west face), |z| ≤ 38 (north and south)
+    const encK = smoothstep(-60.5, -57.5, lx).mul(smoothstep(39.5, 36.5, az));
+    sphinxEnc = encK.mul(smoothstep(100, 70, lx)); // kept swept of drift sand
+    // the floor runs level, then rises out to the east toward the temple site
+    const fy = mix(floorY, h, smoothstep(58, 100, lx));
+    // the lion: rump at −36.5 → chest at +30 (the mesh takes over there)
+    const hw = smoothstep(-39, -27, lx).mul(9.5).mul(smoothstep(36, 29, lx).mul(0.25).add(0.75));
+    const back = mix(float(9.0), float(12.5), smoothstep(-34, 14, lx)).mul(smoothstep(33, 27, lx).mul(0.45).add(0.55));
+    const across = clamp(float(1).sub(lz.div(hw.max(0.01)).pow(2)), 0, 1).pow(0.45);
+    const inBody = smoothstep(-37.5, -35.5, lx).mul(smoothstep(33.5, 31.5, lx));
+    const bodyY = floorY.add(back.mul(across).mul(inBody));
+    const cut = max(fy, bodyY);
+    h = mix(h, min(h, cut), encK);
+    // the quarry faces: bands just inside the west, north and south walls
+    sphinxWall = smoothstep(-62, -58, lx).mul(smoothstep(-52, -56, lx)).mul(smoothstep(42, 36, az))
+      .max(smoothstep(32, 37, az).mul(smoothstep(42, 38, az)).mul(smoothstep(-62, -57, lx)).mul(smoothstep(70, 55, lx)));
+  }
+
   /* --- geology detail: limestone shelving + surface roughness ------------- */
   const hardStrata = mx_noise_float(
     vec2(h.mul(0.13), mx_noise_float(p.div(700)).mul(1.7)).add(
@@ -430,7 +469,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
         smoothstep(kr * 0.78, kr * 0.6, d).mul(smoothstep(kr * 0.28, kr * 0.45, d)),
       );
     }
-    const shelfMask = escFace.max(wadiWall).max(knollFlank)
+    const shelfMask = escFace.max(wadiWall).max(knollFlank).max(sphinxWall)
       .mul(plainMask.oneMinus())
       .mul(riverMask.oneMinus())
       .mul(harborAll.oneMinus());
@@ -543,7 +582,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     quarry: quarryMask,
     bedrockExposure,
     moisture,
-    worked: clamp(g1Pad.max(qPad).max(townPad), 0, 1),
+    worked: clamp(g1Pad.max(qPad).max(townPad).max(sphinxEnc), 0, 1),
   };
 }
 

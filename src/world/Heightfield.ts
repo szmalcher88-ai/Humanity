@@ -104,7 +104,7 @@ export class Heightfield {
     progress: ProgressFn,
   ): Promise<Heightfield> {
     const cfg = qualityConfig(params.preset);
-    const gp = makeGizaParams(seed);
+    const gp = makeGizaParams(seed, params.epoch);
 
     progress(0.05, `terrain: baking ${cfg.heightRes}² plateau`);
     // banded (gpu/Banded.ts): report the bands so the bar MOVES through the

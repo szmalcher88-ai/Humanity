@@ -450,6 +450,43 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-2 — THE SPHINX (done; plan `docs/plans/T2_PLAN.md` §3.3; E5 safe default;
+D-20). Recon: the T2 plan's (5 Haiku, 146/149 — Haiku C measured the site).
+KHAFRE_PERIOD only; the default world untouched (footprint dump identical,
+1142 of 1142, 0 changed — re-run after the terrain code went in).
+- THE BODY IS THE BEDROCK: `GizaParams` carries the epoch; under
+  `atLeast(epoch, 'KHAFRE_PERIOD')` (a boot-time `if` before the geology
+  block, so the default node graph is unchanged) `GizaControl` cuts the
+  enclosure — steep quarry faces on the west, north and south, open to the
+  east where the floor rises toward the temple site — and leaves the lion's
+  massing standing in it: rump at −36.5 m, chest at +30 m from the centre,
+  a back line rising 9 → 12.5 m, a rounded cross-section. The walls join
+  `shelfMask` (the strata bedding reads on them), the enclosure joins
+  `worked` (swept of drift sand).
+- WHAT WAS CARVED FREE OF IT (`src/monuments/Sphinx.ts`, one GeoWriter
+  mesh, ~50 boxes, no joints — it is one stone): the chest and neck, the
+  nemes narrowing upward with its crown and forehead band, striped lappets,
+  the face (brow, eyes, nose, mouth, chin, ears — modest, idealised, canon
+  VII), the uraeus, the forepaws with toes. Facing due east (Lehner, B). NO
+  BEARD (the braided divine beard is New Kingdom), no paint.
+- THE SITE (D-20): the real x/z (325, 431), but the floor cut 14 m into the
+  CURRENT ground (−12.8 world) — the plateau here stands ~40 m above the
+  real site. 14 m, not the plan's ~10: at 10 m the body's back (12.5 m)
+  would stand above the old surface and its flanks would not be cut free;
+  at 14 the back lies just under the rim and the head clears it by ~6 m.
+- Footprints `sphinx:body/head/chest/paws`, family `sphinx`, conf D,
+  epoch `khafre` (the chest ground 'none': its rock stands in the body).
+  Audit under KHAFRE_PERIOD clean (collisions, evidence, fleet).
+- BOOKMARK 12 (`=`): "the Sphinx" from the east between the paws, 09:00;
+  the key reloads into KHAFRE_PERIOD (`?bm=12` alone only sets the pose).
+Not done from §3.3, on purpose: no Inspector move (`edPos`) — the cut is
+baked with the terrain, a moved mesh would leave its body behind; no
+`?pigment=1` (later); no enclosure-wall footprints (terrain — the ground
+rules already see it).
+BATTERY (default epoch): 18/19 + the advisory perf WARN (bm1 51, bm3 61, bm7 43 —
+the known 42–45 band at bm7; bm3 measured while the side planner's read-only
+agents ran — the default node graph is unchanged by construction).
+
 T2-1 — EPOCH PRESETS (done; plan `docs/plans/T2_PLAN.md` §3.1; D-19). Recon
 by the side planner (5 Haiku, 146/149). New `src/world/Epoch.ts`: canon IX
 §9.3's presets by name (KHUFU_EARLY, KHUFU_LATE, KHUFU_COMPLETION,
@@ -866,7 +903,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) — T2-1 epochs DONE (above) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx DONE (above; D-20 provisional site) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

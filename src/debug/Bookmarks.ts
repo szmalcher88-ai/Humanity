@@ -1,7 +1,8 @@
 /**
  * Bookmarks + flythrough (Phase 7):
- *   1-9,0,- — jump to a curated view (poses verified by harness shots); key 0
- *          is bookmark 10 (night harbour) and `-` is 11 (temple scaffolding).
+ *   1-9,0,-,= — jump to a curated view (poses verified by harness shots); key 0
+ *          is bookmark 10 (night harbour), `-` is 11 (temple scaffolding), `=`
+ *          is 12 (the Sphinx — KHAFRE_PERIOD: the key reloads into that epoch).
  *          Both also set the hour: a night view is a POSE PLUS AN HOUR.
  *   F    — cinematic flythrough: closed Catmull-Rom loop through the
  *          bookmark positions with eased yaw/pitch, fly input disabled
@@ -18,6 +19,9 @@ interface Mark {
   pitch: number;
   /** optional time-of-day: a night view is a POSE PLUS AN HOUR */
   t?: number;
+  /** (T2) the epoch the view belongs to: its KEY reloads into it (?bm=N alone
+   *  only sets the pose — tooling and the battery stay in their epoch) */
+  epoch?: string;
 }
 
 /** curated views (all verified as harness framings during Phases 3-6) */
@@ -44,6 +48,9 @@ export const MARKS: Mark[] = [
   // rubble ramp on the mortuary temple's unfinished SE corner. Late afternoon,
   // when the scaffolding throws its own shadow across the court.
   { name: 'temple scaffolding', p: [146, 7, 68], yaw: -0.19, pitch: 0.02, t: 16.2 },
+  // 12 (key =) — (T2-2) the Sphinx in its enclosure, from the east, in the
+  // morning sun on its face (canon VII's view list). KHAFRE_PERIOD only.
+  { name: 'the Sphinx', p: [430, 6, 431], yaw: 1.5708, pitch: -0.06, t: 9.0, epoch: 'KHAFRE_PERIOD' },
 ];
 
 /** tour order: harbor → river → town → quarry → plateau → causeway → back */
@@ -97,6 +104,15 @@ export function attachBookmarks(engine: Engine): void {
     } else if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
       const m = MARKS[10]; // bookmark 11 — temple scaffolding
       if (m) jump(m);
+    } else if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+      const m = MARKS[11]; // bookmark 12 — the Sphinx (KHAFRE_PERIOD)
+      const q = new URLSearchParams(window.location.search);
+      if (m?.epoch && (q.get('epoch') ?? '').toUpperCase() !== m.epoch) {
+        // a view of another epoch: reload into it, never half-switch
+        q.set('epoch', m.epoch);
+        q.set('bm', '12');
+        window.location.search = q.toString();
+      } else if (m) jump(m);
     } else if (e.code === 'KeyF' && !e.repeat) {
       flying = !flying;
       window.__akhet.flyCamEnabled?.(!flying);

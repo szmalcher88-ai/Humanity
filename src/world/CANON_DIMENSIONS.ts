@@ -226,6 +226,20 @@ export const QUEENS_CENTERS: CanonPlacement[] = [
   { x: 190, z: 156, confidence: 'C', source: 'Lehner 1997 p.116 plan (G1-c)' },
 ];
 
+/** (T2-2) The Great Sphinx — shown from KHAFRE_PERIOD on only (D-19, D-20).
+ *  Body centre at the real WGS84 delta, facing due east (Lehner); body
+ *  ≈ 73 m long, ≈ 19 m wide, ≈ 20 m from the enclosure floor to the head. */
+export const SPHINX_CENTER: CanonPlacement = {
+  x: 325, z: 431, confidence: 'B', source: 'Lehner, Giza Plateau Mapping Project (WGS84 deltas)',
+};
+export const SPHINX_LENGTH = e(73, 'm', 'B', 'Lehner 1991, The Archaeology of an Image');
+export const SPHINX_WIDTH = e(19, 'm', 'B', 'Lehner 1991');
+export const SPHINX_HEIGHT = e(20, 'm', 'B', 'Lehner 1991');
+/** PROVISIONAL: the enclosure floor 14 m under the CURRENT ground at the
+ *  site (≈ +1.2 world), not its real ≈ 20 m ASL (−40 world) — the plateau
+ *  here stands ~40 m too high (T2 plan finding 6; D-20) */
+export const SPHINX_FLOOR_Y = e(-12.8, 'm', 'D', 'provisional — DEVIATIONS D-20');
+
 /** Satellite pyramid G1-d, just OUTSIDE the SE corner of the enclosure —
  *  at z=130 the south temenos wall (z≈135) ran straight through it. */
 export const G1D_CENTER: CanonPlacement = {

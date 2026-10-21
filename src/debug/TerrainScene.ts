@@ -18,6 +18,7 @@ import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
 import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
 import { atLeast } from '../world/Epoch';
+import { buildSphinx } from '../monuments/Sphinx';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
 import { PostStack } from '../render/PostStack';
@@ -91,7 +92,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     'mastabas-west', 'mastabas-east', 'pavement', 'vessels', 'harbor-works',
     'worker-town', 'harbor-district', 'industry', 'work-camp',
     // (v1.2 I5) — not 'trains' / 'scaffold': Inhabitants registers those once, at boot
-    'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard',
+    'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard', 'sphinx',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -121,6 +122,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['tombs.twins'] = complex.twins.length;
     engine.stats.counters['tomb.courts'] = courts.courts;
     engine.stats.counters['tomb.dependants'] = courts.dependants;
+    // (T2-2) the Sphinx, carved free of its enclosure's bedrock (KHAFRE on)
+    engine.stats.counters['sphinx'] = khufuWorks ? 0 : buildSphinx(structures, gi);
     if (khufuWorks) {
       const south = buildSouthWorks(structures, seed, hf, gi);
       engine.stats.counters['ramp.segments'] = south.rampSegments;

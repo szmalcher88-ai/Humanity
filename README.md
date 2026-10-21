@@ -103,7 +103,7 @@ directional light so shadows keep working after dusk.
 | `W A S D` `Q E` | Fly (mouse look after clicking the canvas) |
 | `Shift` | Sprint |
 | `G` | **Walk mode** — eye height 1.55 m, pinned to terrain *and* structures |
-| `1`–`9`, `0`, `-` | Bookmarks (`0` = night harbour, `-` = temple scaffolding; both also set the hour) |
+| `1`–`9`, `0`, `-`, `=` | Bookmarks (`0` = night harbour, `-` = temple scaffolding; both also set the hour; `=` = the Sphinx — reloads into `?epoch=KHAFRE_PERIOD`) |
 | `F` | Cinematic flythrough |
 | `[` `]` | Step time of day |
 | `I` | Placement inspector (footprints, audit issues, nudge editing) |
@@ -111,8 +111,9 @@ directional light so shadows keep working after dusk.
 
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
 `?epoch=KHUFU_COMPLETION|KHAFRE_PERIOD|EVIDENCE_VIEW` (T2: canon IX §9.3 presets; the
-default is Khufu's completed pyramid, bit-identical; the others named in §9.3 fall back
-with a notice) ·
+default is Khufu's completed pyramid, bit-identical; KHAFRE_PERIOD clears Khufu's works and
+adds the Sphinx in its enclosure — provisional site height, D-20; the others named in §9.3
+fall back with a notice) ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·
 `?clean=1` (hide every overlay — gallery frames) · `?hide=debris,particles` (hide scene
