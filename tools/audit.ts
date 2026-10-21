@@ -6,10 +6,12 @@
  *
  *   npx tsx tools/audit.ts            # spec + sun-path checks (fast, CPU)
  *   npx tsx tools/audit.ts --shadow   # + rendered shadow-vector test
+ *   npx tsx tools/audit.ts --epoch KHAFRE_PERIOD   # that epoch's monuments + world
  */
 
 import { Vector3 } from 'three';
-import { Rng } from '../src/core/Seed';
+import { WorldSeed } from '../src/core/Seed';
+import { atLeast, parseEpoch, type Epoch } from '../src/world/Epoch';
 import { buildSpec, auditSpec } from '../src/monuments/PyramidSpec';
 import {
   G1_BASE_SIDE,
@@ -18,6 +20,10 @@ import {
   G1_COURSE_COUNT,
   G1_COURSE1_HEIGHT,
   G1_COURSE_MIN_HEIGHT,
+  G2_BASE_SIDE,
+  G2_COURSE_COUNT,
+  G2_GRANITE_COURSES,
+  G2_SLOPE_DEG,
   auditSelfConsistency,
 } from '../src/world/CANON_DIMENSIONS';
 import { SunSky } from '../src/sky/SunSky';
@@ -36,44 +42,58 @@ check(
   `derived ${canon.derivedHeight.toFixed(3)} vs survey ${G1_HEIGHT.value}`,
 );
 
-// --- 2. G1 spec ------------------------------------------------------------------
-const h = (G1_BASE_SIDE.value / 2) * Math.tan((G1_SLOPE_DEG.value * Math.PI) / 180);
-const spec = buildSpec({
-  baseSide: G1_BASE_SIDE.value,
-  height: h,
-  slopeDeg: G1_SLOPE_DEG.value,
-  cx: 0,
-  cy: 0,
-  cz: 0,
-  courseCount: G1_COURSE_COUNT.value,
-  course1: G1_COURSE1_HEIGHT.value,
-  courseMin: G1_COURSE_MIN_HEIGHT.value,
-  rng: new Rng(1),
-});
-const sa = auditSpec(spec);
-check('G1 spec consistency', sa.ok, sa.notes.join('; ') || `${spec.courses.length} courses`);
-check(
-  'G1 base within survey tolerance',
-  Math.abs(spec.params.baseSide - 230.363) < 0.01,
-  `${spec.params.baseSide}`,
-);
-check(
-  'G1 height within 0.5 m of survey',
-  Math.abs(h - G1_HEIGHT.value) < 0.5,
-  `${h.toFixed(3)} vs ${G1_HEIGHT.value}`,
-);
-check(
-  'G1 course count',
-  spec.courses.length === G1_COURSE_COUNT.value,
-  `${spec.courses.length}`,
-);
-const c0 = spec.courses[0];
-check(
-  'first course ≈ 1.49 m (post-normalization)',
-  c0 !== undefined && Math.abs(c0.h - 1.49) < 0.35,
-  c0 ? c0.h.toFixed(3) : 'missing',
-);
-check('casing stone floor (>40k for G1)', spec.stones.length > 40000, `${spec.stones.length}`);
+// --- 2. the monuments' specs ----------------------------------------------------
+// (T2-3) one row per pyramid that has a survey to hold it to, built on the
+// WORLD's stream (`monument-<name>`, seed 1 — the default world) and only in
+// the epochs that show it: `--epoch KHAFRE_PERIOD` adds G2. (The old
+// course-count check was a tautology — the solver always emits exactly
+// courseCount rows — it is now: the solved course sum IS the slope's height.)
+const ei = process.argv.indexOf('--epoch');
+const epochArg = ei > 0 ? process.argv[ei + 1] : undefined;
+const epoch = parseEpoch(epochArg ?? null).epoch;
+interface Row {
+  name: string; base: number; slope: number; survey: number; baseSurvey: number;
+  courses: number; c1: number; cMin: number; granite: number; floor: number; from: Epoch;
+}
+const ROWS: Row[] = [
+  {
+    name: 'G1', base: G1_BASE_SIDE.value, slope: G1_SLOPE_DEG.value, survey: G1_HEIGHT.value, baseSurvey: 230.363,
+    courses: G1_COURSE_COUNT.value, c1: G1_COURSE1_HEIGHT.value, cMin: G1_COURSE_MIN_HEIGHT.value,
+    granite: 0, floor: 40000, from: 'KHUFU_EARLY',
+  },
+  {
+    name: 'G2', base: G2_BASE_SIDE.value, slope: G2_SLOPE_DEG.value, survey: 143.5, baseSurvey: 215.25,
+    courses: G2_COURSE_COUNT.value, c1: G1_COURSE1_HEIGHT.value, cMin: G1_COURSE_MIN_HEIGHT.value,
+    granite: G2_GRANITE_COURSES.value, floor: 45000, from: 'KHAFRE_PERIOD',
+  },
+];
+const seed = new WorldSeed(1);
+for (const r of ROWS.filter((x) => atLeast(epoch, x.from))) {
+  const h = (r.base / 2) * Math.tan((r.slope * Math.PI) / 180);
+  const spec = buildSpec({
+    baseSide: r.base, height: h, slopeDeg: r.slope, cx: 0, cy: 0, cz: 0,
+    courseCount: r.courses, course1: r.c1, courseMin: r.cMin, graniteCourses: r.granite,
+    rng: seed.rng(`monument-${r.name}`),
+  });
+  const sa = auditSpec(spec);
+  check(`${r.name} spec consistency`, sa.ok, sa.notes.join('; ') || `${spec.courses.length} courses`);
+  check(`${r.name} base within survey tolerance`, Math.abs(r.base - r.baseSurvey) < 0.01, `${r.base}`);
+  check(`${r.name} height within 0.5 m of survey`, Math.abs(h - r.survey) < 0.5, `${h.toFixed(3)} vs ${r.survey}`);
+  const last = spec.courses[spec.courses.length - 1];
+  const top = last ? last.y0 + last.h : 0;
+  check(`${r.name} courses sum to the slope's height`, Math.abs(top - h) < h * 0.005, `${top.toFixed(3)} vs ${h.toFixed(3)}`);
+  const c0 = spec.courses[0];
+  check(
+    `${r.name} first course ≈ ${r.c1} m (post-normalization)`,
+    c0 !== undefined && Math.abs(c0.h - r.c1) < 0.35,
+    c0 ? c0.h.toFixed(3) : 'missing',
+  );
+  check(`${r.name} casing stone floor (>${r.floor / 1000}k)`, spec.stones.length > r.floor, `${spec.stones.length}`);
+  if (r.granite > 0) {
+    const gTop = spec.courses[r.granite]?.y0 ?? 0;
+    check(`${r.name} granite band: ${r.granite} course(s)`, gTop > 0.5 && gTop < 2.5 * r.granite, `top ${gTop.toFixed(3)} m`);
+  }
+}
 
 // --- 3. sun path cardinality (equinox) -------------------------------------------
 const v = new Vector3();
@@ -194,9 +214,7 @@ async function collisionTest(): Promise<void> {
     if (msg.text().startsWith('[akhet] collision') || msg.text().startsWith('[akhet] evidence') || msg.text().startsWith('[akhet] fleet')) console.log(`  ${msg.text()}`);
   });
   // (T2) --epoch KHAFRE_PERIOD audits that epoch's world (default: Khufu's)
-  const ei = process.argv.indexOf('--epoch');
-  const epoch = ei > 0 ? process.argv[ei + 1] : undefined;
-  await page.goto(akhetUrl({ scene: 'world', hud: false, ...(epoch ? { extra: { epoch } } : {}) }), {
+  await page.goto(akhetUrl({ scene: 'world', hud: false, ...(epochArg ? { extra: { epoch: epochArg } } : {}) }), {
     waitUntil: 'domcontentloaded',
   });
   await page.waitForFunction(
@@ -210,7 +228,7 @@ async function collisionTest(): Promise<void> {
   // (v1.2 I6) harbour evidence tags and the moving fleet's clearance
   const counters = await page.evaluate(() => window.__akhet.stats?.counters ?? {});
   await browser.close();
-  check('harbour evidence: every piece tagged', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
+  check('evidence: every piece tagged (harbour, Sphinx, Khafre)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
   check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
   if (issues === null) {
     check('collision audit hook present', false, 'collisionAudit hook missing');

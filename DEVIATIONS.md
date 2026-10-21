@@ -262,9 +262,10 @@ world follows in T2/Tier 3 once the scheme is proven.
 **Conflict:** the brief files `?epoch=` presets under Tier 3; the roadmap
 (v1.2+) takes them first in T2, because the Tier-2 monuments (the Sphinx,
 Khafre's complex) did not exist in 2550 BCE and may only appear in a later
-epoch — canon IX §9.3 names the presets, and the Bible's Tier-1 rule
-("NO Khafre/Menkaure/Sphinx") holds "unless a selectable timeline is
-implemented".
+epoch — canon IX §9.3 names the presets; STATUS's Tier-1 scope line ("NO
+Khafre/Menkaure/Sphinx") is our wording, while the Bible's own (the Khafre
+complex "had not yet reached its final form", `canon/MASTER_PROMPT_BIBLE.md`
+:82) adds "unless a selectable timeline is implemented".
 **Chosen (T2-1):** the mechanism first, with the default epoch
 (KHUFU_COMPLETION, the brief's Tier-1 state) bit-identical to the world
 before it; built: KHAFRE_PERIOD (Khufu's construction context cleared),
@@ -299,3 +300,39 @@ the Shore loop) and needs a full re-verification iteration; (C) a separate
 **Confidence:** D (the site height); the form B (Lehner's survey).
 **Code:** `src/world/CANON_DIMENSIONS.ts` (`SPHINX_*`),
 `src/world/GizaControl.ts` (the KHAFRE_PERIOD block), `src/monuments/Sphinx.ts`.
+
+## D-21 — Khafre's pyramid G2: site, platform, granite course, enclosure, course count
+**Conflict:** canon VII describes G2 (its "elevation illusion", its casing,
+"Aswan granite" in its material palette) but gives NO figures: no base, no
+slope, no course count, no platform level, no court or wall offsets, and no
+canon file says "red granite" of the lowest course. The brief requires a
+source for every load-bearing dimension (`BRIEF.md:65`).
+**Chosen (T2-3, KHAFRE_PERIOD only; plan `docs/plans/T2-3_PLAN.md`, defaults
+taken while the human was away):**
+- base 215.25 m (Petrie 1883, B); slope 53.1301° — the seked of 5¼ palms,
+  rise/run 4/3, giving 143.5 m (Petrie's measured 53°10′ gives ≈ 143.7 m), B;
+- the site (−330, 350): the knoll the terrain was authored for, not the
+  WGS84 delta (−322, 339), whose platform would reach the West Field's last
+  tomb row (C);
+- the platform at +10.0 world (70 m ASL): the commonly cited "base ≈ 10 m
+  above Khufu's" — an outside figure, the canon gives none (D); a net CUT
+  into the knoll's SW shoulder (≤ 4.0 m, ≈ 101k m³ under the base; fill ≤
+  2.9 m at the NE corner); apex 153.5 vs G1's 146.6, so the illusion holds;
+- 205 courses: G1's 210 scaled by height — an ESTIMATE (D); course 1 and the
+  minimum course from G1;
+- the lowest course in red granite after Lehner 1997 (C — outside the
+  canon), on the near stones AND the far shell (one uniform: no pop at the
+  LOD switch);
+- the court (individual slabs) and an 8 m temenos at Khufu's offsets (20.2 m
+  from the base, D-3's height; D); a doorway on the east axis, to be widened
+  to the mortuary temple's flanks at that step.
+**Alternatives:** the WGS84 centre with a tighter north court; the platform
+at +12.0 (least earthwork, cut ≈ fill) or +11.0; two granite courses, or
+all-Tura (canon-literal); a lower wall or a slab-grid material.
+**Confidence:** B (base, slope) · C (site, granite) · D (level, courses,
+enclosure) — `pyramid:G2` carries C overall.
+Method, not evidence: beyond 300 m G2's casing stones cast no shadow — the
+far shell, 5 cm inside them, casts alone (the perf A/B, STATUS T2-3).
+**Code:** `src/world/CANON_DIMENSIONS.ts` (`G2_*`), `src/world/GizaControl.ts`
+(the platform), `src/monuments/Monuments.ts`, `src/monuments/PyramidBuilder.ts`
+(the granite band, the shadow LOD), `src/monuments/KhafreComplex.ts`.

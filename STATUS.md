@@ -450,6 +450,75 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T2-3 — KHAFRE'S PYRAMID G2 (done; plan `docs/plans/T2-3_PLAN.md`; D-21).
+Recon by the side planner (5 Haiku, 139/142 — table below). KHAFRE_PERIOD
+only; the default world untouched (footprint dump identical, 1142 of 1142,
+0 changed).
+- THE PYRAMID (`Monuments.ts`, LAST, stream `monument-G2`): 215.25 m
+  (Petrie), 53.1301° — the 5¼-palm seked, 143.5 m; 205 courses (an
+  estimate: G1's scaled by height); 51,088 casing stones (≈ 52k planned;
+  the world now 114k). Footprint `pyramid:G2` with evidence (C). `?g2=0`
+  skips it under the epoch — the build-time A/B switch (`?hide=` cannot:
+  the LOD switch rewrites `near.visible` every frame).
+- THE PLATFORM (`GizaControl`, under the epoch, after the town pads and
+  before the far branch): a square of half 133 m, 12 m blend, levelled at
+  +10.0 world (70 m ASL) — a net cut into the knoll's SW shoulder; it joins
+  `worked`. The apex stands at 153.5 vs G1's 146.6: canon VII's "elevation
+  illusion".
+- THE GRANITE COURSE: the lowest course red granite (Lehner — outside the
+  canon, D-21) on the near stones AND the far shell, keyed on one uniform
+  (the base of the first Tura course, from the same course array the
+  stones were packed from) — colour and roughness, so the band neither
+  pops nor changes sheen at `lodDist`. Behind a JS-level `if`: G1's and the
+  queens' node graphs are unchanged.
+- THE COURT AND THE WALL (new `src/monuments/KhafreComplex.ts`, canon VII's
+  hierarchy): 12,057 court slabs, individually, on stream `khafre-pavement`;
+  an 8 m temenos at Khufu's offsets on the WALL RULE, a doorway on the east
+  axis (to be widened to the mortuary temple's flanks at that step).
+  Families `khafre-temenos`, `khafre-pavement` (in `STRUCT_FAMILIES`); every
+  footprint carries conf/basis/epoch, and the evidence audit now holds the
+  Sphinx's, Khafre's and `pyramid:G2` to it.
+- TOOLS: `audit.ts` loops the spec checks over the monuments of the epoch
+  on the WORLD's streams (it built one G1 on `new Rng(1)`), the
+  course-count tautology replaced by "the courses sum to the slope's
+  height", a G2 granite-band check; `perf.ts --q` (params for both arms)
+  and the GPU pass times (scene, shadow cascades) per reading;
+  `closeup.ts --q`.
+- PERF (plan §3.5; `perf.ts --q "epoch=KHAFRE_PERIOD" --b "g2=0"`, 3 rounds,
+  A = with G2, B = without). The rAF medians came out QUANTISED this
+  sitting (60 / 40 / 30 — a 120 Hz vsync lock; the display likely asleep),
+  so the GPU pass times decide. FIRST BUILD: G2 cost bm4 60 → 40 fps (3/3),
+  ≈ 3.9 ms (scene +1.0, cascades +2.8), and bm7 (G2 off screen, 391 m)
+  +2.8 ms of cascades — over the rule (≤ 1.5 ms), and the cascades, as the
+  plan foresaw (9d). FIX — the plan's cheapest lever, a SHADOW LOD
+  (`PyramidParams.shadowLod`, G2 only): beyond 300 m the 51k stones stop
+  casting and the far shell (always on, 5 cm inside them) casts alone.
+  AFTER, same protocol: fps medians A = B at all seven bookmarks (bm12/4/1
+  60/60/60, bm3 60, bm7 40, bm8 40, bm11 60); scene pass bm12 +1.47 ms,
+  bm4 +0.94, bm3 +0.82, bm8 +0.35, bm1/bm7/bm11 ±0.1 — within the rule.
+  The per-cascade timings step in ~1.1 ms and swing 1.2 ↔ 4.6 ms between
+  rounds of the SAME arm: at 3 rounds they cannot resolve below ~2 ms
+  (honest limit). The shadow edge moves by a sub-texel (bm4 causeway,
+  checked side by side). Per-cell culling (four blockers, plan 9c): not
+  needed now.
+BATTERY (default epoch): 17/19 + the advisory perf WARN (bm1 54, bm3 67, bm7 44)
++ 1 FAIL: "slow-adapter device survival" hung the Intel iGPU (DEVICE_HUNG)
+in the battery AND in a standalone re-run right after; then an A/B in one
+sitting — HEAD (T2-2, stashed tree) PASS 10.7 s / 27.7 fps, the T2-3 tree
+PASS 10.6 s / 27.9 fps. Not T2-3's (the default graph gains only a
+`max(…, 0)` in the bake): the gate's known flakiness on this iGPU (I6/I7),
+which the open "iGPU re-measure on an idle machine" item covers.
+
+HAIKU — T2-3 (5 agents, read-only, run and verified by the side planner):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | canon and sources: G2 numbers, granite, causeway, D-19/D-20 wording | 28 | 28 — "no red granite in the canon" moved the granite to an outside source; E7's causeway line moved south of the Sphinx |
+| B | the platform terrain: ground, level, insertion point, sand, render | 28 | 27 — one supporting number unsourced; its +12.0 level and 25 m blend kept as alternatives |
+| C | the pyramid pipeline and the audit | 30 | 30 — full instance buffers → the uniform; the audit tautology and `new Rng(1)` |
+| D | clearances in the KHAFRE world, bookmarks | 28 | 26 — 0 conflicts; two apex angles wrong (absolute eye Y) |
+| E | measurement and culling | 28 | 28 — `?hide=` cannot isolate G2 → `?g2=0`; four blockers for per-cell culling; off-screen cascades |
+VERDICT: 139/142 (97.9 %).
+
 T2-2 — THE SPHINX (done; plan `docs/plans/T2_PLAN.md` §3.3; E5 safe default;
 D-20). Recon: the T2 plan's (5 Haiku, 146/149 — Haiku C measured the site).
 KHAFRE_PERIOD only; the default world untouched (footprint dump identical,
@@ -477,7 +546,8 @@ KHAFRE_PERIOD only; the default world untouched (footprint dump identical,
 - Footprints `sphinx:body/head/chest/paws`, family `sphinx`, conf D,
   epoch `khafre` (the chest ground 'none': its rock stands in the body).
   Audit under KHAFRE_PERIOD clean (collisions, evidence, fleet).
-- BOOKMARK 12 (`=`): "the Sphinx" from the east between the paws, 09:00;
+- BOOKMARK 12 (`=`): "the Sphinx" from the east on its axis (the eye ≈ 55 m
+  east of the paw tips), 09:00;
   the key reloads into KHAFRE_PERIOD (`?bm=12` alone only sets the pose).
 Not done from §3.3, on purpose: no Inspector move (`edPos`) — the cut is
 baked with the terrain, a moved mesh would leave its body behind; no
@@ -903,7 +973,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I6 | the harbour per canon IX §9.11–9.13 — DONE (above; D-14, D-18) | rework the 180 m quay into conservative landing surfaces, earthen embankments and timber ramps (piers kept — brief §2 floor; D-14), cargo yards and an administrative shelter with scribes, confidence tags on every reconstructed piece |
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
-| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx DONE (above; D-20 provisional site) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2 DONE (above; D-20 provisional site, D-21) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

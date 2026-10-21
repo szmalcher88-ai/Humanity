@@ -11,6 +11,7 @@ import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
 import { buildMonuments, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
+import { buildKhafreComplex } from '../monuments/KhafreComplex';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
@@ -93,6 +94,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     'worker-town', 'harbor-district', 'industry', 'work-camp',
     // (v1.2 I5) — not 'trains' / 'scaffold': Inhabitants registers those once, at boot
     'tomb-courts', 'tomb-chapels', 'ramp-remnant', 'works-yard', 'sphinx',
+    'khafre-temenos', 'khafre-pavement',
   ];
   const structures = new Group();
   scene.add(structures);
@@ -113,7 +115,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       });
       structures.remove(c);
     }
-    sites = buildMonuments(structures, seed, gi);
+    sites = buildMonuments(structures, seed, gi, engine.params.epoch);
     const complex = buildKhufuComplex(structures, seed, hf, gi);
     // (v1.2 I5) the necropolis' family courts, the D-7 ramp remnant and the
     // royal works yard south of the enclosure
@@ -124,6 +126,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     engine.stats.counters['tomb.dependants'] = courts.dependants;
     // (T2-2) the Sphinx, carved free of its enclosure's bedrock (KHAFRE on)
     engine.stats.counters['sphinx'] = khufuWorks ? 0 : buildSphinx(structures, gi);
+    // (T2-3) Khafre's pyramid court and temenos (G2 itself is a monument)
+    engine.stats.counters['khafre.slabs'] = khufuWorks ? 0 : buildKhafreComplex(structures, seed, gi).slabs;
     if (khufuWorks) {
       const south = buildSouthWorks(structures, seed, hf, gi);
       engine.stats.counters['ramp.segments'] = south.rampSegments;
@@ -356,7 +360,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
     water: hf.waterYAtCpu(x, z),
   });
 
-  // default spawn: SE of the pyramid site looking NW across the plateau
+  // default spawn: SE of the pyramid site, looking SW (yaw 0.78π: forward
+  // = (−sin, 0, −cos) — the T2-3 recon caught the old "NW")
   const sx = 420;
   const sz = 520;
   engine.hooks.initialPose = {

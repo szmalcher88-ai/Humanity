@@ -41,6 +41,8 @@ import {
   QUARRY_KHUFU_CENTER,
   SPHINX_CENTER,
   SPHINX_FLOOR_Y,
+  G2_CENTER,
+  G2_PAD_Y,
   VALLEY_TEMPLE_CENTER,
   WORKER_TOWN_CENTER,
   WORKER_TOWN_PADS,
@@ -531,6 +533,16 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     h = mix(h, float(level), pad);
     townPad = townPad.max(pad);
   }
+  // (T2-3) G2's levelled platform, KHAFRE_PERIOD on: a square under the
+  // pyramid, its court and wall (half 133 m, 12 m blend — wider and the
+  // north edge reaches the West Field's last tombs); a net cut into the
+  // knoll's SW shoulder. Before the far branch, so the far shell has it too.
+  let g2Pad: NF = float(0);
+  if (atLeast(gp.epoch, 'KHAFRE_PERIOD')) {
+    const d2 = p.sub(vec2(G2_CENTER.x, G2_CENTER.z)).abs();
+    g2Pad = smoothstep(145, 133, d2.x.max(d2.y));
+    h = mix(h, float(G2_PAD_Y.value), g2Pad);
+  }
 
   /* --- far shell relief (beyond the grid, 'far' branch only) --------------- */
   if (!full) {
@@ -582,7 +594,7 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     quarry: quarryMask,
     bedrockExposure,
     moisture,
-    worked: clamp(g1Pad.max(qPad).max(townPad).max(sphinxEnc), 0, 1),
+    worked: clamp(g1Pad.max(qPad).max(townPad).max(sphinxEnc).max(g2Pad), 0, 1),
   };
 }
 

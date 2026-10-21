@@ -23,7 +23,15 @@ import {
   QUEENS_BASE_SIDE,
   QUEENS_CENTERS,
   QUEENS_SLOPE_DEG,
+  G2_BASE_SIDE,
+  G2_CENTER,
+  G2_COURSE_COUNT,
+  G2_GRANITE_COURSES,
+  G2_PAD_Y,
+  G2_SLOPE_DEG,
 } from '../world/CANON_DIMENSIONS';
+import { atLeast, DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
+import type { Confidence } from '../world/CANON_DIMENSIONS';
 import { buildPyramid, type PyramidLod } from './PyramidBuilder';
 import { buildSpec, type PyramidSpec } from './PyramidSpec';
 
@@ -41,6 +49,7 @@ export function buildMonuments(
   scene: Object3D,
   seed: WorldSeed,
   gi: ProbeGI | null = null,
+  epoch: Epoch = DEFAULT_EPOCH,
 ): MonumentSite[] {
   const sites: MonumentSite[] = [];
 
@@ -54,6 +63,9 @@ export function buildMonuments(
     courseCount: number,
     course1: number,
     courseMin: number,
+    graniteCourses = 0,
+    evidence?: { conf: Confidence; basis: string; epoch: string },
+    shadowLod?: number,
   ): void => {
     const [cx, cz] = edPos(`pyramid:${name}`, cx0, cz0);
     const H = heightFromSlope(baseSide, slopeDeg);
@@ -67,6 +79,8 @@ export function buildMonuments(
       courseCount,
       course1,
       courseMin,
+      graniteCourses,
+      ...(shadowLod !== undefined ? { shadowLod } : {}),
       rng: seed.rng(`monument-${name}`),
     });
     const lod = buildPyramid(spec, gi);
@@ -84,7 +98,12 @@ export function buildMonuments(
       y1: cy + H,
       ground: 'platform',
       editable: name !== 'G1', // the world origin stays put
+      ...evidence,
     });
+    if (evidence) {
+      lod.near.name = `pyramid-${name}`;
+      lod.far.name = `pyramid-${name}`;
+    }
   };
 
   // Akhet Khufu — platform leveled at world Y = 0
@@ -118,6 +137,29 @@ export function buildMonuments(
     G1D_CENTER.x, 0, G1D_CENTER.z,
     24, 0.75, 0.42,
   );
+
+  // (T2-3) Khafre's pyramid, KHAFRE_PERIOD on — LAST, on its own stream, so
+  // nothing before it moves; on the terrain's levelled platform (G2_PAD_Y).
+  // `?g2=0` skips it (the pad stays): the perf A/B switch — `?hide=` cannot
+  // isolate a pyramid, the LOD switch rewrites `near.visible` every frame
+  if (atLeast(epoch, 'KHAFRE_PERIOD') && new URLSearchParams(window.location.search).get('g2') !== '0') {
+    add(
+      'G2',
+      G2_BASE_SIDE.value,
+      G2_SLOPE_DEG.value,
+      G2_CENTER.x, G2_PAD_Y.value, G2_CENTER.z,
+      G2_COURSE_COUNT.value,
+      G1_COURSE1_HEIGHT.value,
+      G1_COURSE_MIN_HEIGHT.value,
+      G2_GRANITE_COURSES.value,
+      {
+        conf: 'C',
+        basis: "Petrie's base and the 5¼-palm seked (B); the course count an estimate, the platform level an outside figure, the site the authored knoll (D-21)",
+        epoch: 'khafre',
+      },
+      300, // the shadow LOD (perf A/B, T2-3 §3.5): the far shell casts beyond 300 m
+    );
+  }
 
   return sites;
 }

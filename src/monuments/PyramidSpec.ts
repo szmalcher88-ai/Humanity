@@ -27,6 +27,14 @@ export interface PyramidParams {
   course1: number;
   /** minimum course height (m) */
   courseMin: number;
+  /** (T2-3) the lowest N courses in red granite (G2); 0/absent = all Tura.
+   *  Read by the builder only — the course solver never sees it */
+  graniteCourses?: number;
+  /** (T2-3) beyond this camera distance the casing stones stop casting and
+   *  the far shell (always on, 5 cm inside them) casts alone — G2's 51k
+   *  stones cost ~2.8 ms of cascades at 0.4–1.1 km (perf A/B); absent = the
+   *  stones cast wherever they are drawn */
+  shadowLod?: number;
   /** micro-variation stream */
   rng: Rng;
 }

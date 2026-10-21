@@ -240,6 +240,27 @@ export const SPHINX_HEIGHT = e(20, 'm', 'B', 'Lehner 1991');
  *  here stands ~40 m too high (T2 plan finding 6; D-20) */
 export const SPHINX_FLOOR_Y = e(-12.8, 'm', 'D', 'provisional — DEVIATIONS D-20');
 
+/** (T2-3) Khafre's pyramid G2 — shown from KHAFRE_PERIOD on only (D-19,
+ *  D-21). None of these numbers is in the canon (VII gives no G2 figures):
+ *  each carries its outside source. */
+export const G2_BASE_SIDE = e(215.25, 'm', 'B', 'Petrie 1883, The Pyramids and Temples of Gizeh');
+/** the seked of 5¼ palms — rise/run 4/3 — giving 143.5 m (Petrie's measured
+ *  53°10′ would give ≈ 143.7 m) */
+export const G2_SLOPE_DEG = e(53.1301, 'deg', 'B', 'seked 5¼ palms (atan 4/3); Petrie 1883 53°10′');
+export const G2_COURSE_COUNT = e(205, 'count', 'D', "ESTIMATE: G1's 210 scaled by height (143.5 / 146.6) — no Khafre count in the repo");
+/** the authored knoll (GizaControl BEDROCK_KNOLLS) — its pad clears the West
+ *  Field; the WGS84 delta (−322, 339) would put it onto the last tomb row */
+export const G2_CENTER: CanonPlacement = {
+  x: -330, z: 350, confidence: 'C', source: 'the WGS84 delta (−322, 339) moved to the authored knoll — DEVIATIONS D-21',
+};
+/** the levelled platform: a net CUT into the knoll's SW shoulder (≤ 4.0 m,
+ *  ≈ 101k m³ under the base; fill ≤ 2.9 m at the NE corner) — the commonly
+ *  cited "base ≈ 10 m above Khufu's" (T2-3 plan finding 1) */
+export const G2_PAD_Y = e(10.0, 'm', 'D', 'outside figure (Khafre base ≈ 10 m above Khufu); the canon gives none — D-21');
+export const G2_GRANITE_COURSES = e(1, 'count', 'C', "Lehner 1997 (Khafre's lowest casing course red granite) — not in the canon, D-21");
+/** court + wall offset from the base — Khufu's 10.1 + 10.1 reused */
+export const G2_TEMENOS_OFFSET = e(20.2, 'm', 'D', "Khufu's court and temenos offsets reused — no survey in the repo (D-21)");
+
 /** Satellite pyramid G1-d, just OUTSIDE the SE corner of the enclosure —
  *  at z=130 the south temenos wall (z≈135) ran straight through it. */
 export const G1D_CENTER: CanonPlacement = {

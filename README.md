@@ -112,7 +112,8 @@ directional light so shadows keep working after dusk.
 Useful URL parameters: `?T=` hour · `?bm=` bookmark · `?preset=safe|low|high|ultra` ·
 `?epoch=KHUFU_COMPLETION|KHAFRE_PERIOD|EVIDENCE_VIEW` (T2: canon IX §9.3 presets; the
 default is Khufu's completed pyramid, bit-identical; KHAFRE_PERIOD clears Khufu's works and
-adds the Sphinx in its enclosure — provisional site height, D-20; the others named in §9.3
+adds the Sphinx in its enclosure — provisional site height, D-20 — and Khafre's pyramid G2 with
+its granite course, court and wall (D-21; `?g2=0` skips G2 for an A/B); the others named in §9.3
 fall back with a notice) ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·
@@ -122,7 +123,8 @@ objects by name prefix — ablation) · `?edit=1` (boot with the inspector on) �
 levels A–E as coloured outlines, v1.2 I6) · A/B switches (v1.2 I7): `?water=planes` ·
 `?earthshadow=0` · `?casters=all` · `?tuftfade=old` · `?tuftlod=0` · `?noguard=1` (the TDR guard off).
 Perf: `npx tsx tools/perf.ts --bm 1,3,7 --runs 3 --b "<query>"` — pinned preset, rAF
-medians, readings after a render-scale cut flagged INVALID.
+medians, readings after a render-scale cut flagged INVALID; `--q "<query>"` for both arms
+(e.g. `--q "epoch=KHAFRE_PERIOD" --b "g2=0"`), GPU pass times per reading.
 
 ---
 

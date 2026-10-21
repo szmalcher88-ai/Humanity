@@ -8,6 +8,7 @@
  *   npx tsx tools/closeup.ts --id stall:,slipway:,furnace: --n 2   # n per prefix
  *   npx tsx tools/closeup.ts --id mover: --n 12                    # the moving fleet
  *   npx tsx tools/closeup.ts --id kiln --dist 18 --elev 0.3 --fov 30 --T 9
+ *   npx tsx tools/closeup.ts --id pyramid:G2,khafre: --n 3 --q "epoch=KHAFRE_PERIOD"
  *
  * The dev server must be running. Frames land in shots/closeup/.
  */
@@ -47,7 +48,10 @@ async function main(): Promise<void> {
   const { browser } = await launchWebGPU();
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   page.on('pageerror', (err) => console.error('[pageerror]', err.message));
-  await page.goto(akhetUrl({ scene: 'world', freeze: true, extra: { T: String(T), clean: '1' } }), {
+  // --q "epoch=KHAFRE_PERIOD&…": extra URL params (T2-3), as tour.ts takes them
+  const extra: Record<string, string> = { T: String(T), clean: '1' };
+  for (const [k, v] of new URLSearchParams(arg('q') ?? '')) extra[k] = v;
+  await page.goto(akhetUrl({ scene: 'world', freeze: true, extra }), {
     waitUntil: 'domcontentloaded',
   });
   await page.waitForFunction(

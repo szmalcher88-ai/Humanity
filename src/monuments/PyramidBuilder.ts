@@ -45,6 +45,8 @@ import { valueNoise3 } from '../core/NoiseJS';
 /** Tura casing albedo — fresh-dressed limestone is white with a cream cast
  *  (v1.1: 0.87/0.845/0.79 measured sat 0.03 at noon — it read as plaster) */
 const TURA = [0.88, 0.84, 0.755] as const;
+/** (T2-3) red Aswan granite — the harbour's and the works yard's stone */
+const GRANITE = [0.6, 0.39, 0.34] as const;
 
 /**
  * Batch mottling (v1.1): casing stone came off the quarry face in batches
@@ -289,10 +291,24 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   const striate = varying(hash(instanceIndex.add(17))) as unknown as NF;
   const stoneMottle = varying(T.y) as unknown as NF;
   const baseCol = vec3(...TURA);
-  mat.colorNode = baseCol.mul(tone).mul(stoneMottle).mul(float(1).sub(striate.mul(0.03)));
+  const turaCol = baseCol.mul(tone).mul(stoneMottle).mul(float(1).sub(striate.mul(0.03)));
+  mat.colorNode = turaCol;
   // (v1.1) dressed Tura limestone is HONED, not polished: at 0.42 the faces
   // seen edge-on mirrored the zenith and the queens read as blue steel
-  mat.roughnessNode = clamp(float(0.62).add(varying(B.z) as unknown as NF), 0.45, 0.8);
+  const turaRough = clamp(float(0.62).add(varying(B.z) as unknown as NF), 0.45, 0.8);
+  mat.roughnessNode = turaRough;
+  // (T2-3) the lowest course(s) in red granite (G2 only — a JS-level if, so
+  // the other pyramids' node graphs are unchanged); the band's top is the
+  // base of the first Tura course, read from the array the stones were
+  // packed from — the far shell keys on the same uniform, so neither the
+  // colour nor the sheen jumps at lodDist
+  const granite = p.graniteCourses ?? 0;
+  const uGraniteTop = granite > 0 ? uniform((spec.courses[granite] ?? spec.courses[0])!.y0) : null;
+  if (uGraniteTop) {
+    const gk = varying(A.y.lessThan(uGraniteTop).select(float(1), float(0))) as unknown as NF;
+    mat.colorNode = mix(turaCol, vec3(...GRANITE).mul(tone), gk);
+    mat.roughnessNode = mix(turaRough, float(0.6), gk);
+  }
   mat.metalnessNode = float(0);
   // shaded casing faces pick up sand/sky bounce from the probe field —
   // a modest lift keeps base courses sampling above the pavement layer
@@ -378,10 +394,16 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   const stoneJ = hash(cell.x.add(cell.y.mul(113.1))).mul(0.04);
   const mSide = p.baseSide * 1.02;
   const mUv = positionWorld.xz.sub(vec2(p.cx - mSide / 2, p.cz - mSide / 2)).div(mSide);
-  farMat.colorNode = vec3(...TURA)
+  const farTura = vec3(...TURA)
     .mul(texture(mottle.tex, mUv).x)
     .mul(float(1).sub(bandJ).sub(stoneJ));
+  farMat.colorNode = farTura;
   farMat.roughnessNode = float(0.64); // matches the near stones (v1.1)
+  if (uGraniteTop) {
+    const gkF = fy.lessThan(uGraniteTop).select(float(1), float(0));
+    farMat.colorNode = mix(farTura, vec3(...GRANITE).mul(float(1).sub(stoneJ)), gkF);
+    farMat.roughnessNode = mix(float(0.64), float(0.6), gkF);
+  }
   farMat.metalnessNode = float(0);
   giLightMap(farMat, gi, normalWorld as unknown as NV3, 2.5);
   const far = new Mesh(farGeo, farMat);
@@ -392,12 +414,18 @@ export function buildPyramid(spec: PyramidSpec, gi: ProbeGI | null = null): Pyra
   // --- LOD switch: backing stays on; stones toggle ---------------------------
   const center = new Vector3(p.cx, p.cy + H / 2, p.cz);
   const lodDist = Math.max(900, p.baseSide * 6);
-  const update = (camPos: Vector3): void => {
-    near.visible = camPos.distanceTo(center) < lodDist;
-  };
+  const shadowLod = p.shadowLod;
+  const update = shadowLod === undefined
+    ? (camPos: Vector3): void => {
+        near.visible = camPos.distanceTo(center) < lodDist;
+      }
+    : (camPos: Vector3): void => {
+        const d = camPos.distanceTo(center);
+        near.visible = d < lodDist;
+        near.castShadow = d < shadowLod;
+      };
 
   void cos;
   void sin;
-  void mix;
   return { near, far, update, stoneCount: n };
 }

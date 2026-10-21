@@ -17,6 +17,10 @@
  *   npx tsx tools/perf.ts --bm 1,3,7 --runs 3 --b "noguard=1"
  *   npx tsx tools/perf.ts --bm 7 --runs 3 --b "hide=south-works,necropolis"
  *   npx tsx tools/perf.ts --bm 7 --free      # unpinned: the app's own preset/dpr
+ *   npx tsx tools/perf.ts --bm 12,4 --runs 3 --q "epoch=KHAFRE_PERIOD" --b "g2=0"
+ *     (--q: params for BOTH arms — an A/B inside an epoch, T2-3)
+ * Each reading also carries the GPU pass times (`stats.gpuPasses`): the main
+ * scene pass and the sum of the shadow cascades, in ms.
  */
 import { akhetUrl, launchWebGPU } from './launch';
 
@@ -34,6 +38,9 @@ interface Reading {
   tris: number;
   cuts: number;
   bench: number;
+  /** GPU ms: the main scene pass, the shadow cascades summed */
+  scene: number;
+  shadow: number;
 }
 
 async function main(): Promise<void> {
@@ -44,6 +51,7 @@ async function main(): Promise<void> {
   const sampleMs = Number(arg('sample') ?? 8000);
   const free = process.argv.includes('--free');
   const b = arg('b');
+  const both = Object.fromEntries(new URLSearchParams(arg('q') ?? ''));
   const pin: Record<string, string> = free ? {} : { preset: 'high', force: '1', dpr: '1' };
   const sides: [string, Record<string, string>][] = [['A', {}]];
   if (b) sides.push(['B', Object.fromEntries(new URLSearchParams(b))]);
@@ -57,7 +65,7 @@ async function main(): Promise<void> {
       const page = await browser.newPage({ viewport: { width: 2560, height: 1440 }, deviceScaleFactor: 1 });
       const out: string[] = [];
       for (const bm of order) {
-        await page.goto(akhetUrl({ scene: 'world', freeze: true, extra: { T, bm: String(bm), hud: '0', ...pin, ...q } }), {
+        await page.goto(akhetUrl({ scene: 'world', freeze: true, extra: { T, bm: String(bm), hud: '0', ...pin, ...both, ...q } }), {
           waitUntil: 'domcontentloaded',
         });
         await page.waitForFunction(
@@ -86,13 +94,17 @@ async function main(): Promise<void> {
           const med = dts[Math.floor(dts.length / 2)] || 1;
           const slow = dts[Math.floor(dts.length * 0.9)] || 1;
           const st = window.__akhet.stats;
+          const gp = (st && st.gpuPasses) || {};
+          let shadow = 0;
+          for (const k in gp) if (k.startsWith('r.shadow.')) shadow += gp[k];
           return {
+            scene: gp['r.scene'] || 0, shadow,
             fps: 1000 / med, p10: 1000 / slow, ema: st ? st.fps : 0, tris: st ? st.triangles : 0,
             cuts: (st && st.counters && st.counters['perf.dprCuts']) || 0, bench: window.__akhet.benchMs || 0,
           };
         })()`)) as Omit<Reading, 'bm'>;
         all[name]!.push({ bm, ...s });
-        out.push(`bm${bm} ${s.fps.toFixed(0)} fps (p10 ${s.p10.toFixed(0)}, ema ${s.ema.toFixed(0)}) ${(s.tris / 1e6).toFixed(1)}M${s.cuts > 0 ? ` INVALID: ${s.cuts} dpr cut(s)` : ''}`);
+        out.push(`bm${bm} ${s.fps.toFixed(0)} fps (p10 ${s.p10.toFixed(0)}, ema ${s.ema.toFixed(0)}) ${(s.tris / 1e6).toFixed(1)}M [scene ${s.scene.toFixed(1)} shadow ${s.shadow.toFixed(1)} ms]${s.cuts > 0 ? ` INVALID: ${s.cuts} dpr cut(s)` : ''}`);
       }
       await page.close();
       console.log(`[perf] round ${r + 1} ${name}: ${out.join('  ')}`);
@@ -105,6 +117,15 @@ async function main(): Promise<void> {
       return `bm${bm} ${v.length ? (v[Math.floor(v.length / 2)] as number).toFixed(0) : '—'} (${v.map((x) => x.toFixed(0)).join('/')})`;
     });
     console.log(`[perf] ${name} median: ${line.join('  ')}`);
+    const gpu = bms.map((bm) => {
+      const v = all[name]!.filter((x) => x.bm === bm && x.cuts === 0);
+      const med = (f: (x: Reading) => number): string => {
+        const w = v.map(f).sort((x, y) => x - y);
+        return w.length ? (w[Math.floor(w.length / 2)] as number).toFixed(2) : '—';
+      };
+      return `bm${bm} scene ${med((x) => x.scene)} shadow ${med((x) => x.shadow)}`;
+    });
+    console.log(`[perf] ${name} gpu ms: ${gpu.join('  ')}`);
   }
   await browser.close();
 }
