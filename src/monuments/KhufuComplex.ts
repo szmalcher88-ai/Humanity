@@ -64,9 +64,19 @@ import {
 /* merged-geometry writer                                               */
 /* ------------------------------------------------------------------ */
 
+/** (2026-10-27) KHUFU_LATE: the causeway foundation's deck line, this far
+ *  over its grade at each segment's centre (the materials road's surface) */
+export const CAUSEWAY_LATE_LIFT = 0.3;
+
 export class GeoWriter {
   pos: number[] = [];
   col: number[] = [];
+
+  /** one quad as given (a → b → c counter-clockwise seen from its front) */
+  quad(a: [number, number, number], b: [number, number, number], c: [number, number, number], d: [number, number, number], tone: number): void {
+    this.pos.push(...a, ...b, ...c, ...a, ...c, ...d);
+    for (let i = 0; i < 6; i++) this.col.push(tone, tone, tone);
+  }
 
   /** axis-aligned battered box: base (cx,cz), dims, batter = inward slope
    *  of walls (m of inset per m of height); rotated by yaw around center */
@@ -563,9 +573,45 @@ export function buildKhufuComplex(
       // Near-zero batter: GeoWriter batter insets BOTH axes with height —
       // at 28 m of pedestal a 0.05 batter tapered each segment ~1.4 m
       // lengthwise and opened a dark colonnade of V-gaps between piers.
-      local.box(xm, embBase, zm, L, ym - embBase + rise, w + 2.4, 0.93, 0.004, yaw);
-      // floor slabs
-      tura.box(xm, ym - 0.02, zm, L, 0.16 + rise, w - wallTh * 2, t.range(0.94, 1.0), 0, yaw);
+      if (lateWorks) {
+        // (2026-10-27) under construction the bare foundation is the materials
+        // road, and a road is ONE slope from segment to segment: its flat
+        // slabs stepped up to 0.8 m where it drops over the escarpment, and
+        // no sledge climbs a stair (HaulTrains' Tura teams run it). The deck
+        // line runs CAUSEWAY_LATE_LIFT over the grade at each segment's
+        // centre; the embankment stops under it.
+        const Y = (k: number): number => (ys[Math.max(0, Math.min(segN - 1, k))] as number) + CAUSEWAY_LATE_LIFT;
+        const D = (f: number): number => (f < 0 ? Y(i) + (Y(i) - Y(i - 1)) * f : Y(i) + (Y(i + 1) - Y(i)) * f);
+        const yA = D(-0.5);
+        const yB = D(0.5);
+        const embTop = Math.min(D(-0.8), D(0.8)) - 0.15;
+        local.box(xm, embBase, zm, L, embTop - embBase, w + 2.4, 0.93, 0.004, yaw);
+        const tone = t.range(0.94, 1.0);
+        const hw2 = w / 2 - wallTh;
+        const s0 = -segL / 2 - 0.02;
+        const s1 = segL / 2 + 0.02;
+        const at = (s: number, l: number, y: number): [number, number, number] => [xm + ex * s - ez * l, y, zm + ez * s + ex * l];
+        // the deck, wound to face up; its two sides down to the embankment
+        const up = (a: [number, number, number], b: [number, number, number], c: [number, number, number], d: [number, number, number]): void => {
+          const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+          if (ny > 0) tura.quad(a, b, c, d, tone);
+          else tura.quad(a, d, c, b, tone);
+        };
+        up(at(s0, -hw2, yA), at(s0, hw2, yA), at(s1, hw2, yB), at(s1, -hw2, yB));
+        for (const l of [-hw2, hw2]) {
+          const q: [[number, number, number], [number, number, number], [number, number, number], [number, number, number]] = [at(s0, l, embTop), at(s1, l, embTop), at(s1, l, yB), at(s0, l, yA)];
+          // outward: the side at +l faces +l
+          const nx = (q[1][1] - q[0][1]) * (q[2][2] - q[0][2]) - (q[1][2] - q[0][2]) * (q[2][1] - q[0][1]);
+          const nz = (q[1][0] - q[0][0]) * (q[2][1] - q[0][1]) - (q[1][1] - q[0][1]) * (q[2][0] - q[0][0]);
+          const out = nx * -ez + nz * ex;
+          if (out * l > 0) tura.quad(q[0], q[1], q[2], q[3], tone);
+          else tura.quad(q[0], q[3], q[2], q[1], tone);
+        }
+      } else {
+        local.box(xm, embBase, zm, L, ym - embBase + rise, w + 2.4, 0.93, 0.004, yaw);
+        // floor slabs
+        tura.box(xm, ym - 0.02, zm, L, 0.16 + rise, w - wallTh * 2, t.range(0.94, 1.0), 0, yaw);
+      }
       // side walls (raised by the local grade rise so segments seal)
       const off = (w / 2 - wallTh / 2);
       // (T3-2) under construction the foundation is the materials road: no

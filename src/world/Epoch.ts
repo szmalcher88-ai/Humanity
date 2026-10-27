@@ -77,3 +77,11 @@ export function lateWorks(e: Epoch): boolean {
   if (!building(e)) return false;
   return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('lworks') !== '0';
 }
+
+/** (2026-10-27) the sledge teams hauling the quarry's blocks up to the
+ *  platform, animated (HaulTrains) — under `lateWorks`; `?haul=0` turns
+ *  only these off (the A/B arm) */
+export function hauling(e: Epoch): boolean {
+  if (!lateWorks(e)) return false;
+  return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('haul') !== '0';
+}

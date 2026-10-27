@@ -15,13 +15,14 @@ import { buildKhafreComplex } from '../monuments/KhafreComplex';
 import { buildMenkaureComplex, menkaureLines } from '../monuments/MenkaureComplex';
 import { buildG1Works, g1WorksLines } from '../monuments/G1Works';
 import { buildKhufuLateWorks, khufuLateLines } from '../monuments/KhufuLateWorks';
+import { buildHaulTrains, quarryRoute, type RP } from '../monuments/HaulTrains';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
 import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
-import { atLeast, building, lateWorks } from '../world/Epoch';
+import { atLeast, building, hauling, lateWorks } from '../world/Epoch';
 import { buildSphinx } from '../monuments/Sphinx';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
@@ -164,19 +165,38 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       // (T3-1) the pyramid under construction: the supply ramp intact, the
       // zigzag on the south face, the working platform at the built top
       const top = sites.find((st) => st.name === 'G1')?.spec.built?.top;
+      let g1Route: [number, number, number, number][] | null = null;
       if (top !== undefined) {
         const g1w = buildG1Works(structures, seed, hf, gi, top);
         engine.stats.counters['g1.rampSegments'] = g1w.rampSegments;
         engine.stats.counters['g1.zigzagLegs'] = g1w.zigzagLegs;
         engine.stats.counters['g1.builtTopCm'] = Math.round(top * 100);
+        engine.stats.counters['g1.landingSpareCm'] = Math.round(g1w.landingSpare * 100);
+        g1Route = g1w.route;
       }
       // (T3-2) the logistics at work: the quarry's faces and transport ramp,
       // the Tura yard at the slipway, Tura sledges on the causeway's foundation
       if (lateWorks(engine.params.epoch)) {
-        const lw = buildKhufuLateWorks(structures, seed, hf, gi, complex);
+        const lw = buildKhufuLateWorks(structures, seed, hf, gi, complex, hauling(engine.params.epoch));
         engine.stats.counters['late.faceBlocks'] = lw.faceBlocks;
         engine.stats.counters['late.quarryRamp'] = lw.rampSegments;
         engine.stats.counters['late.turaStaged'] = lw.turaStaged;
+        engine.stats.counters['late.rampEndLipCm'] = Math.round(lw.rampEndLip * 100);
+        // (2026-10-27) the sledge teams, animated: the quarry face → the
+        // transport ramp → the haul road → the supply ramp → the zigzag → the
+        // platform, and back empty
+        if (hauling(engine.params.epoch) && g1Route) {
+          const grdC = (x: number, z: number): number => hf.heightAtCpu(x, z);
+          const ht = buildHaulTrains(structures, seed, grdC, gi, 'haul-trains', 20, quarryRoute(lw.rampRoute, g1Route));
+          engine.stats.counters['late.haulTeams'] = ht.teams;
+          engine.stats.counters['late.haulLoopM'] = Math.round(ht.loopM);
+          engine.stats.counters['late.haulMinTurnCm'] = Math.round(ht.minTurnR * 100);
+          window.__akhet.haulRoute = () => ({ pts: Array.from(ht.pts), up: ht.upM, total: ht.loopM, step: ht.step, minTurnR: ht.minTurnR });
+          // the Tura road: the casing hauled up the causeway's foundation
+          const cw = buildHaulTrains(structures, seed, grdC, gi, 'haul-tura', 8, lw.causewayRoute.map((p): RP => [p[0], p[1], p[2], 0, 0]), true);
+          engine.stats.counters['late.turaTeams'] = cw.teams;
+          engine.stats.counters['late.turaLoopM'] = Math.round(cw.loopM);
+        }
       }
     }
     engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi, lateWorks(engine.params.epoch));
@@ -270,7 +290,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : []), ...(lateWorks(engine.params.epoch) ? khufuLateLines : [])], khufuWorks, lateWorks(engine.params.epoch));
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : []), ...(lateWorks(engine.params.epoch) ? khufuLateLines : [])], khufuWorks, lateWorks(engine.params.epoch), hauling(engine.params.epoch));
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

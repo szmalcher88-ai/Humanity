@@ -363,6 +363,9 @@ export function buildInhabitants(
    *  scaffold is not up yet (the temple stands at its footings) — its canon
    *  gang k5 stays (a canon line is never removed: the index filter) */
   late = false,
+  /** (2026-10-27) HaulTrains' teams run the haul road: the static ox trains
+   *  standing on it (HAUL_ROAD_TRAINS) are not built — their draws are */
+  hauling = false,
 ): InhabitantCounts {
   const rng = seed.rng('inhabitants');
   const budget = FIGURE_BUDGET[preset];
@@ -395,6 +398,7 @@ export function buildInhabitants(
   // STRUCT_FAMILIES: they are built once, here, at boot.
   if (khufuWorks) {
   for (const [i, [tx0, tz0, head]] of TRAINS.entries()) {
+    if (hauling && HAUL_ROAD_TRAINS.includes(i)) continue;
     const fx = tx0 + Math.cos(head) * 1.5;
     const fz = tz0 + Math.sin(head) * 1.5;
     const g = hf.heightAtCpu(fx, fz);
@@ -650,14 +654,22 @@ export function buildInhabitants(
   }
 
   /* --- ox sledge trains + gang shelters (static tableau) ------------------ */
-  const w = new GeoWriter();
-  const wood = new GeoWriter();
+  const wMain = new GeoWriter();
+  const woodMain = new GeoWriter();
   let oxen = 0;
   let sledges = 0;
   const tr = rng.fork('trains');
-  for (const [tx0, tz0, head] of khufuWorks ? TRAINS : []) {
+  const scrapW = new GeoWriter();
+  const scrapWood = new GeoWriter();
+  for (const [ti, [tx0, tz0, head]] of (khufuWorks ? TRAINS : []).entries()) {
     const gy = hf.heightAtCpu(tx0, tz0);
     if (!Number.isFinite(gy) || gy < -44) continue;
+    // a train on the haul road while HaulTrains runs: built into scrap, so
+    // every later draw stays where it was
+    const off = hauling && HAUL_ROAD_TRAINS.includes(ti);
+    const w = off ? scrapW : wMain;
+    const wood = off ? scrapWood : woodMain;
+    if (!off) sledges++;
     const ch = Math.cos(head);
     const sh = Math.sin(head);
     const at = (fwd: number, side: number): [number, number] => [
@@ -673,7 +685,6 @@ export function buildInhabitants(
     }
     wood.box(sx, sy + 0.22, sz, 3.4, 0.14, 1.5, 0.34, 0, head);
     w.box(sx, sy + 0.36, sz, 2.2, 1.15, 1.35, tr.range(0.86, 0.98), 0.012, head);
-    sledges++;
     // two yoked oxen ahead of it
     for (const side of [-0.75, 0.75]) {
       const [ox0, oz0] = at(3.6, side);
@@ -695,7 +706,7 @@ export function buildInhabitants(
       for (const s2 of [-0.22, 0.22]) {
         w.box(hx - os * s2, oy + 1.34, hz + oc * s2, 0.1, 0.3, 0.1, 0.62, 0.15, oxYaw);
       }
-      oxen++;
+      if (!off) oxen++;
     }
     // yoke beam + traces back to the sledge
     const [yx, yz] = at(2.9, 0);
@@ -706,6 +717,8 @@ export function buildInhabitants(
     }
   }
 
+  const w = wMain;
+  const wood = woodMain;
   // gang shelters: reed-mat sunshades where the gangs rest, at the yards
   for (const [hx, hz] of khufuWorks ? SHELTERS : []) {
     const gy = hf.heightAtCpu(hx, hz);
@@ -809,6 +822,9 @@ const TRAINS: [number, number, number][] = [
   [110, 208, Math.atan2(-4, 42)],
   [700, -150, Math.atan2(-18, -140)], // the causeway grade
 ];
+/** (2026-10-27) the trains standing on HaulTrains' haul road (the quarry
+ *  lip → the supply ramp's toe) */
+const HAUL_ROAD_TRAINS = [1, 2];
 
 /** gang shelters: reed-mat sunshades where the gangs rest, at the yards */
 const SHELTERS: [number, number][] = [

@@ -1686,6 +1686,9 @@ export function buildHarbor(
       }
     }
     w.box(px0 + len / 2, NILE_WATER_Y + 1.0, pz, len, 0.22, 4.6, [0.5, 0.38, 0.24]);
+    // (2026-10-27) reeds and papyrus grew up through the deck (the human's
+    // screenshot): the piers were never in the reeds' keep-out list
+    harborWorksRects.push({ x0: px0 - 1, x1: px0 + len + 1, z0: pz - 2.6, z1: pz + 2.6 });
     fpReg({
       id: `pier:${pz}`, family: 'harbor-works', x: px0 + len / 2, z: pz,
       hx: len / 2, hz: 2.3, y0: NILE_WATER_Y + 1.0, y1: NILE_WATER_Y + 1.9,

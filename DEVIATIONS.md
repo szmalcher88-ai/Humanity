@@ -469,3 +469,43 @@ barge, a Tura staging yard at the slipway, Tura sledges on the causeway.
 `src/monuments/KhufuComplex.ts`, `src/monuments/Inhabitants.ts`,
 `src/monuments/KhufuLateWorks.ts`, `src/water/Vessels.ts`,
 `src/monuments/G1Works.ts` (the sloped decks).
+
+## D-27 — KHUFU_LATE: the zigzag rebuilt, the sledge teams animated
+**Conflict:** the human's screenshots (2026-10-27): the zigzag's legs started
+flush with the face where the last one ended, so each leg's body grew up out
+of the deck below and a team arriving at a turn met a wall (and the landing's
+end wall closed the turn); the quarry's transport ramp ended in the air; every
+hauling team was a static tableau. The canon wants the chain quarry → staging
+→ ramp → platform (MPB:2735-2746) and "animations must correspond to
+simulation events" (VOL_IX:977); it gives no ramp geometry and no team.
+**Chosen (KHUFU_LATE only, behind `hauling` = `lateWorks` + `?haul≠0` for the
+teams; the geometry fixes whatever `haul` says — all D):**
+- the zigzag PLANNED before it is built: each leg holds one line (constant z)
+  as it climbs, the legs stacked outward from the top down, each ≥ 10.5 m
+  (deck + wall) out from the leg above, never inside the face at its low end;
+  every body filled in to the face and down to the courses under its outer
+  wall; open landings at the turns spanning both decks (the U-turn is on
+  them), turning where the landing still ends inside the arris; a junction
+  landing where the supply ramp meets the first leg (the ramp stops at its
+  band); a top landing onto the platform; the last leg ends AT the built top.
+  At 10 % on 9.5 m decks this stack is what one face can carry: at mid-height
+  the ramp mass stands up to ≈ 63 m out from the top leg.
+- the transport ramp built on down to the quarry floor (it ended 4 m up).
+- the causeway's bare foundation laid as ONE slope (its flat slabs stepped up
+  to 0.8 m on the escarpment); its footprints unchanged.
+- the teams (`HaulTrains.ts`, the Djehutihotep relief's — D): two closed
+  loops, up loaded and back empty in the other lane — 20 teams quarry → ENE
+  face → transport ramp → haul road → supply ramp → zigzag → platform, 8 Tura
+  teams up the causeway; a sledge and its block, two files of eight on two
+  ropes leaning into them, a water pourer, a caller on the block, an
+  overseer; stops at the face (the block levered on) and at the drop (off).
+  The ox trains standing on the haul road are not built while they run.
+**Alternatives:** the old flush legs with a gap at every turn (the decks
+would overlap within 60 m of each turn); narrower or steeper legs (no source
+either way); teams only on the zigzag.
+**Confidence:** C (the zigzag family, the hauling technique — the relief,
+water on the track) · D (every dimension, the routes, the numbers of teams).
+**Code:** `src/monuments/G1Works.ts`, `src/monuments/KhufuLateWorks.ts`,
+`src/monuments/KhufuComplex.ts` (the LATE causeway deck),
+`src/monuments/HaulTrains.ts`, `src/monuments/Inhabitants.ts`
+(`HAUL_ROAD_TRAINS`), `src/world/Epoch.ts` (`hauling`).

@@ -195,6 +195,12 @@ test (dawn from harbor / noon on plateau) + free walk harbor→pyramid.
   would eat the fly keys); hidden for the harness (`?hud=0`, which every
   tool URL sets) and gallery frames (`?clean=1`) — the tools' frames and
   tests unchanged (test-bookmarks and test-inspector PASS).
+- 2026-10-27 (the human, six screenshots): the zigzag a team could not
+  climb, ramps ending in the air, static teams ("animated and realistic,
+  bringing the stones to the right place on the pyramid"), reeds in a pier,
+  the wrong-looking tree, boats built among trees → FIX-27 (D-27). Also: a
+  user-level skill `haiku-recon-3d` for the five-Haiku method, 3D and games
+  only (the human's call); main fast-forwarded to `593b1c5` before it.
 - 2026-07-10: three pinned 0.184.0 (D-8). World frame: origin = G1 center,
   +X east, +Z south, Y up (world Y = ASL − 60 m). World extent x[−1200,2800],
   z[−1800,2200]. Epoch = newly completed pyramid (canon Vol V preferred).
@@ -463,6 +469,97 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 | E | children and carriers in the figure system | 18 | 18 — incl. the dead `carry` field, no well in town, the rng-draw order that let children scale for free |
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
+
+FIX-27 — THE HUMAN'S SCREENSHOTS: RAMPS, HAULING TEAMS, VEGETATION (done
+2026-10-27; D-27). Six defects from six screenshots, each fixed at its cause.
+1. THE ZIGZAG (`G1Works.ts`): its legs started flush with the face where the
+   last one ended, so each next leg's body grew up out of the deck below —
+   within ~60 m of every turn the decks overlapped and a team arriving at a
+   turn met a wall; the landing's own end wall closed the turn. Now PLANNED
+   before it is built: each leg holds one line (constant z) as it climbs,
+   stacked outward from the top down ≥ 10.5 m (deck + wall) out from the leg
+   above and never inside the face at its low end; bodies filled in to the
+   face and down to the courses under the outer wall, the deck over the
+   whole width; OPEN landings at the turns spanning both decks (the U-turn
+   is on them), turning where the landing still ends inside the arris (a
+   first build let them overhang the corner by 3 m — seen, fixed); a
+   junction landing where the supply ramp meets the first leg (the ramp now
+   stops at its band; the old leg wall ran across the ramp's head); a top
+   landing onto the platform; the last step cut short so the last leg ends
+   AT the built top (the old loop could pile zero-length legs there). 6
+   legs, every landing ≥ 0.6 m clear past its outer lane.
+2. RAMPS ENDING IN THE AIR: the quarry's transport ramp ended 4 m over the
+   floor (T3-2 measured 1.3 m; T2-7 lowered the bowl) → built on, 9 more
+   segments at ≤ 12 %, until its deck meets the floor (lip measured: 2 cm).
+   The LATE causeway foundation was a staircase of flat slabs (up to 0.8 m
+   steps on the escarpment) → laid as one slope (`KhufuComplex.ts`,
+   `CAUSEWAY_LATE_LIFT`); its footprints unchanged.
+3. THE TEAMS, ANIMATED (`HaulTrains.ts`, new; `?haul=0` the A/B arm): two
+   closed loops, up loaded in the right lane, back empty in the other —
+   20 teams quarry ENE face → transport ramp → haul road → supply ramp →
+   zigzag (U-turns on the landings) → the drop on the platform (2.12 km
+   loop), 8 Tura teams up the causeway (1.24 km). A team: sledge + block,
+   two files of eight on two ropes (1 m rope pieces, so they follow a
+   curve), leaning into them loaded, upright and faster empty; a water
+   pourer ahead of the runners, a caller clapping on the block, an overseer
+   with a staff (the Djehutihotep relief). 50 s at the face (the block slides
+   on) and at the drop (off, beside the delivered blocks). One mesh on the
+   GPU: every vertex reads the route buffer at its team's distance + its own
+   offset, legs locked to the distance walked (no skating), all on
+   uWorldTime (frozen with `?freeze=1`). The static teams on the ramps, the
+   platform's three, the transport ramp's and the causeway's three are
+   gone; the ox trains standing on the haul road (`HAUL_ROAD_TRAINS`) are
+   not built while the teams run — their draws are (scrap writers).
+4. REEDS IN THE PIER (`Vessels.ts`, `Shore.ts`): the three piers were never
+   in the reeds' keep-out list → added; every keep-out rect grown by a
+   clump's reach (2.5 m), after the sampling loop (no draw moves).
+5. THE TREE (`Shore.ts`): the sycamore's crown was one ellipsoid SHELL of
+   tangent cards — a hollow ring of squares from the side → a cluster of 5-7
+   overlapping leaf masses filled through their volume, cards facing out of
+   their lobe at a random roll, darker at the core; 1.7× the cards. The
+   tamarisk's puffs fill its volume too.
+6. BOATS BUILT AMONG TREES (`Clearings.ts`, new): palms and shore trees were
+   sampled with no knowledge of the harbour → none in the boatyard's ground
+   (955…1150, 20…125) nor within 3 m of a harbour or works footprint; the
+   dropped spots' values are still drawn, so every other tree keeps its yaw,
+   lean and size.
+CONTRACTS (fpdump by id, Δ > 5 cm): DEFAULT 1142 → 1142, 0 moved; KHAFRE
+1120 → 1120, 0; MENKAURE 1179 → 1179, 0 — the vegetation has no footprints and
+the pier rects are not footprints. LATE 1190 → 1198, nothing else moved: −54 /
++62 ids all in the rebuilt `g1-ramp` (legs re-cut, the junction, five
+landings, the top; two supply pieces fewer), +3 `quarry-works:ramp` (the
+extension), −2 `train` (`HAUL_ROAD_TRAINS`; with `?haul=0` they stay → 1200).
+The new LATE baseline: `shots/fix27/fp-late.json`.
+AUDIT: all four worlds PASS, collisions clean (LATE on its first boot).
+TOURS (15 marks, before = `shots/t27/tour-*-after`, below the sky band):
+DEFAULT — 12 at TAA noise (mean ≤ 1.46, > 24 ≤ 0.1 %); bm01, bm09, bm10
+(the harbour, the river: > 24 on 0.35–0.54 %) — the trees, reeds and palms.
+LATE — bm15 (mean 7.6) and bm03 (3.1): the zigzag; bm04, bm13: the causeway's
+slope and its Tura teams; bm11 (3.4 — 67 % of pixels over 2 but 0.4 % over
+24): the court a shade darker, the probe GI now seeing the bigger ramp mass;
+the rest at noise.
+PERF (`perf.ts --bm 15,7,1,3 --runs 3 --q "epoch=KHUFU_LATE" --b "haul=0"`, one
+sitting): fps medians A 60 / 40 / 40 / 60, B 60 / 40 / 60 / 60; scene ms
+8.68 / 13.48 / 10.48 / 7.59 vs 8.69 / 14.12 / 10.54 / 7.37. bm1 again, 5 runs:
+A 40 (4 of 5) vs B 60, scene 10.40 vs 10.12, shadow 2.23 vs 2.12 — the teams
+cost ≈ 0.4 ms of GPU there (≈ 154k vertices in every pass, collapsed past
+1.1 km but still shaded), enough to tip that LATE view off the 60 Hz edge.
+OPEN: per-team culling (the scatter systems' indirect cells) would win it
+back.
+BATTERY (default; slow-adapter probe first): 18/19 + the advisory perf WARN
+(bm1 50, bm3 60, bm7 41 — the band of the last batteries); palms 5265 (floor
+5k), the slow-adapter probe PASSED.
+
+HAIKU — FIX-27 (5 agents, read-only, the haiku-recon-3d skill's first run):
+| agent | task | rows | checked | confirmed | notes |
+|---|---|---|---|---|---|
+| A | canon: transport, animation, trees | 35 | 3 | 3 | the chain (MPB:2735-2746), the loading (VOL_IX:931, 941), "animations must correspond…" (:977) — its ranges were spans around the lines |
+| B | the ramps' geometry | 32 | 11 | 10 | the overlap at the turns (rows 6–15); row 24 wrong — a modelled "ends at ground", measured 1.3 m up (R5) |
+| C | the figure animation system | 28 | 10 | 10 | the walker shader, limb ids, pivots, stride |
+| D | vegetation and the harbour | 30 | 7 | 7 | the shell crown, the reed filter, the piers missing from it, the palms' unfiltered sampling |
+| E | tools, gates, contracts | 40 | 5 | 5 | the dump/tour/perf flags |
+VERDICT: 35/36 (97 %) of the checked rows. The one wrong row is R5's class
+again: a modelled height where only a measurement will do.
 
 T2-7 — THE SPHINX AT ITS REAL LEVEL: THE ESCARPMENT MOVED (done; the
 human's D-20 choice, alternative A; plan `docs/plans/T2-7_PLAN.md`; D-20

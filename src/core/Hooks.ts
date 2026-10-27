@@ -79,6 +79,9 @@ export interface AkhetHooks {
   /** moving vessels where they are now (tooling: tools/closeup.ts --fleet) */
   fleet: (() => Array<{ id: string; kind: string; x: number; z: number; a: number; load: number; conf: string }>) | null;
   /** registered footprints (id, centre, extent) — tooling (tools/closeup.ts) */
+  /** (2026-10-27) HaulTrains' loop, every ≈ 1 m: x, y, z, heading flat;
+   *  the up lane's length (tooling: route vs. walk surface, closeups) */
+  haulRoute: (() => { pts: number[]; up: number; total: number; step: number; minTurnR: number }) | null;
   footprints: (() => Array<{ id: string; family: string; x: number; z: number; y0: number; y1: number; hx: number; hz: number; conf?: string }>) | null;
   /** Inspector: nudge an editable placement by (dx, dz) and rebuild */
   editNudge: ((id: string, dx: number, dz: number) => void) | null;
@@ -113,6 +116,7 @@ export function initHooks(): AkhetHooks {
     surfaceProbe: null,
     collisionAudit: null,
     footprints: null,
+    haulRoute: null,
     fleet: null,
     setWorldClock: null,
     groundAt: null,

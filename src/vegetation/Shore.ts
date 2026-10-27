@@ -44,6 +44,7 @@ import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
 import { NILE_WATER_Y, WIND_X, WIND_Z } from '../world/WorldConst';
 import { harborWorksRects } from '../water/Vessels';
+import { clearOfWorks } from './Clearings';
 
 const CLUMP_TARGET = { safe: 900, low: 2600, high: 7000, ultra: 8500 } as const;
 const TREE_TARGET = { safe: 60, low: 150, high: 380, ultra: 460 } as const;
@@ -187,26 +188,54 @@ export function sycamoreGeometry(rng: Rng, density = 1): BufferGeometry {
     const az = (i / limbs) * Math.PI * 2 + rng.range(-0.3, 0.3);
     g.blade(0, trunkH * 0.85, 0, az, rng.range(0.5, 0.9), crx * 0.62, 0.13, 0.5, 0, 2);
   }
-  // dense crown shell: tangent leaf-cluster quads on the ellipsoid
-  const N = Math.round(rng.range(46, 62) * density);
+  // (2026-10-27) the crown as a CLUSTER of overlapping leaf masses, filled
+  // through their volume: the old single shell of tangent cards read as a
+  // hollow ring of squares from the side (the human's screenshot). Cards at
+  // the core are darker (kind 0.82: the shade inside a crown)
+  const lobes: [number, number, number, number, number][] = [[0, cy + cry * 0.25, 0, crx * 0.62, cry * 0.75]];
+  const nL = Math.round(rng.range(4, 6));
+  for (let l = 0; l < nL; l++) {
+    const a = (l / nL) * Math.PI * 2 + rng.range(-0.4, 0.4);
+    const d = rng.range(0.35, 0.6) * crx;
+    lobes.push([Math.cos(a) * d, cy + rng.range(-0.25, 0.3) * cry, Math.sin(a) * d, rng.range(0.48, 0.66) * crx, rng.range(0.55, 0.8) * cry]);
+  }
+  const N = Math.round(rng.range(46, 62) * density * 1.7);
   for (let i = 0; i < N; i++) {
+    const [lx, ly, lz, rx, ry] = lobes[i % lobes.length] as [number, number, number, number, number];
     const u = rng.float() * Math.PI * 2;
-    const v = Math.acos(rng.range(-0.55, 1)); // bias upward — flat shaded base
-    const px = Math.sin(v) * Math.cos(u) * crx;
-    const py = Math.cos(v) * cry + cy;
-    const pz = Math.sin(v) * Math.sin(u) * crx;
-    const s = rng.range(0.55, 0.95) * (density > 1 ? 1.12 : 1);
-    // tangent basis (approx): azimuthal + polar directions
-    const tx = -Math.sin(u) * s;
-    const tz = Math.cos(u) * s;
-    const bx2 = Math.cos(v) * Math.cos(u) * s;
-    const by2 = -Math.sin(v) * (cry / crx) * s;
-    const bz2 = Math.cos(v) * Math.sin(u) * s;
+    const cv = rng.range(-0.6, 1); // bias upward — the underside is in shade
+    const sv = Math.sqrt(1 - cv * cv);
+    const dx = sv * Math.cos(u);
+    const dy = cv;
+    const dz = sv * Math.sin(u);
+    const r = 0.35 + 0.65 * Math.sqrt(rng.float()); // through the volume, denser outside
+    const px = lx + dx * rx * r;
+    const py = ly + dy * ry * r;
+    const pz = lz + dz * rx * r;
+    const s = rng.range(0.5, 0.9) * (density > 1 ? 1.1 : 1);
+    // a card facing out of its lobe, turned about that normal at random
+    let tx = -dz;
+    let tz = dx;
+    const tl = Math.hypot(tx, tz) || 1;
+    tx /= tl;
+    tz /= tl;
+    const bx = dy * tz;
+    const by = dz * tx - dx * tz;
+    const bz = -dy * tx;
+    const ro = rng.float() * Math.PI;
+    const c = Math.cos(ro) * s;
+    const sn = Math.sin(ro) * s;
+    const ax = tx * c + bx * sn;
+    const ay = by * sn;
+    const az = tz * c + bz * sn;
+    const ex = -tx * sn + bx * c;
+    const ey = by * c;
+    const ez = -tz * sn + bz * c;
     g.quad(
-      [px - tx - bx2, py - by2, pz - tz - bz2],
-      [px + tx - bx2, py - by2, pz + tz - bz2],
-      [px + tx + bx2, py + by2, pz + tz + bz2],
-      [px - tx + bx2, py + by2, pz - tz + bz2], 1,
+      [px - ax - ex, py - ay - ey, pz - az - ez],
+      [px + ax - ex, py + ay - ey, pz + az - ez],
+      [px + ax + ex, py + ay + ey, pz + az + ez],
+      [px - ax + ex, py - ay + ey, pz - az + ez], r < 0.62 ? 0.82 : 1,
     );
   }
   return g.build();
@@ -230,9 +259,11 @@ function tamariskGeometry(rng: Rng): BufferGeometry {
   for (let i = 0; i < N; i++) {
     const u = rng.float() * Math.PI * 2;
     const v = Math.acos(rng.range(0.05, 1));
-    const px = Math.sin(v) * Math.cos(u) * R;
-    const py = Math.cos(v) * R * 0.8 + H * 0.72;
-    const pz = Math.sin(v) * Math.sin(u) * R;
+    // (2026-10-27) through the volume, not on the hemisphere's shell
+    const rr = R * (0.35 + 0.65 * Math.sqrt(rng.float()));
+    const px = Math.sin(v) * Math.cos(u) * rr;
+    const py = Math.cos(v) * rr * 0.8 + H * 0.72;
+    const pz = Math.sin(v) * Math.sin(u) * rr;
     const s = rng.range(0.4, 0.75);
     const tx = -Math.sin(u) * s;
     const tz = Math.cos(u) * s;
@@ -268,26 +299,39 @@ export function spawnClass(
   spec: ClassSpec,
   gi: ProbeGI | null,
   cull: boolean,
+  keep?: (x: number, z: number) => boolean,
 ): number {
   const n = spots.length;
   if (n === 0) return 0;
   const per = Math.ceil(n / VARIANTS);
   let total = 0;
   for (let v = 0; v < VARIANTS; v++) {
-    const count = Math.min(per, n - v * per);
-    if (count <= 0) break;
-    const data = new Float32Array(count * 4);
-    const dataB = new Float32Array(count * 4);
-    for (let i = 0; i < count; i++) {
+    const drawn = Math.min(per, n - v * per);
+    if (drawn <= 0) break;
+    // (2026-10-27) `keep` drops a spot after its values are drawn: the
+    // instances that stay keep their yaw, lean and size
+    let count = 0;
+    let data = new Float32Array(drawn * 4);
+    let dataB = new Float32Array(drawn * 4);
+    for (let i = 0; i < drawn; i++) {
       const s = spots[v * per + i] as [number, number, number];
-      data[i * 4 + 0] = s[0];
-      data[i * 4 + 1] = s[2] - 0.1;
-      data[i * 4 + 2] = s[1];
-      data[i * 4 + 3] = rng.float() * Math.PI * 2;
-      dataB[i * 4 + 0] = rng.range(-0.05, 0.05);
-      dataB[i * 4 + 1] = rng.range(-0.05, 0.05);
-      dataB[i * 4 + 2] = rng.range(0.82, 1.12);
-      dataB[i * 4 + 3] = rng.range(spec.scale[0], spec.scale[1]);
+      const yaw = rng.float() * Math.PI * 2;
+      const lx = rng.range(-0.05, 0.05);
+      const lz = rng.range(-0.05, 0.05);
+      const tone = rng.range(0.82, 1.12);
+      const sc = rng.range(spec.scale[0], spec.scale[1]);
+      if (keep && !keep(s[0], s[1])) continue;
+      data.set([s[0], s[2] - 0.1, s[1], yaw], count * 4);
+      dataB.set([lx, lz, tone, sc], count * 4);
+      count++;
+    }
+    if (count === 0) {
+      rng.fork(`${spec.name}-${v}`); // the fork consumes a parent draw: keep it
+      continue;
+    }
+    if (count < drawn) {
+      data = data.slice(0, count * 4);
+      dataB = dataB.slice(0, count * 4);
     }
     const cells = cull ? cellSortVec4(count, [data, dataB], 160, 45) : [];
     const bufA = instancedArray(data, 'vec4');
@@ -426,11 +470,14 @@ export function buildShore(
     }
   }
 
-  // (v1.2 I6) no reed or papyrus rooted inside a landing, stage or ramp:
-  // dropped after the sampling loop, so the trees' draws below stay put
+  // (v1.2 I6) no reed or papyrus rooted inside a landing, stage, ramp or
+  // (2026-10-27) pier: dropped after the sampling loop, so the trees' draws
+  // below stay put. The test grows each rect by a clump's reach (≈ 2.5 m —
+  // a root just outside a deck still leaned its leaves over it)
+  const REACH = 2.5;
   for (let c = 0; c < classes.length; c++) {
     clumpSpots[c] = (clumpSpots[c] as [number, number, number][]).filter(
-      ([x, z]) => !harborWorksRects.some((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1),
+      ([x, z]) => !harborWorksRects.some((r) => x > r.x0 - REACH && x < r.x1 + REACH && z > r.z0 - REACH && z < r.z1 + REACH),
     );
   }
 
@@ -462,6 +509,7 @@ export function buildShore(
     }
   }
   let trees = 0;
+  const clear = clearOfWorks(3);
   trees += spawnClass(scene, rng.fork('sycamore'), sycSpots, {
     name: 'sycamore',
     grow: sycamoreGeometry,
@@ -471,7 +519,7 @@ export function buildShore(
     scale: [0.8, 1.35],
     giLift: 1.6,
     sway: 0.025,
-  }, gi, cull);
+  }, gi, cull, clear);
   trees += spawnClass(scene, rng.fork('tamarisk'), tamSpots, {
     name: 'tamarisk',
     grow: tamariskGeometry,
@@ -481,7 +529,7 @@ export function buildShore(
     scale: [0.7, 1.3],
     giLift: 1.4,
     sway: 0.06,
-  }, gi, cull);
+  }, gi, cull, clear);
 
   return { clumps, trees, reedSpots };
 }

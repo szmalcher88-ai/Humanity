@@ -37,6 +37,7 @@ import type { Rng, WorldSeed } from '../core/Seed';
 import type { Heightfield } from '../world/Heightfield';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import { giLightMap } from '../monuments/PyramidBuilder';
+import { clearOfWorks } from './Clearings';
 import type { NF, NV3 } from '../gpu/TSLTypes';
 import { uWorldTime } from '../render/WorldClock';
 import { attachCulling, cellSortVec4, geoBounds } from '../render/InstanceCull';
@@ -188,13 +189,15 @@ export function buildPalms(
     }
   }
 
-  return spawnPalms(scene, rng, spots, gi, perf);
+  return spawnPalms(scene, rng, spots, gi, perf, 'palm', undefined, clearOfWorks(3));
 }
 
 /**
  * Instanced date palms at explicit spots (x, z, ground y). buildPalms'
  * groves and (v1.2 I4) the planted orchards share it; `name` keeps their
- * meshes apart, `scale` is the per-instance size range.
+ * meshes apart, `scale` is the per-instance size range. `keep` drops a
+ * spot (2026-10-27: none in the boatyard) AFTER its values are drawn, so the
+ * palms that stay keep their yaw, lean and size.
  */
 export function spawnPalms(
   scene: Object3D,
@@ -204,6 +207,7 @@ export function spawnPalms(
   perf: { cull: boolean; prepass: boolean },
   name = 'palm',
   scaleRange: [number, number] = [0.74, 1.22],
+  keep?: (x: number, z: number) => boolean,
 ): number {
   // --- per-variant instance slices -------------------------------------------
   // each variant mesh owns its own buffers: instanceIndex restarts at 0 per
@@ -213,20 +217,30 @@ export function spawnPalms(
   const per = Math.ceil(n / VARIANTS);
   let total = 0;
   for (let v = 0; v < VARIANTS; v++) {
-    const count = Math.min(per, n - v * per);
-    if (count <= 0) break;
-    const data = new Float32Array(count * 4); // x, y, z, yaw
-    const dataB = new Float32Array(count * 4); // leanX, leanZ, tone, scale
-    for (let i = 0; i < count; i++) {
+    const drawn = Math.min(per, n - v * per);
+    if (drawn <= 0) break;
+    let count = 0;
+    let data = new Float32Array(drawn * 4); // x, y, z, yaw
+    let dataB = new Float32Array(drawn * 4); // leanX, leanZ, tone, scale
+    for (let i = 0; i < drawn; i++) {
       const s = spots[v * per + i] as [number, number, number];
-      data[i * 4 + 0] = s[0];
-      data[i * 4 + 1] = s[2] - 0.15;
-      data[i * 4 + 2] = s[1];
-      data[i * 4 + 3] = rng.float() * Math.PI * 2;
-      dataB[i * 4 + 0] = rng.range(-0.09, 0.09);
-      dataB[i * 4 + 1] = rng.range(-0.09, 0.09);
-      dataB[i * 4 + 2] = rng.range(0.85, 1.12);
-      dataB[i * 4 + 3] = rng.range(scaleRange[0], scaleRange[1]);
+      const yaw = rng.float() * Math.PI * 2;
+      const lx = rng.range(-0.09, 0.09);
+      const lz = rng.range(-0.09, 0.09);
+      const tone = rng.range(0.85, 1.12);
+      const sc = rng.range(scaleRange[0], scaleRange[1]);
+      if (keep && !keep(s[0], s[1])) continue;
+      data.set([s[0], s[2] - 0.15, s[1], yaw], count * 4);
+      dataB.set([lx, lz, tone, sc], count * 4);
+      count++;
+    }
+    if (count === 0) {
+      rng.fork(`variant-${v}`); // the fork consumes a parent draw: keep it
+      continue;
+    }
+    if (count < drawn) {
+      data = data.slice(0, count * 4);
+      dataB = dataB.slice(0, count * 4);
     }
     // spatial cells for indirect-draw culling (PERF I) — permutes the buffers
     // into contiguous per-cell slices before the GPU sees them

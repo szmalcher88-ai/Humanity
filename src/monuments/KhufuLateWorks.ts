@@ -8,8 +8,10 @@
  *    up on rockers, waste chips (canon "Partially extracted blocks … Waste
  *    piles", MPB:2583-2587); a rubble TRANSPORT RAMP from the floor at the
  *    haul road's start up to the north lip with timber sleepers ("Transport
- *    ramps", :2589) — built DOWN from the lip, never steeper than 12 %;
- *    staged blocks at its top; sledges and their teams;
+ *    ramps", :2589) — built DOWN from the lip, never steeper than 12 %, and
+ *    (2026-10-27) on until its deck meets the floor; staged blocks at its
+ *    top; sledges and their teams at the faces (the hauling teams on the
+ *    ramp are HaulTrains', animated);
  *  - the Tura casing arriving (IX:828 — "the block enters the pyramid
  *    construction sequence"): a staging yard of casing blocks by size at the
  *    south-shore slipway; sledges hauling Tura blocks up the causeway's bare
@@ -25,7 +27,7 @@ import type { Heightfield } from '../world/Heightfield';
 import { fpReg } from '../debug/Footprints';
 import { earthMaterial } from '../vegetation/Basins';
 import { slipwayRamp } from './HarborDistrict';
-import { GeoWriter, limestoneMaterial, type ComplexInfo } from './KhufuComplex';
+import { CAUSEWAY_LATE_LIFT, GeoWriter, limestoneMaterial, type ComplexInfo } from './KhufuComplex';
 import { addTownsfolk, ColorWriter, person, type C3 } from './Townsfolk';
 import type { Gang } from './Inhabitants';
 
@@ -42,10 +44,20 @@ export interface KhufuLateInfo {
   faceBlocks: number;
   rampSegments: number;
   turaStaged: number;
+  /** (2026-10-27) the transport ramp's deck centre line, the lip → the
+   *  floor: x, y, z (HaulTrains' route) */
+  rampRoute: [number, number, number][];
+  /** the ramp's deck height above the floor where it ends (m) */
+  rampEndLip: number;
+  /** (2026-10-27) the causeway foundation's walking line, its foot → the
+   *  plateau: x, y (the slabs' top), z (HaulTrains' Tura road) */
+  causewayRoute: [number, number, number][];
 }
 
 export function buildKhufuLateWorks(
   scene: Object3D, seed: WorldSeed, hf: Heightfield, gi: ProbeGI | null, complex: ComplexInfo,
+  /** (2026-10-27) HaulTrains runs the causeway: its static teams stay out */
+  hauling = false,
 ): KhufuLateInfo {
   const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
   const rng = seed.rng('quarry-late');
@@ -56,7 +68,7 @@ export function buildKhufuLateWorks(
   const stone = new GeoWriter(); // local limestone: the faces, the staged blocks
   const tura = new GeoWriter(); // Tura casing blocks
   const wood = new GeoWriter();
-  const info: KhufuLateInfo = { faceBlocks: 0, rampSegments: 0, turaStaged: 0 };
+  const info: KhufuLateInfo = { faceBlocks: 0, rampSegments: 0, turaStaged: 0, rampRoute: [], rampEndLip: 0, causewayRoute: [] };
 
   /** a block on its sledge with a hauling team ahead of it (static figures) */
   const sledge = (w: GeoWriter, x: number, y: number, z: number, yaw: number, t: Rng, haulers = 8, slopeK = 0): void => {
@@ -142,14 +154,28 @@ export function buildKhufuLateWorks(
     const uz = (Bp[1] - A[1]) / len;
     const yaw = Math.atan2(uz, ux);
     const SEG = 3;
-    const N = Math.ceil(len / SEG);
-    const seg = len / N;
+    const N0 = Math.ceil(len / SEG);
+    const seg = len / N0;
     const ys: number[] = [];
-    for (let i = 0; i < N; i++) {
-      const s = (i + 0.5) * seg;
-      const g = grd(A[0] + ux * s, A[1] + uz * s) + 0.3;
+    const gAt = (s: number): number => grd(A[0] + ux * s, A[1] + uz * s);
+    for (let i = 0; i < N0; i++) {
+      const g = gAt((i + 0.5) * seg) + 0.3;
       ys.push(i === 0 ? g : Math.max(g, (ys[i - 1] as number) - 0.12 * seg));
     }
+    // (2026-10-27) on past the floor point until the deck comes down to the
+    // floor: it ended 1.3 m up in the air (T3-2's measure; more since T2-7
+    // lowered the bowl) — the human's "a ramp ending abruptly, no slope"
+    while (ys.length < N0 + 24) {
+      const last = ys[ys.length - 1] as number;
+      if (last - 0.12 * seg <= gAt(ys.length * seg) + 0.05) break;
+      ys.push(Math.max(gAt((ys.length + 0.5) * seg) + 0.3, last - 0.12 * seg));
+    }
+    const N = ys.length;
+    const gEnd = gAt(N * seg);
+    const yEnd = Math.max((ys[N - 1] as number) - 0.12 * seg, Math.min(ys[N - 1] as number, gEnd + 0.02));
+    info.rampEndLip = yEnd - gEnd;
+    for (let i = 0; i < N; i++) info.rampRoute.push([A[0] + ux * i * seg, ys[i] as number, A[1] + uz * i * seg]);
+    info.rampRoute.push([A[0] + ux * N * seg, yEnd, A[1] + uz * N * seg]);
     const half = 4;
     for (let i = 0; i < N; i++) {
       const s0 = i * seg;
@@ -157,7 +183,7 @@ export function buildKhufuLateWorks(
       const xm = A[0] + ux * (s0 + seg / 2);
       const zm = A[1] + uz * (s0 + seg / 2);
       const yHi = ys[i] as number; // nearer the lip
-      const yLo = i + 1 < N ? Math.min(yHi, ys[i + 1] as number) : yHi - 0.12 * seg;
+      const yLo = i + 1 < N ? Math.min(yHi, ys[i + 1] as number) : yEnd;
       const gMin = Math.min(grd(xm - uz * half, zm + ux * half), grd(xm + uz * half, zm - ux * half), grd(xm, zm)) - 0.3;
       fill.box(xm, gMin, zm, seg + 0.04, Math.max(0.05, yLo - gMin), half * 2, FILL, yaw);
       const px = uz * half;
@@ -184,10 +210,7 @@ export function buildKhufuLateWorks(
       }
       info.rampSegments++;
     }
-    // a sledge coming up it, its team ahead on the slope
-    const k = Math.floor(N * 0.55);
-    const s = (k + 0.5) * seg;
-    sledge(stone, A[0] + ux * s, ys[k] as number, A[1] + uz * s, yaw + Math.PI, rng, 10, 0.12);
+    // (2026-10-27) its static team is gone: HaulTrains' teams come up it
     // blocks staged at its head, on the lip
     for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 5; c++) {
@@ -250,12 +273,16 @@ export function buildKhufuLateWorks(
     const ys = complex.causewayDeck;
     const n = ys.length;
     const yaw = Math.atan2(b.z - a.z, b.x - a.x) + Math.PI; // nose up the road, toward the pyramid
-    for (const f of [0.22, 0.48, 0.74]) {
+    // the walking line, foot → top: the sloped deck's (KhufuComplex)
+    for (let i = n - 2; i >= 3; i--) {
+      info.causewayRoute.push([a.x + (b.x - a.x) * ((i + 0.5) / n), (ys[i] as number) + CAUSEWAY_LATE_LIFT, a.z + (b.z - a.z) * ((i + 0.5) / n)]);
+    }
+    for (const f of hauling ? [] : [0.22, 0.48, 0.74]) {
       const i = Math.min(n - 1, Math.floor(f * n));
       const x = a.x + (b.x - a.x) * ((i + 0.5) / n);
       const z = a.z + (b.z - a.z) * ((i + 0.5) / n);
       const slopeK = i > 0 ? ((ys[i - 1] as number) - (ys[i] as number)) / (Math.hypot(b.x - a.x, b.z - a.z) / n) : 0;
-      sledge(tura, x, (ys[i] as number) + 0.14, z, yaw, tyRng, 10, slopeK);
+      sledge(tura, x, (ys[i] as number) + CAUSEWAY_LATE_LIFT, z, yaw, tyRng, 10, slopeK);
     }
   }
 
