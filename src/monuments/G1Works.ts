@@ -1,6 +1,6 @@
 /**
- * G1Works (T3-1) — the Great Pyramid under construction, KHUFU_LATE only
- * (D-25): D-7's SUPPLY RAMP standing intact from the quarry side (S–SSE) to
+ * G1Works (T3-1) — the Great Pyramid under construction, the building
+ * worlds (D-25; (T3-3) KHUFU_EARLY's own path, D-28): D-7's SUPPLY RAMP standing intact from the quarry side (S–SSE) to
  * the middle of the south face — the remnant's axis and section (SouthWorks)
  * — feeding a ZIGZAG on the south face up to the working platform (the
  * Hölscher/Arnold one-face hypothesis, C; our geometry D): legs at 10 % on
@@ -16,7 +16,7 @@ import { Mesh, type Object3D } from 'three';
 import type { WorldSeed } from '../core/Seed';
 import type { ProbeGI } from '../gpu/passes/ProbeGI';
 import type { Heightfield } from '../world/Heightfield';
-import { fpReg } from '../debug/Footprints';
+import { fpAabb, fpAll, fpReg } from '../debug/Footprints';
 import { G1_BASE_SIDE, G1_SLOPE_DEG } from '../world/CANON_DIMENSIONS';
 import { earthMaterial } from '../vegetation/Basins';
 import { GeoWriter, limestoneMaterial } from './KhufuComplex';
@@ -24,6 +24,9 @@ import { addTownsfolk, ColorWriter, person, townsfolkMesh, type C3 } from './Tow
 import type { Gang } from './Inhabitants';
 
 const EV = { conf: 'D' as const, epoch: 'khufu-late' };
+const EV_EARLY = { conf: 'D' as const, epoch: 'khufu-early' };
+const CORD: C3 = [0.62, 0.55, 0.4];
+const WATER: C3 = [0.34, 0.41, 0.44];
 const FILL: C3 = [0.62, 0.56, 0.44]; // compacted fill (SouthWorks')
 const WOOD: C3 = [0.42, 0.31, 0.19];
 /** D-7's axis: head (by the court) → toe (toward the quarry) — SouthWorks' */
@@ -38,6 +41,31 @@ export const g1WorksLines: Gang[] = [
   { x0: 24, z0: 232, x1: 12, z1: 170, n: 18, spread: 3, carry: 0.6, still: 0.25 },
 ];
 
+/** G1's half side, height and the south face's z at height y */
+const G1_HALF = G1_BASE_SIDE.value / 2;
+const G1_H = G1_HALF * Math.tan((G1_SLOPE_DEG.value * Math.PI) / 180);
+const zFace = (y: number): number => G1_HALF * (1 - y / G1_H);
+const AX_LEN = Math.hypot(TOE[0] - HEAD[0], TOE[1] - HEAD[1]);
+const AX_UZ = (HEAD[1] - TOE[1]) / AX_LEN;
+
+/**
+ * (T3-3) The deck where D-7's straight supply ramp, run at 10 % from its
+ * toe, meets the south face (the 3 m segments' rule) — read at boot from the
+ * baked ground, before the monuments: KHUFU_EARLY builds G1 to the last
+ * course at or below it (Monuments' `g1EarlyFrac`, D-28).
+ */
+export function g1RampFace(grd: (x: number, z: number) => number): number {
+  const gToe = grd(TOE[0], TOE[1]);
+  let s0 = 0;
+  for (;;) {
+    const zc = TOE[1] + AX_UZ * (s0 + 3 / 2);
+    const y = gToe + GRADE * (s0 + 3);
+    if (zc - DECK / 2 < zFace(y)) break;
+    s0 += 3;
+  }
+  return gToe + GRADE * s0;
+}
+
 export interface G1WorksInfo {
   rampSegments: number;
   zigzagLegs: number;
@@ -49,10 +77,19 @@ export interface G1WorksInfo {
   route: [number, number, number, number][];
   /** the narrowest landing's clearance past its U-turn (m) */
   landingSpare: number;
+  /** (T3-3) the deck where the straight ramp would meet the face */
+  rampFace: number;
+  /** (T3-3) KHUFU_EARLY: the top landing's length, the ramp's end → the face (m) */
+  topLand: number;
+  /** (T3-3) KHUFU_EARLY: survey stakes and apron trench pieces */
+  surveyStakes: number;
+  apronPieces: number;
 }
 
 export function buildG1Works(
   scene: Object3D, seed: WorldSeed, hf: Heightfield, gi: ProbeGI | null, builtTop: number,
+  /** (T3-3) KHUFU_EARLY: G1 at or below the ramp's arrival — no zigzag */
+  early = false,
 ): G1WorksInfo {
   const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
   const rng = seed.rng('g1-ramp');
@@ -71,7 +108,10 @@ export function buildG1Works(
   const tura = new GeoWriter();
   const local = new GeoWriter();
   const wood = new GeoWriter();
-  const info: G1WorksInfo = { rampSegments: 0, zigzagLegs: 0, rampTop: 0, route: [], landingSpare: Infinity };
+  const info: G1WorksInfo = {
+    rampSegments: 0, zigzagLegs: 0, rampTop: 0, route: [], landingSpare: Infinity,
+    rampFace: 0, topLand: 0, surveyStakes: 0, apronPieces: 0,
+  };
   /** (T3-2) a SLOPED deck quad over a segment whose body tops out 0.3 m
    *  low: a, b at its low end, c, d at its high end — wound to face up (the
    *  flat-topped boxes stepped 0.3 m every 3 m and read as a stair) */
@@ -147,44 +187,73 @@ export function buildG1Works(
   };
   const JW = 8.4; // the junction's half-width: the supply ramp's walls
   let run = rampRun(null);
-  let legs = planLegs(TOE[0] + ux * run.s - JW, run.deck);
-  for (let it = 0; it < 8; it++) {
-    const next = rampRun((legs[0] as Leg).z + DECK + 1);
-    if (next.n === run.n) break;
-    run = next;
+  info.rampFace = run.deck;
+  let legs: Leg[] = [];
+  /** (T3-3) KHUFU_EARLY: the short last segment that ends the deck AT the top */
+  let lastLen = 0;
+  if (!early) {
     legs = planLegs(TOE[0] + ux * run.s - JW, run.deck);
+    for (let it = 0; it < 8; it++) {
+      const next = rampRun((legs[0] as Leg).z + DECK + 1);
+      if (next.n === run.n) break;
+      run = next;
+      legs = planLegs(TOE[0] + ux * run.s - JW, run.deck);
+    }
+  } else {
+    // (T3-3) the lower courses: G1 stands at or below the ramp's arrival, so
+    // the ramp alone serves the platform — whole segments while the next
+    // deck stays at or under the top, then one short one onto it
+    let n = 0;
+    let s0 = 0;
+    while (gToe + GRADE * (s0 + SEG) <= builtTop + 1e-6) {
+      s0 += SEG;
+      n++;
+    }
+    run = { n, s: s0, deck: gToe + GRADE * s0 };
+    lastLen = (builtTop - run.deck) / GRADE;
+    if (lastLen < 0.05) lastLen = 0;
   }
 
-  let s = 0;
-  let deck = gToe;
-  for (let seg = 0; seg < run.n; seg++) {
-    const x = TOE[0] + ux * (s + SEG / 2);
-    const z = TOE[1] + uz * (s + SEG / 2);
-    const y = gToe + GRADE * (s + SEG);
+  /** one segment of the supply ramp from s0, `len` m long (3 but EARLY's last) */
+  const rampSeg = (s0: number, len: number): void => {
+    const x = TOE[0] + ux * (s0 + len / 2);
+    const z = TOE[1] + uz * (s0 + len / 2);
+    const y = gToe + GRADE * (s0 + len);
+    const yl = y - GRADE * len;
     const lo = Math.min(grd(x, z), grd(x + uz * 8.4, z - ux * 8.4), grd(x - uz * 8.4, z + ux * 8.4)) - 0.3;
-    fill.box(x, lo, z, SEG + 0.04, y - 0.3 - lo, 15.6, FILL, YAW);
+    fill.box(x, lo, z, len + 0.04, yl - lo, 15.6, FILL, YAW);
     {
       const px = uz * 7.8;
       const pz = -ux * 7.8;
-      const [lx, lz] = [TOE[0] + ux * s, TOE[1] + uz * s];
-      const [hx, hz] = [TOE[0] + ux * (s + SEG + 0.04), TOE[1] + uz * (s + SEG + 0.04)];
-      slope([lx + px, y - 0.3, lz + pz], [lx - px, y - 0.3, lz - pz], [hx - px, y, hz - pz], [hx + px, y, hz + pz]);
+      const [lx, lz] = [TOE[0] + ux * s0, TOE[1] + uz * s0];
+      const [hx, hz] = [TOE[0] + ux * (s0 + len + 0.04), TOE[1] + uz * (s0 + len + 0.04)];
+      slope([lx + px, yl, lz + pz], [lx - px, yl, lz - pz], [hx - px, y, hz - pz], [hx + px, y, hz + pz]);
     }
     for (const side of [-1, 1]) {
       const wx = x + side * uz * 8.4;
       const wz = z - side * ux * 8.4;
-      mud.box(wx, lo, wz, SEG + 0.04, y + 0.6 - lo, 1.2, rng.range(0.52, 0.6), 0, YAW, 0.12);
+      mud.box(wx, lo, wz, len + 0.04, y + 0.6 - lo, 1.2, rng.range(0.52, 0.6), 0, YAW, 0.12);
     }
     if (info.rampSegments % 3 === 0) {
       fpReg({
-        id: `g1-ramp:supply:${info.rampSegments}`, family: 'g1-ramp', x, z, hx: SEG * 1.5, hz: 9, yaw: YAW,
+        id: `g1-ramp:supply:${info.rampSegments}`, family: 'g1-ramp', x, z, hx: len * 1.5, hz: 9, yaw: YAW,
         y0: lo, y1: y + 0.6, yFloor: y, ground: 'grounded', allow: ['pyramids', 'g1-works'],
-        basis: "D-7's supply ramp, intact: its axis and section (the remnant's)", ...EV,
+        basis: "D-7's supply ramp, intact: its axis and section (the remnant's)", ...(early ? EV_EARLY : EV),
       });
     }
-    s += SEG;
-    deck = y;
     info.rampSegments++;
+  };
+  let s = 0;
+  let deck = gToe;
+  for (let seg = 0; seg < run.n; seg++) {
+    rampSeg(s, SEG);
+    s += SEG;
+    deck = gToe + GRADE * s;
+  }
+  if (lastLen > 0) {
+    rampSeg(s, lastLen);
+    s += lastLen;
+    deck = builtTop;
   }
   info.rampTop = deck;
 
@@ -218,9 +287,30 @@ export function buildG1Works(
   const route = info.route;
   route.push([TOE[0], gToe, TOE[1], 0]);
 
+  // (T3-3) KHUFU_EARLY: the top landing — level at the built top from the
+  // ramp's end in to the face (the platform's edge), walled at its sides;
+  // the teams go straight on along the axis onto the platform
+  if (early) {
+    const xa = TOE[0] + ux * s;
+    const za = TOE[1] + uz * s;
+    const zi = zf(deck) - 0.6;
+    const zj = za + 1.6;
+    piece(xa - JW, xa + JW, deck, deck, zj, false);
+    endWall(xa + JW + 0.5, deck, zi, zj);
+    endWall(xa - JW - 0.5, deck, zi, zj);
+    info.topLand = za - zf(deck);
+    fpReg({
+      id: 'g1-ramp:top', family: 'g1-ramp', x: xa, z: (zi + zj) / 2, hx: JW + 1, hz: (zj - zi) / 2,
+      y0: footAt(xa, zj), y1: deck + 0.6, ground: 'none', allow: ['pyramids', 'g1-works'],
+      basis: "D-7's supply ramp reaching the lower courses' platform (D-28)", ...EV_EARLY,
+    });
+    const zd = hw(builtTop) - 8;
+    route.push([xa, deck, za, 0], [TOE[0] + (ux * (zd - TOE[1])) / uz, deck, zd, 0]);
+  }
+
   // the junction: a level landing where the supply ramp's deck meets the
   // first leg's band, its full width — the teams turn west onto the leg
-  {
+  if (!early) {
     const xa = TOE[0] + ux * s; // the ramp's axis at its end
     const za = TOE[1] + uz * s;
     const l0 = legs[0] as Leg;
@@ -370,6 +460,96 @@ export function buildG1Works(
       ground: 'none', passive: true,
       basis: 'the working platform at mid-height; the half-laid course and the teams reconstructed', ...EV,
     });
+  }
+
+  /* --- (T3-3) KHUFU_EARLY: the platform laid out, the apron levelled -------- */
+  // canon CONSTRUCTION CONTEXT "measuring stations … surveying equipment"
+  // (MPB:3244-3256) and the FOUNDATION's "leveling trenches" (:3066): stakes
+  // and cords along the edges and the two axes, a sighting post, levelling
+  // crews at their water trays; on the apron round the base (the ground the
+  // court will be paved over) a trench ring and a coarse grid of levelling
+  // trenches with their spoil, stopping at every structure. Own stream.
+  if (early) {
+    const sv = seed.rng('g1-survey');
+    const T = builtTop;
+    const ht = hw(T);
+    const e = ht - 4; // inside the half-laid course along the edges
+    const stake = (x: number, z: number, h = 0.9): void => {
+      wood.box(x, T, z, 0.1, h, 0.1, sv.range(0.8, 0.95));
+      info.surveyStakes++;
+    };
+    const cord = (a: C3, b: C3): void => folk.beam(a, b, 0.012, CORD);
+    const corners: [number, number][] = [[-e, -e], [e, -e], [e, e], [-e, e]];
+    for (const [i, [x0, z0]] of corners.entries()) {
+      const [x1, z1] = corners[(i + 1) % 4] as [number, number];
+      stake(x0, z0, 1.1);
+      cord([x0, T + 0.75, z0], [x1, T + 0.75, z1]);
+      for (let f = 0.2; f < 0.99; f += 0.2) stake(x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, 0.6);
+    }
+    // the two axes, with a stake every 20 m (not through the station)
+    for (const [ax, az] of [[1, 0], [0, 1]] as const) {
+      cord([-e * ax, T + 0.45, -e * az], [e * ax, T + 0.45, e * az]);
+      for (let t = -e + 10; t < e - 5; t += 20) if (Math.abs(t) > 4) stake(t * ax, t * az, 0.5);
+    }
+    // a sighting post north of the station, a surveyor at it, his assistant
+    wood.box(0, T, -6, 0.14, 2.6, 0.14, 0.88);
+    props.box(0, T + 1.0, -5.92, 0.03, 1.5, 0.03, [0.7, 0.66, 0.6]);
+    person(folk, sv, 0, T, -4.6, Math.PI, 'stand');
+    person(folk, sv, 1.4, T, -6.4, -Math.PI / 2, 'kneel');
+    // levelling crews: a long shallow trough of water along an edge, men
+    // kneeling to read the waterline against the course
+    for (const [k, [tx, tz, yaw]] of ([[-0.45, 0.35, 0], [0.4, -0.5, Math.PI / 2], [0.1, 0.62, 0]] as const).entries()) {
+      const x = tx * ht;
+      const z = tz * ht;
+      const c = Math.cos(yaw);
+      const sn = Math.sin(yaw);
+      wood.box(x, T, z, c * 4.2 + sn * 0.5, 0.18, sn * 4.2 + c * 0.5, 0.78);
+      props.box(x, T + 0.16, z, c * 3.9 + sn * 0.34, 0.03, sn * 3.9 + c * 0.34, WATER);
+      for (const d of [-1.4, 0, 1.4]) {
+        person(folk, sv, x + c * d - sn * 0.9, T, z + sn * d + c * 0.9, -yaw + Math.PI, k === 1 && d === 0 ? 'stand' : 'kneel');
+      }
+    }
+    // the apron: the base's trench ring (3 m out) and levelling trenches —
+    // lines 8 m and 20 m out, cross trenches every 20 m — in 6 m pieces, each
+    // a dark strip at grade with its spoil on the outer side; none in or by
+    // a structure (the ramp, the pyramid's footprint excepted)
+    const solid = fpAll()
+      .filter((f) => !f.passive && f.family !== 'pyramids' && f.family !== 'g1-works')
+      .map(fpAabb);
+    const free = (x: number, z: number): boolean =>
+      !solid.some((r) => x > r.x0 - 1.5 && x < r.x1 + 1.5 && z > r.z0 - 1.5 && z < r.z1 + 1.5);
+    const PIECE = 6;
+    const trench = (x0: number, z0: number, x1: number, z1: number, out: [number, number]): void => {
+      const L = Math.hypot(x1 - x0, z1 - z0);
+      const n = Math.max(1, Math.round(L / PIECE));
+      for (let i = 0; i < n; i++) {
+        const fx = x0 + ((x1 - x0) * (i + 0.5)) / n;
+        const fz = z0 + ((z1 - z0) * (i + 0.5)) / n;
+        if (!free(fx, fz)) continue;
+        const along = Math.abs(x1 - x0) > Math.abs(z1 - z0);
+        const len = L / n + 0.02;
+        const g = grd(fx, fz);
+        mud.box(fx, g - 0.02, fz, along ? len : 0.6, 0.05, along ? 0.6 : len, sv.range(0.3, 0.36));
+        const sx = fx + out[0] * 0.65;
+        const sz = fz + out[1] * 0.65;
+        local.box(sx, g - 0.05, sz, along ? len : 0.35, 0.2, along ? 0.35 : len, sv.range(0.85, 0.95));
+        info.apronPieces++;
+      }
+    };
+    const B = half; // the base line
+    for (const d of [3, 8, 20]) {
+      const r = B + d;
+      trench(-r, -r, r, -r, [0, -1]);
+      trench(-r, r, r, r, [0, 1]);
+      trench(-r, -r, -r, r, [-1, 0]);
+      trench(r, -r, r, r, [1, 0]);
+    }
+    for (let t = -B; t <= B + 0.1; t += 20) {
+      trench(t, -(B + 3), t, -(B + 20), [1, 0]);
+      trench(t, B + 3, t, B + 20, [1, 0]);
+      trench(-(B + 3), t, -(B + 20), t, [0, 1]);
+      trench(B + 3, t, B + 20, t, [0, 1]);
+    }
   }
 
   /* --- materialize ------------------------------------------------------------- */

@@ -5,6 +5,8 @@
  *
  *   npx tsx tools/ground.ts --rect "4,25,30,48" --rect "62,-38,80,-24"
  *   npx tsx tools/ground.ts --wrect "-122,143,-52,167"
+ *   npx tsx tools/ground.ts --q "epoch=KHUFU_EARLY" --wrect "60,420,140,480"
+ *     ((T3-3) --q: any URL parameters — another epoch's ground)
  *
  * Prints min / max / mean of a 5×5 sample grid per rectangle.
  */
@@ -20,7 +22,10 @@ async function main(): Promise<void> {
   }
   const { browser } = await launchWebGPU();
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
-  await page.goto(akhetUrl({ scene: 'world', freeze: true, extra: { clean: '1' } }), { waitUntil: 'domcontentloaded' });
+  const qi = process.argv.indexOf('--q');
+  const extra: Record<string, string> = { clean: '1' };
+  for (const [k, v] of new URLSearchParams(qi > 0 ? (process.argv[qi + 1] ?? '') : '')) extra[k] = v;
+  await page.goto(akhetUrl({ scene: 'world', freeze: true, extra }), { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(
     () => window.__akhet && (window.__akhet.ready || window.__akhet.error !== null),
     undefined,

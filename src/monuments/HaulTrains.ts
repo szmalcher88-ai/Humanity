@@ -98,6 +98,9 @@ const FILE_N = 8;
 const FILE_A0 = 3.6;
 const FILE_STEP = 1.15;
 const FADE = [1150, 900] as const;
+/** (T3-3) LATE's spacing, its measured loop (2124 m, FIX-27) over its 20
+ *  teams — KHUFU_EARLY's shorter loop gets as many teams as fit at it */
+export const HAUL_SPACING_M = 106;
 /** a team past this is not drawn at all; past LOD_D it is the lite one */
 const CULL_D = FADE[0];
 const LOD_D = 350;
@@ -686,8 +689,9 @@ export function buildHaulTrains(
   TEAMS: number,
   pts: RP[],
   tura = false,
+  /** (T3-3) teams from the loop's length at this spacing (≥ 6) instead */
+  spacing?: number,
 ): HaulInfo {
-  const rng = seed.rng(name);
 
   const centre = densify(roundCorners(pts), 0.5, grd);
   const loop = buildLoop(centre);
@@ -706,6 +710,8 @@ export function buildHaulTrains(
   }
   if (minTurnR < LANE + 1.2) console.warn(`[akhet] ${name}: a turn of ${minTurnR.toFixed(1)} m — the inner lane folds`);
 
+  if (spacing !== undefined) TEAMS = Math.max(6, Math.round(loop.total / spacing));
+
   /* --- the timeline -------------------------------------------------------- */
   const LDN = loop.total - loop.up;
   const TU = loop.up / V_UP;
@@ -718,7 +724,7 @@ export function buildHaulTrains(
     for (let v = 0; v < VARIANTS; v++) {
       const w = new TeamWriter();
       w.lite = lite;
-      writeTeam(w, rng.fork(`team-${v}`), 0, tura);
+      writeTeam(w, seed.rng(`${name}-team-${v}`), 0, tura);
       geos.push(w.build());
     }
   }

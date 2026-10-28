@@ -31,12 +31,12 @@ export const DEFAULT_EPOCH: Epoch = 'KHUFU_COMPLETION';
 // (T2-5) MENKAURE_PERIOD = the KHAFRE world (every `atLeast(…, 'KHAFRE_PERIOD')`
 // holds for it) + what is gated on `atLeast(…, 'MENKAURE_PERIOD')`: G3
 // (T3-1) KHUFU_LATE = the Khufu world with the pyramid under construction:
-// every change gated on `building(e)`; KHUFU_EARLY falls back to it (the
-// nearest built stage) until T3-3
-const IMPLEMENTED: readonly Epoch[] = ['KHUFU_LATE', 'KHUFU_COMPLETION', 'KHAFRE_PERIOD', 'MENKAURE_PERIOD', 'EVIDENCE_VIEW'];
-const FALLBACK: Partial<Record<Epoch, Epoch>> = {
-  KHUFU_EARLY: 'KHUFU_LATE',
-};
+// every change gated on `building(e)`
+// (T3-3) KHUFU_EARLY = the LATE world (it inherits `building`, `lateWorks`,
+// `hauling`) + what is gated on `early(e)`: the lower courses, no zigzag,
+// the quarry opening, the complex not yet begun (D-28)
+export const IMPLEMENTED: readonly Epoch[] = ['KHUFU_EARLY', 'KHUFU_LATE', 'KHUFU_COMPLETION', 'KHAFRE_PERIOD', 'MENKAURE_PERIOD', 'EVIDENCE_VIEW'];
+const FALLBACK: Partial<Record<Epoch, Epoch>> = {};
 
 export interface EpochChoice {
   epoch: Epoch;
@@ -84,4 +84,13 @@ export function lateWorks(e: Epoch): boolean {
 export function hauling(e: Epoch): boolean {
   if (!lateWorks(e)) return false;
   return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('haul') !== '0';
+}
+
+/** (T3-3) KHUFU_EARLY's own state — the lower courses under construction:
+ *  true in KHUFU_EARLY only, under `building` (so `?klate=0` shows the
+ *  finished pyramid there as in LATE); `?kearly=0` gives the LATE world back
+ *  (the A/B arm and the leak check). LATE never enters an `early` branch */
+export function early(e: Epoch): boolean {
+  if (!building(e) || atLeast(e, 'KHUFU_LATE')) return false;
+  return typeof window === 'undefined' || new URLSearchParams(window.location.search).get('kearly') !== '0';
 }

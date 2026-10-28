@@ -345,6 +345,11 @@ export function buildKhufuComplex(
    *  foundation (the materials road), the valley temple its platform, only
    *  G1-a's chapel (D-26). Forks still taken; only bodies shortened */
   lateWorks = false,
+  /** (T3-3) KHUFU_EARLY (on top of `lateWorks`): no mortuary temple, the
+   *  valley temple its platform only, no chapel, the West Field's four
+   *  columns nearest G1 as bare cores, no East Field (D-28). Forks and
+   *  draws still taken; only bodies skipped */
+  early = false,
 ): ComplexInfo {
   const rng = seed.rng('khufu-complex');
   /** terrain height under a structure — everything off the leveled court
@@ -445,15 +450,18 @@ export function buildKhufuComplex(
   const mtL = G1_MORTUARY_TEMPLE_NS.value; // 52.5 N-S
   const mtX = half + temenosD + court + mtW / 2 - 2;
   if (lateWorks) {
-    // its footing courses: the plan's outline, ≈ 1 m of local limestone
+    // its footing courses: the plan's outline, ≈ 1 m of local limestone —
+    // (T3-3) not yet begun in KHUFU_EARLY (the fork still taken)
     const th = 2.2;
-    local.box(mtX, 0, -mtL / 2 + th / 2, mtW, 1.0, th, 0.96, 0.02, 0, 0.02);
-    local.box(mtX, 0, mtL / 2 - th / 2, mtW, 1.0, th, 0.95, 0.02, 0, 0.02);
-    for (const xw of [mtX - mtW / 2 + th / 2 + 0.02, mtX + mtW / 2 - th / 2 - 0.02]) {
-      local.box(xw, 0, 0, th, 1.0, mtL - th, 0.96, 0.02, 0, 0);
+    if (!early) {
+      local.box(mtX, 0, -mtL / 2 + th / 2, mtW, 1.0, th, 0.96, 0.02, 0, 0.02);
+      local.box(mtX, 0, mtL / 2 - th / 2, mtW, 1.0, th, 0.95, 0.02, 0, 0.02);
+      for (const xw of [mtX - mtW / 2 + th / 2 + 0.02, mtX + mtW / 2 - th / 2 - 0.02]) {
+        local.box(xw, 0, 0, th, 1.0, mtL - th, 0.96, 0.02, 0, 0);
+      }
     }
     rng.fork('mt-pillars');
-    fpReg({
+    if (!early) fpReg({
       id: 'mortuary-temple', family: 'temple', x: mtX, z: 0,
       hx: mtW / 2, hz: mtL / 2, y0: 0, y1: 1.0,
       ground: 'platform', allow: ['temenos', 'pavement', 'causeway'],
@@ -667,11 +675,14 @@ export function buildKhufuComplex(
     local.box(vx, vy - 5, vz, W + 10, 5.2, L + 10, 0.92, 0.04);
     // floor top 2 cm ABOVE the pedestal top (both at vy+0.20 z-fought)
     tura.box(vx, vy + 0.02, vz, W + 8, 0.2, L + 8, 0.97);
-    // (T3-2) under construction: its platform and footing courses only
+    // (T3-2) under construction: its platform and footing courses only —
+    // (T3-3) KHUFU_EARLY its platform alone
     if (lateWorks) {
-      local.box(vx, vy, vz - L / 2 + th / 2, W, 1.0, th, 0.97, 0.02, 0, 0.02);
-      local.box(vx, vy, vz + L / 2 - th / 2, W, 1.0, th, 0.96, 0.02, 0, 0.02);
-      for (const xw of [vx - W / 2 + th / 2 + 0.02, vx + W / 2 - th / 2 - 0.02]) local.box(xw, vy, vz, th, 1.0, L - th, 0.97, 0.02, 0, 0);
+      if (!early) {
+        local.box(vx, vy, vz - L / 2 + th / 2, W, 1.0, th, 0.97, 0.02, 0, 0.02);
+        local.box(vx, vy, vz + L / 2 - th / 2, W, 1.0, th, 0.96, 0.02, 0, 0.02);
+        for (const xw of [vx - W / 2 + th / 2 + 0.02, vx + W / 2 - th / 2 - 0.02]) local.box(xw, vy, vz, th, 1.0, L - th, 0.97, 0.02, 0, 0);
+      }
     } else {
       // heavy walls, west door (to causeway) + two east doors (from harbor)
       // end walls batter all four faces (corner wedges — see the temenos)
@@ -693,7 +704,7 @@ export function buildKhufuComplex(
     }
     fpReg({
       id: 'valley-temple', family: 'temple', x: vx, z: vz,
-      hx: (W + 10) / 2, hz: (L + 10) / 2, y0: vy - 5, y1: vy + (lateWorks ? 1.0 : h),
+      hx: (W + 10) / 2, hz: (L + 10) / 2, y0: vy - 5, y1: vy + (lateWorks ? (early ? 0.22 : 1.0) : h),
       ground: 'grounded', allow: ['causeway'], editable: true,
     });
   }
@@ -747,7 +758,7 @@ export function buildKhufuComplex(
 
   /* --- queens' chapels (follow the queens' canon/edited positions) ---------- */
   for (const [qi, qz0] of ([52, 104, 156] as const).entries()) {
-    if (lateWorks && qi > 0) continue; // (T3-2) only the finished queen's
+    if (lateWorks && (early || qi > 0)) continue; // (T3-2) only the finished queen's; (T3-3) none
     const name = ['G1-a', 'G1-b', 'G1-c'][qi] ?? `q${qi}`;
     const [qcx, qz] = edPos(`pyramid:${name}`, 190, qz0);
     const qx = qcx + 23 + 4.5;
@@ -818,6 +829,9 @@ export function buildKhufuComplex(
     const at = new Map(plots.map((q) => [`${q.col}:${q.row}`, q]));
     for (const q of plots) {
       if (q.row % 2 === 1 || q.slope) continue;
+      // (T3-3) KHUFU_EARLY: the nucleus — the four columns nearest G1 (pass 2
+      // draws nothing: thinning here moves no plot)
+      if (early && q.col > 3) continue;
       // a large neighbour two rows off that this tomb would come within 3 m
       // of wins (two large ones: the northern one wins)
       const crowded = [-2, 2].some((dr) => {
@@ -835,7 +849,7 @@ export function buildKhufuComplex(
       });
       // ~40%: small offering chapel on the east face
       let chapelZ: number | null = null;
-      if (q.chapel) {
+      if (q.chapel && !early) {
         const cx2 = x + W / 2 + 1.6;
         const cz2 = z + q.chapelDz;
         // lowest corner, like the tomb it leans on (centre seating
@@ -873,6 +887,7 @@ export function buildKhufuComplex(
         const W = MASTABA_NUCLEUS_WIDTH.value * te.range(1.15, 1.3);
         const H = MASTABA_NUCLEUS_HEIGHT.value * te.range(1.05, 1.25);
         const tone = te.range(0.92, 1.02);
+        if (early) continue; // (T3-3) the East Field not begun — its seven draws taken
         const L = LA + LB + 3;
         const gy =
           Math.min(

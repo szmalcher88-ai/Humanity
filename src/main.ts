@@ -22,6 +22,7 @@ import { parseCamString, parseParams } from './core/Params';
 import { WorldSeed } from './core/Seed';
 import { Hud } from './debug/HUD';
 import { resolveScene } from './debug/Scenes';
+import { DEFAULT_EPOCH, IMPLEMENTED } from './world/Epoch';
 
 async function boot(): Promise<void> {
   const hooks = initHooks();
@@ -224,8 +225,7 @@ async function boot(): Promise<void> {
   if (params.epochAsked !== null) {
     showNotice(`Epoch "${params.epochAsked}" is not built yet`, [
       `Showing ${params.epoch} instead (canon IX §9.3 presets built so far:`,
-      'KHUFU_LATE, KHUFU_COMPLETION — the default —, KHAFRE_PERIOD,',
-      'MENKAURE_PERIOD, EVIDENCE_VIEW).',
+      `${IMPLEMENTED.map((e) => (e === DEFAULT_EPOCH ? `${e} — the default` : e)).join(', ')}).`,
     ]);
   }
   // eslint-disable-next-line no-console

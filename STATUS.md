@@ -470,6 +470,84 @@ HAIKU — ITERATION I3 (5 agents, read-only, every finding verified):
 VERDICT: 97/98. Layout recon with "derive every number from the code" keeps
 finding real bugs on the side.
 
+T3-3 — KHUFU_EARLY: THE LOWER COURSES (done 2026-10-28; plan
+`docs/plans/T3-3_PLAN.md`, refreshed by the side planner on `9fbcc9b`;
+D-28). Every EARLY line is a JS-level `if` on `early(e)` (`Epoch.ts`: under
+`building`, false from KHUFU_LATE on; `?kearly=0` gives the LATE world) —
+EARLY inherits LATE through `building` / `lateWorks` / `hauling`.
+- G1 BY THE RAMP'S REACH (`G1Works.g1RampFace`, `Monuments.g1EarlyFrac`):
+  the last course whose top is at or below the deck where D-7's straight
+  ramp meets the face, read at boot off the baked ground — MEASURED (M1):
+  the face 16.48 m (the plan's hand port said 12.3 — R5 once more: gToe is
+  +3.3, not −0.6), the top 16.40 m; no zigzag (0 legs). The probe GI's top
+  plane follows (`g1BuiltTop(seed, frac)`).
+- G1WORKS' EARLY PATH: no `planLegs`, no iteration, no junction (FIX-27's
+  code threw on an empty plan); the ramp runs whole segments while the next
+  deck stays under the top, then one short one onto it (44 segments, the
+  segment body factored into `rampSeg`, draw for draw — LATE's dump did not
+  move); a level top landing 5.1 m across to the face (`g1-ramp:top`); the
+  route straight on along the axis to the drop.
+- THE PLATFORM LAID OUT (stream `g1-survey`): 40 stakes and cords on the
+  edges and the two axes, a sighting post with its surveyor, three
+  levelling crews kneeling at water troughs; THE APRON: a trench ring 3 m
+  out and levelling trenches 8 and 20 m out with cross trenches every 20 m
+  (629 pieces, each a dark strip with its spoil, none by a structure) — the
+  canon's "leveling trenches" (MPB:3066).
+- THE QUARRY OPENING (`GizaControl`): radii × 0.75, depth × 0.45 — MEASURED
+  (M2, `ground.ts --q`, new): the centre floor −0.2 (LATE −5.6), the face's
+  floor −2.2 … −1.5 (spread 0.7 m), the east half falling to −20 on the
+  escarpment's edge blend as in every world; one face (the ENE), the
+  transport ramp built down to the shallower floor — 31 segments, its end
+  4 cm over the floor (M3); no west face, no quarrymen line.
+- THE COMPLEX NOT BEGUN (`KhufuComplex(…, early)`, `Monuments`): no queens,
+  no chapel, no mortuary temple (its fork kept), the valley temple's
+  platform only, the West Field's four columns nearest G1 as bare cores, no
+  East Field (its draws kept); one Tura barge (36 vessels).
+- THE TEAMS (M4): the quarry loop 728 m → 7 teams at LATE's spacing
+  (`HAUL_SPACING_M` 106 = 2124 / 20), the tightest turn 6.0 m; the Tura
+  road's 8. The lite stand-ins now come from pure per-name streams
+  (`${name}-team-${v}`) — they were forked after the full ones and changed
+  figures at 350 m (the planner's find); LATE's teams look different by
+  that, its dump does not move.
+- THE HUD: KHUFU_EARLY built — the menu's `built` and the boot notice's
+  list derive from `Epoch.IMPLEMENTED` (no copies left).
+CONTRACTS (fpdump by id, Δ > 5 cm): default 1142, KHAFRE 1120, MENKAURE
+1179, LATE 1198 and 1200 with `?haul=0` — all 0 moved. THE LEAK CHECK (M7):
+`epoch=KHUFU_EARLY&kearly=0` = LATE's 1198, 0 moved. THE FIRST EARLY
+BASELINE: 722 (`shots/t33/fp-epoch_KHUFU_EARLY.json`) — against LATE −478:
+192 tomb courts, 131 West Field tombs, 81 tomb chapels, 58 zigzag pieces,
+8 East twins, 3 quarry works (the west face, two ramp pieces), 3 queens,
+the temple, the chapel; +2 supply pieces; moved: G1, its platform and top
+landing, what stands on the shallower quarry ground (the ramp, the face,
+train 0, a shelter), the valley temple's top, one family-court offering
+(3.2 m — its court follows its neighbours).
+AUDIT (`--epoch KHUFU_EARLY`): PASS — the new rows (G1 at the ramp's reach,
+0 legs; one face, the ramp to the floor; one barge; 7 + 8 teams) and
+collisions clean on the first boot; the LATE rows now skip EARLY.
+PERF (`perf.ts --bm 15,7,3 --runs 3 --q "epoch=KHUFU_EARLY" --b "kearly=0"`,
+one sitting): fps medians equal (60 / 40 / 60); scene 7.64 / 12.00 / 6.41
+vs 8.26 / 12.69 / 7.20 ms — EARLY is the cheapest Khufu world.
+TOURS: EARLY's first (bm1, bm3, bm7, bm15 → `shots/t33/tour-early`) and
+close-ups (the top landing, the platform, the apron, the quarry, the face);
+LATE re-shot at bm3 / bm7 / bm15 against FIX-27b's: below the horizon only
+the teams' figures differ (the variant streams); bm15's > 24 share (2.3 %)
+is its low sky band — cloud drift. The HUD switch checked in a page:
+KHUFU_EARLY enabled, "the pyramid rising" reloads into KHUFU_LATE.
+BATTERY (default; slow-adapter probe first): 18/19 + the advisory perf WARN
+(bm1 53, bm3 65, bm7 42).
+
+HAIKU — T3-3 (5 agents, read-only, run and verified by the side planner on
+the refresh):
+| agent | task | rows | confirmed |
+|---|---|---|---|
+| A | G1Works under a low top | 30 | 30 — the throw on an empty plan; `landingSpare` 60 by construction |
+| B | the haul trains and their routes | 30 | 29 — one wrong row: "`rampEndLip` / `haulLoopM` in no counter" (both are); found the lite forks |
+| C | the quarry and the ground after T2-7 | 29 | 29 — the edge blend under the bowl's east half; `ground.ts` without `--q` |
+| D | the complex, the fields, the life | 29 | 29 — the draw-free branch points; the extras' coupling |
+| E | the epochs, the HUD, the tools | 30 | 30 — the list typed three times; the Node-true gates |
+VERDICT: 147/148 (99.3 %). The one modelled number the build relied on —
+the ramp's arrival, 12.3 m — was a measurement step, and measured 16.48.
+
 FIX-27 — THE HUMAN'S SCREENSHOTS: RAMPS, HAULING TEAMS, VEGETATION (done
 2026-10-27; D-27). Six defects from six screenshots, each fixed at its cause.
 1. THE ZIGZAG (`G1Works.ts`): its legs started flush with the face where the
@@ -1488,7 +1566,7 @@ GitHub Pages stays OFF until the human calls the project ready.
 | I7 | polish + perf — DONE (above) | the bm7 "drift" was the TDR guard cutting the render scale on every boot (fixed); water as shoreline meshes; the red rim at night (Earth's shadow); the low/safe caster allow-list; the inverted low/safe crop fade |
 | I7b | crop tufts — DONE (above) | the card LOD beyond ~90 m and 8 near blades; still open: the iGPU re-measure on an idle machine (low/safe budgets) |
 | T2 | Tier 2 (canon VII) — T2-1 epochs, T2-2 the Sphinx, T2-3 G2, T2-4 Khafre's temples + causeway, T2-5 MENKAURE_PERIOD + G3, T2-6 Menkaure's works at his death DONE (above; D-20 provisional site, D-21–D-24) |
-| T3 | the Khufu construction stages (canon IX §9.3, the brief's Tier 3) — T3-1 KHUFU_LATE the pyramid at mid-height + ramps, T3-2 the complex and the logistics DONE (above; D-25, D-26) | T3-3 KHUFU_EARLY; T3-4 "several decades after" (the human's call) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
+| T3 | the Khufu construction stages (canon IX §9.3, the brief's Tier 3) — T3-1 KHUFU_LATE the pyramid at mid-height + ramps, T3-2 the complex and the logistics, T3-3 KHUFU_EARLY the lower courses DONE (above; D-25, D-26, D-28) | T3-4 "several decades after" (the human's call) | epoch presets first (canon IX §9.3), then the Sphinx carved out of its enclosure's strata, the Sphinx Temple, Khafre's valley temple, causeway, mortuary temple and pyramid — shown only under KHAFRE_PERIOD and later |
 
 ### v1.1 — DETAIL + BUG PASS (branch `v1.1-detail`, from 2026-10-20)
 

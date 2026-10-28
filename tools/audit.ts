@@ -11,7 +11,7 @@
 
 import { Vector3 } from 'three';
 import { WorldSeed } from '../src/core/Seed';
-import { atLeast, building, lateWorks, parseEpoch, type Epoch } from '../src/world/Epoch';
+import { atLeast, building, early, lateWorks, parseEpoch, type Epoch } from '../src/world/Epoch';
 import { G1_BUILT_FRAC } from '../src/monuments/Monuments';
 import { buildSpec, auditSpec } from '../src/monuments/PyramidSpec';
 import {
@@ -131,8 +131,9 @@ for (const r of ROWS.filter((x) => atLeast(epoch, x.from))) {
 
 // (T3-1) the Great Pyramid under construction: the BUILT part of the same
 // solve on the world's stream — mid-height (the first course whose top
-// passes H/2), its stones, the frustum's top
-if (building(epoch)) {
+// passes H/2), its stones, the frustum's top. (T3-3) KHUFU_EARLY's height
+// follows the baked ground (the ramp's reach): its rows are the browser's
+if (building(epoch) && !early(epoch)) {
   const h = (G1_BASE_SIDE.value / 2) * Math.tan((G1_SLOPE_DEG.value * Math.PI) / 180);
   const spec = buildSpec({
     baseSide: G1_BASE_SIDE.value, height: h, slopeDeg: G1_SLOPE_DEG.value, cx: 0, cy: 0, cz: 0,
@@ -350,9 +351,20 @@ async function collisionTest(): Promise<void> {
   await browser.close();
   check('evidence: every piece tagged (harbour, Sphinx, Khafre, Menkaure)', (counters['evidence.untagged'] ?? 1) === 0, `${counters['evidence.untagged'] ?? '?'} untagged, ${counters['evidence.tagged'] ?? '?'} tagged`);
   check('moving fleet clears the harbour works', (counters['fleet.clashes'] ?? 1) === 0, `${counters['fleet.clashes'] ?? '?'} clash(es)`);
-  if (lateWorks(epoch)) {
+  if (lateWorks(epoch) && !early(epoch)) {
     check('KHUFU_LATE: the second Tura barge on the river', (counters['harbor.vessels'] ?? 0) === 37, `${counters['harbor.vessels']} vessels (36 + 1)`);
     check('KHUFU_LATE: the quarry at work, the Tura yard', (counters['late.faceBlocks'] ?? 0) > 20 && (counters['late.turaStaged'] ?? 0) > 15, `${counters['late.faceBlocks']} face blocks, ${counters['late.turaStaged']} Tura blocks staged`);
+  }
+  // (T3-3) KHUFU_EARLY: the lower courses by the supply ramp's reach, no
+  // zigzag; the quarry opening (one face, the ramp down to its floor); one
+  // Tura barge; the teams at LATE's spacing, the Tura road's eight
+  if (early(epoch)) {
+    const top = counters['g1.builtTopCm'] ?? 0;
+    const face = counters['g1.rampFaceCm'] ?? 0;
+    check('KHUFU_EARLY: G1 to the course at the supply ramp\'s reach, no zigzag', (counters['g1.zigzagLegs'] ?? 1) === 0 && top > 0 && top <= face && face < top + 160, `top ${top} cm, the ramp meets the face at ${face} cm, ${counters['g1.zigzagLegs']} legs`);
+    check('KHUFU_EARLY: the quarry opening — one face, the ramp to its floor', (counters['late.faceBlocks'] ?? 0) > 10 && (counters['late.faceBlocks'] ?? 99) <= 20 && (counters['late.rampEndLipCm'] ?? 99) <= 5, `${counters['late.faceBlocks']} face blocks, the ramp's end ${counters['late.rampEndLipCm']} cm over the floor`);
+    check('KHUFU_EARLY: one Tura barge on the river', (counters['harbor.vessels'] ?? 0) === 36, `${counters['harbor.vessels']} vessels`);
+    check('KHUFU_EARLY: the hauling teams', (counters['late.haulTeams'] ?? 0) >= 6 && (counters['late.turaTeams'] ?? 0) === 8 && (counters['late.haulMinTurnCm'] ?? 0) >= 300, `${counters['late.haulTeams']} quarry teams on ${counters['late.haulLoopM']} m, ${counters['late.turaTeams']} Tura teams, tightest turn ${counters['late.haulMinTurnCm']} cm`);
   }
   if (atLeast(epoch, 'MENKAURE_PERIOD') && counters['menkaure.cwSegs']) {
     check("Menkaure causeway grade ≤ 150 ‰ (an unfinished track)", (counters['menkaure.cwMaxGrade'] ?? 999) <= 150, `${counters['menkaure.cwMaxGrade']} ‰ at segment ${counters['menkaure.cwMaxAt']}`);

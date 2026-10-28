@@ -58,6 +58,9 @@ export function buildKhufuLateWorks(
   scene: Object3D, seed: WorldSeed, hf: Heightfield, gi: ProbeGI | null, complex: ComplexInfo,
   /** (2026-10-27) HaulTrains runs the causeway: its static teams stay out */
   hauling = false,
+  /** (T3-3) KHUFU_EARLY: the quarry opening — one face, the ENE one by the
+   *  transport ramp's foot; no west face (its quarrymen are not added) */
+  early = false,
 ): KhufuLateInfo {
   const grd = (x: number, z: number): number => hf.heightAtCpu(x, z);
   const rng = seed.rng('quarry-late');
@@ -139,7 +142,7 @@ export function buildKhufuLateWorks(
       basis: 'an extraction face on the trench grid, at work (MPB:2583-2587); its layout reconstructed', ...EV,
     });
   };
-  face('west', -32, 478, 6, 4, -0.6);
+  if (!early) face('west', -32, 478, 6, 4, -0.6);
   // (T2-7) the ENE arm now runs down into the Sphinx's shelf (measured 9 m
   // of fall across the old face): the second face moved onto the bowl's floor
   // (110 … 140, 410 … 432 — within 1.9 m)

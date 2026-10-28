@@ -55,7 +55,7 @@ import {
   WORKER_TOWN_YAW,
 } from './CANON_DIMENSIONS';
 import { FLOODPLAIN_Y, NILE_BED_Y, HARBOR_BED_Y, aslToY } from './WorldConst';
-import { DEFAULT_EPOCH, atLeast, type Epoch } from './Epoch';
+import { DEFAULT_EPOCH, atLeast, early, type Epoch } from './Epoch';
 import { CANALS, CANAL_BED_HALF, CANAL_BED_Y, CANAL_TOP_HALF } from './Irrigation';
 
 /* ------------------------------------------------------------------ */
@@ -421,14 +421,19 @@ export function gizaTerrain(p: NV2, gp: GizaParams, detail: 'full' | 'far'): Giz
     pq.x.mul(ca).sub(pq.y.mul(sa)).div(QUARRY_RX),
     pq.x.mul(sa).add(pq.y.mul(ca)).div(QUARRY_RZ),
   );
-  const dq = pqr.length();
+  // (T3-3) KHUFU_EARLY: the quarry OPENING — the same bowl, its radii × 0.75
+  // (dq / 0.75: the bowl, its exit sector and the quarry mask shrink
+  // together) and its depth × 0.45 — ≈ 25 % of its volume while ≈ 22 % of G1
+  // stands (D-28). A JS-level branch: every other world's graph is unchanged
+  const eq = early(gp.epoch);
+  const dq = eq ? pqr.length().div(0.75) : pqr.length();
   // horseshoe: bowl open toward the SE (transport exit) — depth fades in a
   // sector so sleds could haul blocks out on a graded floor
   const exitDir = pq.normalize().dot(vec2(0.64, 0.77));
   const exitKeep = smoothstep(0.55, 0.95, exitDir).mul(smoothstep(1.35, 0.7, dq));
   const bowl = smoothstep(1.0, 0.35, dq);
   const quarryDepth = bowl
-    .mul(QUARRY_DEPTH)
+    .mul(eq ? QUARRY_DEPTH * 0.45 : QUARRY_DEPTH)
     .mul(exitKeep.mul(0.85).oneMinus());
   const quarryMask = smoothstep(0.995, 0.9, dq);
 

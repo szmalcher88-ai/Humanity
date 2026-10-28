@@ -38,7 +38,7 @@ import {
   G3A_SLOPE_DEG,
   MENKAURE_QUEENS,
 } from '../world/CANON_DIMENSIONS';
-import { atLeast, building, DEFAULT_EPOCH, lateWorks, type Epoch } from '../world/Epoch';
+import { atLeast, building, DEFAULT_EPOCH, early, lateWorks, type Epoch } from '../world/Epoch';
 import type { Confidence } from '../world/CANON_DIMENSIONS';
 import { buildPyramid, type PyramidLod } from './PyramidBuilder';
 import { buildSpec, solveCourses, type PyramidSpec } from './PyramidSpec';
@@ -58,11 +58,10 @@ function heightFromSlope(baseSide: number, slopeDeg: number): number {
  *  construction"; "near completion" belongs to the default, IX:122) */
 export const G1_BUILT_FRAC = 0.5;
 
-/** (T3-1) the built top of G1 under construction — the same solve on the
- *  same stream as `buildMonuments` (seed.rng is pure per name), for the
- *  probe GI, which is made before the monuments */
-export function g1BuiltTop(seed: WorldSeed): number {
-  const rows = solveCourses({
+/** G1's course rows — the solve `buildMonuments` makes, on the same pure
+ *  stream (seed.rng is pure per name) */
+function g1Rows(seed: WorldSeed): { y0: number; h: number }[] {
+  return solveCourses({
     baseSide: G1_BASE_SIDE.value,
     height: heightFromSlope(G1_BASE_SIDE.value, G1_SLOPE_DEG.value),
     slopeDeg: G1_SLOPE_DEG.value,
@@ -72,9 +71,32 @@ export function g1BuiltTop(seed: WorldSeed): number {
     courseMin: G1_COURSE_MIN_HEIGHT.value,
     rng: seed.rng('monument-G1'),
   });
+}
+
+/** (T3-1) the built top of G1 under construction, for the probe GI (made
+ *  before the monuments): the first course whose top passes `frac` × H —
+ *  (T3-3) `frac` is EARLY's own in KHUFU_EARLY */
+export function g1BuiltTop(seed: WorldSeed, frac = G1_BUILT_FRAC): number {
+  const rows = g1Rows(seed);
   const H = heightFromSlope(G1_BASE_SIDE.value, G1_SLOPE_DEG.value);
-  const last = rows[rows.findIndex((r) => r.y0 + r.h > G1_BUILT_FRAC * H)] as { y0: number; h: number };
+  const last = rows[rows.findIndex((r) => r.y0 + r.h > frac * H)] as { y0: number; h: number };
   return last.y0 + last.h;
+}
+
+/**
+ * (T3-3) KHUFU_EARLY's built fraction: G1 to the LAST course whose top is at
+ * or below `face` — the deck where D-7's straight supply ramp meets the face
+ * (G1Works' `g1RampFace`) — so the ramp alone serves the platform and the
+ * zigzag has not begun (D-28). Returned as the top of the course BELOW it
+ * over H, so PyramidSpec's "first course whose top passes" picks it.
+ */
+export function g1EarlyFrac(seed: WorldSeed, face: number): number {
+  const rows = g1Rows(seed);
+  const H = heightFromSlope(G1_BASE_SIDE.value, G1_SLOPE_DEG.value);
+  let k = 0;
+  while (k + 1 < rows.length && (rows[k + 1] as { y0: number; h: number }).y0 + (rows[k + 1] as { y0: number; h: number }).h <= face) k++;
+  const below = k > 0 ? (rows[k - 1] as { y0: number; h: number }) : null;
+  return below ? (below.y0 + below.h) / H : 0;
 }
 
 export function buildMonuments(
@@ -82,6 +104,8 @@ export function buildMonuments(
   seed: WorldSeed,
   gi: ProbeGI | null = null,
   epoch: Epoch = DEFAULT_EPOCH,
+  /** (T3-3) G1's built fraction under construction — EARLY's own, else LATE's */
+  g1Frac = G1_BUILT_FRAC,
 ): MonumentSite[] {
   const sites: MonumentSite[] = [];
 
@@ -156,10 +180,12 @@ export function buildMonuments(
       G1_COURSE1_HEIGHT.value,
       G1_COURSE_MIN_HEIGHT.value,
       0,
-      { conf: 'D', basis: 'mid-height construction (canon preset); the course by height (D-25)', epoch: 'khufu-late' },
+      early(epoch)
+        ? { conf: 'D', basis: "the lower courses (canon preset); the course by the supply ramp's reach (D-28)", epoch: 'khufu-early' }
+        : { conf: 'D', basis: 'mid-height construction (canon preset); the course by height (D-25)', epoch: 'khufu-late' },
       undefined,
       false,
-      G1_BUILT_FRAC,
+      g1Frac,
     );
   } else {
     add(
@@ -178,7 +204,10 @@ export function buildMonuments(
   const qNames = ['G1-a', 'G1-b', 'G1-c'];
   const late = lateWorks(epoch);
   const QUEEN_LATE: (number | undefined)[] = [undefined, 0.5, 0.15];
+  // (T3-3) KHUFU_EARLY: no queen begun yet (each on its own named stream —
+  // nothing else moves)
   QUEENS_CENTERS.forEach((c, i) => {
+    if (early(epoch)) return;
     const frac = late ? QUEEN_LATE[i] : undefined;
     if (frac !== undefined) {
       add(

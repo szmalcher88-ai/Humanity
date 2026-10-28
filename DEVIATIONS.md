@@ -511,3 +511,42 @@ water on the track) · D (every dimension, the routes, the numbers of teams).
 `src/monuments/KhufuComplex.ts` (the LATE causeway deck),
 `src/monuments/HaulTrains.ts`, `src/monuments/Inhabitants.ts`
 (`HAUL_ROAD_TRAINS`), `src/world/Epoch.ts` (`hauling`).
+
+## D-28 — KHUFU_EARLY: the lower courses by the supply ramp's reach
+**Conflict:** the canon names the stage ("Early foundation. / Lower courses
+under construction", MPB:3016-3017; IX's KHUFU_EARLY "earlier construction
+activity", VOL_IX:120) and gives no height, order or date; its FOUNDATION
+asks for "prepared limestone bedrock, leveling trenches … not a perfectly
+flat artificial platform" (MPB:3058-3067).
+**Chosen (T3-3, KHUFU_EARLY only, behind `early(e)`; plan
+`docs/plans/T3-3_PLAN.md`; all D):**
+- G1 to the LAST course whose top is at or below the deck where D-7's
+  straight supply ramp meets the face — read at boot off the baked ground
+  (`g1RampFace`, `g1EarlyFrac`; measured: the face 16.48 m, the top 16.40 m,
+  ≈ 11 % of the height, ≈ 30 % of the volume). The ramp alone serves the
+  platform: no zigzag yet; the ramp runs onto the top, a level top landing
+  to the face; the teams drive straight on to the drop.
+- the platform being laid out: stakes and cords on the edges and the axes,
+  a sighting post, levelling crews at water troughs; on the apron round the
+  base a trench ring and a coarse grid of levelling trenches with their
+  spoil, stopping at every structure (the canon's "leveling trenches").
+- the quarry OPENING: the same bowl at radii × 0.75 and depth × 0.45
+  (measured ≈ 4–5 m deep at its centre), one face (the ENE one by the
+  transport ramp's foot); the ramp built down to the shallower floor.
+- the complex not begun: no queens, no chapel, no mortuary temple, the
+  valley temple its platform only, the causeway's foundation as LATE's; the
+  West Field's four columns nearest G1 as bare cores; no East Field.
+- one Tura barge; the hauling teams at LATE's spacing (7 on the 728 m
+  quarry loop), the Tura road's 8.
+- the bedrock knoll under G1 not shown (the 16 m core encloses it).
+**Alternatives:** the first course ABOVE the ramp's arrival (the first
+plan: the ramp would end below the platform); ≈ 5 courses ("early
+foundation"); the full quarry bowl; LATE's complex states.
+**Confidence:** D throughout (the order and the height reconstructed); C for
+the foundation's levelling trenches (the canon's own words).
+**Code:** `src/world/Epoch.ts` (`early`, `IMPLEMENTED`),
+`src/monuments/Monuments.ts` (`g1EarlyFrac`), `src/monuments/G1Works.ts`
+(`g1RampFace`, the EARLY path, the survey and the apron),
+`src/world/GizaControl.ts` (the bowl), `src/monuments/KhufuComplex.ts`,
+`src/monuments/KhufuLateWorks.ts`, `src/monuments/HaulTrains.ts`
+(`HAUL_SPACING_M`), `src/debug/TerrainScene.ts`, `src/debug/HUD.ts`.

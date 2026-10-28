@@ -123,7 +123,10 @@ with its supply ramp and the zigzag on the south face (D-25; `?klate=0`; `?bm=15
 queens rising, the temples at their footings, the quarry and the Tura transport at work (D-26; `?lworks=0`),
 and the sledge teams ANIMATED — hauling blocks from the quarry face up the ramps and the zigzag to the
 platform, and Tura casing up the causeway, back down empty in the other lane (D-27; `?haul=0` leaves them out);
-KHUFU_EARLY falls back to it with a notice) ·
+KHUFU_EARLY shows the lower courses — G1 to the course at the straight supply ramp's reach (no zigzag yet), the
+platform being surveyed and the apron levelled, the quarry opening, no queens or temple, the West Field's first
+cores (D-28; `?kearly=0` gives the LATE world; `?bm=15&epoch=KHUFU_EARLY`) — the HUD's epoch switch (top right)
+reloads into any of them) · `tools/ground.ts --q "epoch=…"` measures another epoch's ground ·
 `?cam=x,y,z,yaw,pitch[,fov]` · `?seed=N` · `?freeze=1` · `?cull=0` · `?prepass=1` · `?froxels=0` ·
 `?cirrus=N` · `?fog=N` · `?dust=N` · `?walk=1` · `?hud=1` · `?band=N` · `?force=1` ·
 `?clean=1` (hide every overlay — gallery frames) · `?hide=debris,particles` (hide scene

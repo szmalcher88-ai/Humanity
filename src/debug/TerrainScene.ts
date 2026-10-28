@@ -10,19 +10,19 @@ import { isReduced } from '../core/Params';
 import { ProbeGI } from '../gpu/passes/ProbeGI';
 import { Froxels } from '../gpu/passes/Froxels';
 import { buildKhufuComplex } from '../monuments/KhufuComplex';
-import { buildMonuments, g1BuiltTop, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
+import { buildMonuments, G1_BUILT_FRAC, g1BuiltTop, g1EarlyFrac, updateMonumentLods, type MonumentSite } from '../monuments/Monuments';
 import { buildKhafreComplex } from '../monuments/KhafreComplex';
 import { buildMenkaureComplex, menkaureLines } from '../monuments/MenkaureComplex';
-import { buildG1Works, g1WorksLines } from '../monuments/G1Works';
+import { buildG1Works, g1RampFace, g1WorksLines } from '../monuments/G1Works';
 import { buildKhufuLateWorks, khufuLateLines } from '../monuments/KhufuLateWorks';
-import { buildHaulTrains, clearHaulTrains, quarryRoute, updateHaulTrains, type RP } from '../monuments/HaulTrains';
+import { buildHaulTrains, clearHaulTrains, HAUL_SPACING_M, quarryRoute, updateHaulTrains, type RP } from '../monuments/HaulTrains';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
 import { buildWorkCamp, campLines } from '../monuments/WorkCamp';
 import { buildFamilyCourts } from '../monuments/Necropolis';
 import { buildSouthWorks, southLines } from '../monuments/SouthWorks';
-import { atLeast, building, hauling, lateWorks } from '../world/Epoch';
+import { atLeast, building, early, hauling, lateWorks } from '../world/Epoch';
 import { buildSphinx } from '../monuments/Sphinx';
 import { Torches } from '../monuments/Torches';
 import { buildInhabitants } from '../monuments/Inhabitants';
@@ -67,7 +67,11 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
 
   ctx.progress(0.85, 'gi: irradiance probe field');
   // (T3-1) under construction the analytic G1 in the probe GI gets its built top
-  const gi = new ProbeGI(hf, sunSky.atmosphere, engine.params.preset, building(engine.params.epoch) ? g1BuiltTop(seed) : undefined);
+  // (T3-3) KHUFU_EARLY: G1 to the last course at or below the deck where the
+  // straight supply ramp meets the face, read off the baked ground (D-28)
+  const isEarly = early(engine.params.epoch);
+  const g1Frac = isEarly ? g1EarlyFrac(seed, g1RampFace((x, z) => hf.heightAtCpu(x, z))) : G1_BUILT_FRAC;
+  const gi = new ProbeGI(hf, sunSky.atmosphere, engine.params.preset, building(engine.params.epoch) ? g1BuiltTop(seed, g1Frac) : undefined);
   await gi.init(renderer);
   // reduced preset: probe refresh every 3rd frame (PERF II — the gather was
   // 6.3 ms of a 66 ms iGPU frame; the field is temporally EMA'd anyway, so a
@@ -124,8 +128,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       });
       structures.remove(c);
     }
-    sites = buildMonuments(structures, seed, gi, engine.params.epoch);
-    const complex = buildKhufuComplex(structures, seed, hf, gi, building(engine.params.epoch), lateWorks(engine.params.epoch));
+    sites = buildMonuments(structures, seed, gi, engine.params.epoch, g1Frac);
+    const complex = buildKhufuComplex(structures, seed, hf, gi, building(engine.params.epoch), lateWorks(engine.params.epoch), isEarly);
     // (v1.2 I5) the necropolis' family courts, the D-7 ramp remnant and the
     // royal works yard south of the enclosure
     const courts = buildFamilyCourts(structures, seed, hf, gi, complex.westTombs, complex.twins);
@@ -168,17 +172,23 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       const top = sites.find((st) => st.name === 'G1')?.spec.built?.top;
       let g1Route: [number, number, number, number][] | null = null;
       if (top !== undefined) {
-        const g1w = buildG1Works(structures, seed, hf, gi, top);
+        const g1w = buildG1Works(structures, seed, hf, gi, top, isEarly);
         engine.stats.counters['g1.rampSegments'] = g1w.rampSegments;
         engine.stats.counters['g1.zigzagLegs'] = g1w.zigzagLegs;
         engine.stats.counters['g1.builtTopCm'] = Math.round(top * 100);
-        engine.stats.counters['g1.landingSpareCm'] = Math.round(g1w.landingSpare * 100);
+        engine.stats.counters['g1.rampFaceCm'] = Math.round(g1w.rampFace * 100);
+        if (g1w.zigzagLegs > 0) engine.stats.counters['g1.landingSpareCm'] = Math.round(g1w.landingSpare * 100);
+        if (isEarly) {
+          engine.stats.counters['g1.topLandCm'] = Math.round(g1w.topLand * 100);
+          engine.stats.counters['g1.surveyStakes'] = g1w.surveyStakes;
+          engine.stats.counters['g1.apronPieces'] = g1w.apronPieces;
+        }
         g1Route = g1w.route;
       }
       // (T3-2) the logistics at work: the quarry's faces and transport ramp,
       // the Tura yard at the slipway, Tura sledges on the causeway's foundation
       if (lateWorks(engine.params.epoch)) {
-        const lw = buildKhufuLateWorks(structures, seed, hf, gi, complex, hauling(engine.params.epoch));
+        const lw = buildKhufuLateWorks(structures, seed, hf, gi, complex, hauling(engine.params.epoch), isEarly);
         engine.stats.counters['late.faceBlocks'] = lw.faceBlocks;
         engine.stats.counters['late.quarryRamp'] = lw.rampSegments;
         engine.stats.counters['late.turaStaged'] = lw.turaStaged;
@@ -188,7 +198,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
         // platform, and back empty
         if (hauling(engine.params.epoch) && g1Route) {
           const grdC = (x: number, z: number): number => hf.heightAtCpu(x, z);
-          const ht = buildHaulTrains(structures, seed, grdC, gi, 'haul-trains', 20, quarryRoute(lw.rampRoute, g1Route));
+          // (T3-3) KHUFU_EARLY's shorter loop at LATE's spacing
+          const ht = buildHaulTrains(structures, seed, grdC, gi, 'haul-trains', 20, quarryRoute(lw.rampRoute, g1Route), false, isEarly ? HAUL_SPACING_M : undefined);
           engine.stats.counters['late.haulTeams'] = ht.teams;
           engine.stats.counters['late.haulLoopM'] = Math.round(ht.loopM);
           engine.stats.counters['late.haulMinTurnCm'] = Math.round(ht.minTurnR * 100);
@@ -200,7 +211,8 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
         }
       }
     }
-    engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi, lateWorks(engine.params.epoch));
+    // (T3-3) KHUFU_EARLY: one Tura barge (the second is LATE's)
+    engine.stats.counters['harbor.vessels'] = buildHarbor(structures, seed, hf, gi, lateWorks(engine.params.epoch) && !isEarly);
     engine.stats.counters['harbor.crew'] = crewCount;
     engine.stats.counters['harbor.moving'] = movingCount;
     engine.stats.counters['town.rooms'] = buildWorkerTown(structures, seed, hf, gi);
@@ -291,7 +303,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const threshers = farms.floors.map(([fx, fz]) => ({
     x0: fx - 5, z0: fz - 1, x1: fx + 5, z1: fz + 1, n: 5, spread: 6, carry: 0.2, still: 0.7,
   }));
-  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : []), ...(lateWorks(engine.params.epoch) ? khufuLateLines : [])], khufuWorks, lateWorks(engine.params.epoch), hauling(engine.params.epoch));
+  const people = buildInhabitants(scene, seed, hf, gi, engine.params.preset, perf.cull, [...threshers, ...reeds.lines, ...townLines, ...orchards.lines, ...(khufuWorks ? campLines : []), ...(khufuWorks ? (building(engine.params.epoch) ? southLines.slice(2) : southLines) : []), ...harborLines, ...(atLeast(engine.params.epoch, 'MENKAURE_PERIOD') ? menkaureLines() : []), ...(building(engine.params.epoch) ? g1WorksLines : []), ...(lateWorks(engine.params.epoch) && !early(engine.params.epoch) ? khufuLateLines : [])], khufuWorks, lateWorks(engine.params.epoch), hauling(engine.params.epoch));
   engine.stats.counters['workers'] = people.figures;
   engine.stats.counters['oxen'] = people.oxen;
   engine.stats.counters['sledges'] = people.sledges;

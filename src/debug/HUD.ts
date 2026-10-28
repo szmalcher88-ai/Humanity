@@ -8,7 +8,7 @@
 
 import type { Engine } from '../core/Engine';
 import type { AkhetParams } from '../core/Params';
-import { DEFAULT_EPOCH, type Epoch } from '../world/Epoch';
+import { DEFAULT_EPOCH, IMPLEMENTED, type Epoch } from '../world/Epoch';
 
 export type HudProvider = () => string[];
 
@@ -93,14 +93,15 @@ export class Hud {
   private epochMenu(): void {
     const q0 = new URLSearchParams(window.location.search);
     if (this.clean || q0.get('hud') === '0') return;
-    const ITEMS: [Epoch, string, boolean][] = [
-      ['KHUFU_EARLY', 'Khufu — early foundation (not built yet)', false],
-      ['KHUFU_LATE', 'Khufu — the pyramid rising', true],
-      ['KHUFU_COMPLETION', 'Khufu — the pyramid completed (default)', true],
-      ['KHAFRE_PERIOD', 'Khafre — the Sphinx, Khafre’s pyramid', true],
-      ['MENKAURE_PERIOD', 'Menkaure — Menkaure’s works', true],
-      ['EVIDENCE_VIEW', 'Evidence view (confidence overlay)', true],
-    ];
+    // (T3-3) built = in Epoch's IMPLEMENTED (the one list, no copy to keep)
+    const ITEMS: [Epoch, string, boolean][] = ([
+      ['KHUFU_EARLY', 'Khufu — the lower courses'],
+      ['KHUFU_LATE', 'Khufu — the pyramid rising'],
+      ['KHUFU_COMPLETION', 'Khufu — the pyramid completed (default)'],
+      ['KHAFRE_PERIOD', 'Khafre — the Sphinx, Khafre’s pyramid'],
+      ['MENKAURE_PERIOD', 'Menkaure — Menkaure’s works'],
+      ['EVIDENCE_VIEW', 'Evidence view (confidence overlay)'],
+    ] as [Epoch, string][]).map(([e, t]) => [e, t, IMPLEMENTED.includes(e)]);
     const current = this.params.epoch;
     const label = (e: Epoch): string => (ITEMS.find(([k]) => k === e)?.[1] ?? e).replace(' (default)', '');
     const box = document.createElement('div');
