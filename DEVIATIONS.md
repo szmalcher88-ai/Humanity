@@ -500,6 +500,8 @@ teams; the geometry fixes whatever `haul` says — all D):**
   ropes leaning into them, a water pourer, a caller on the block, an
   overseer; stops at the face (the block levered on) and at the drop (off).
   The ox trains standing on the haul road are not built while they run.
+  (FIX-27b) Drawn per team: only the teams in view and within 1150 m, a
+  lite stand-in past 350 m.
 **Alternatives:** the old flush legs with a gap at every turn (the decks
 would overlap within 60 m of each turn); narrower or steeper legs (no source
 either way); teams only on the zigzag.

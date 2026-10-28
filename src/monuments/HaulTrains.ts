@@ -31,10 +31,29 @@
  * the figures' legs swing locked to the distance walked (no skating). Driven
  * by uWorldTime: the tools' ?freeze=1 holds every team still, same frame
  * every run. `?haul=0` (Epoch.hauling) leaves them out — the A/B arm.
+ *
+ * (2026-10-28, the human: "optimise for fps") Each team is an INSTANCE now:
+ * per frame the CPU runs the same timeline, places every team and draws
+ * only those inside the view frustum (grown by their shadow's reach) and
+ * nearer than CULL_D; past LOD_D a lite geometry (no limbs, no ropes, the
+ * same figures' heights) stands in. Three geometry variants per route keep
+ * the teams from being clones. The first build drew all 28 teams' 207k
+ * vertices in every pass: ≈ 0.4 ms at the harbour panorama, where none of
+ * them was even within 1.1 km.
  */
 
-import { BufferAttribute, BufferGeometry, Mesh, type Object3D } from 'three';
-import { MeshPhysicalNodeMaterial } from 'three/webgpu';
+import {
+  BufferAttribute,
+  BufferGeometry,
+  type Camera,
+  Frustum,
+  InstancedMesh,
+  Matrix4,
+  type Object3D,
+  Sphere,
+  Vector3,
+} from 'three';
+import { MeshPhysicalNodeMaterial, WebGPUCoordinateSystem } from 'three/webgpu';
 import {
   attribute,
   cameraPosition,
@@ -43,6 +62,7 @@ import {
   float,
   floor,
   fract,
+  instanceIndex,
   instancedArray,
   max,
   min,
@@ -78,6 +98,13 @@ const FILE_N = 8;
 const FILE_A0 = 3.6;
 const FILE_STEP = 1.15;
 const FADE = [1150, 900] as const;
+/** a team past this is not drawn at all; past LOD_D it is the lite one */
+const CULL_D = FADE[0];
+const LOD_D = 350;
+const VARIANTS = 3;
+/** a team's bounding sphere: its middle is this far ahead of the sledge */
+const TEAM_MID = 5.5;
+const TEAM_R = 10;
 const BLOCK_H = 1.04; // the caller stands on it
 /** the loading place: east of the transport ramp's run-in, by the ENE
  *  face's west end (m along +x from the run-in) */
@@ -300,6 +327,8 @@ class TeamWriter {
   ph = 0;
   t0 = 1;
   t1 = 1;
+  /** the far stand-in: every draw the full team makes, a third of the bones */
+  lite = false;
 
   private tri(a: number[], b: number[], c: number[], limb: number, m: number): void {
     this.pos.push(...a, ...b, ...c);
@@ -406,6 +435,13 @@ class TeamWriter {
     const sh = H * 0.82;
     const hip = H * 0.5;
     const sw = H * 0.115;
+    if (this.lite) {
+      // legs as one, kilt, torso to the crown: the silhouette at 350 m +
+      this.bone(lat, 0, hip, 0, 0, 0.02, 0, 0.1, 0.07, BODY, M_SKIN);
+      this.bone(lat, 0, hip + 0.2, 0, 0, hip - 0.16, 0, 0.085, 0.105, BODY, M_LINEN);
+      this.bone(lat, 0, hip + 0.16, 0, 0, H, 0, 0.1, sw, BODY, M_SKIN);
+      return;
+    }
     this.bone(lat, -0.055, hip, 0, -0.06, 0.02, 0, 0.05, 0.032, LEG_A, M_SKIN);
     this.bone(lat, 0.055, hip, 0, 0.06, 0.02, 0, 0.05, 0.032, LEG_B, M_SKIN);
     this.bone(lat, 0, hip + 0.2, 0, 0, hip - 0.16, 0, 0.085, 0.105, BODY, M_LINEN);
@@ -442,12 +478,16 @@ function writeTeam(w: TeamWriter, rng: Rng, team: number, tura: boolean): void {
   };
   // the sledge: two runners turned up at the nose, cross-bearers, a deck
   fig(0, P_STATIC);
-  for (const l of [-0.6, 0.6]) {
-    w.box(-1.8, 1.6, 0, 0.22, l - 0.15, l + 0.15, M_WOOD);
-    w.box(1.5, 1.95, 0.12, 0.42, l - 0.15, l + 0.15, M_WOOD);
+  if (w.lite) {
+    w.box(-1.8, 1.9, 0, 0.36, -0.78, 0.78, M_WOOD);
+  } else {
+    for (const l of [-0.6, 0.6]) {
+      w.box(-1.8, 1.6, 0, 0.22, l - 0.15, l + 0.15, M_WOOD);
+      w.box(1.5, 1.95, 0.12, 0.42, l - 0.15, l + 0.15, M_WOOD);
+    }
+    for (const a of [-1.3, 0, 1.3]) w.box(a - 0.1, a + 0.1, 0.2, 0.3, -0.8, 0.8, M_WOOD);
+    w.box(-1.7, 1.7, 0.28, 0.36, -0.75, 0.75, M_WOOD);
   }
-  for (const a of [-1.3, 0, 1.3]) w.box(a - 0.1, a + 0.1, 0.2, 0.3, -0.8, 0.8, M_WOOD);
-  w.box(-1.7, 1.7, 0.28, 0.36, -0.75, 0.75, M_WOOD);
   // the block (levered on at the face, off at the drop)
   w.part = P_BLOCK;
   const bl = rng.range(1.5, 1.9);
@@ -460,7 +500,7 @@ function writeTeam(w: TeamWriter, rng: Rng, team: number, tura: boolean): void {
   w.part = P_STATIC;
   const a0 = 1.9;
   const a1 = FILE_A0 + (FILE_N - 1) * FILE_STEP + 0.4;
-  for (const side of [-1, 1]) {
+  for (const side of w.lite ? [] : [-1, 1]) {
     for (let a = a0; a < a1 - 1e-6; a += 1) {
       const b = Math.min(a + 1, a1);
       const f0 = (a - a0) / (a1 - a0);
@@ -489,6 +529,110 @@ function writeTeam(w: TeamWriter, rng: Rng, team: number, tura: boolean): void {
   w.figure(rng, 0, 'clap');
   fig(FILE_A0 + 3.5 * FILE_STEP, P_WALKER);
   w.figure(rng, FILE_LAT + 1.25, 'staff');
+}
+
+/* ------------------------------------------------------------------ */
+/* the per-frame cull                                                  */
+/* ------------------------------------------------------------------ */
+
+interface Slot {
+  mesh: InstancedMesh;
+  ids: Float32Array;
+  buf: { value: { needsUpdate: boolean } };
+}
+
+interface HaulSystem {
+  pts: Float32Array;
+  n: number;
+  step: number;
+  total: number;
+  up: number;
+  ldn: number;
+  TU: number;
+  TD: number;
+  PERIOD: number;
+  teams: number;
+  slots: Slot[];
+}
+
+const systems: HaulSystem[] = [];
+const _frustum = new Frustum();
+const _mvp = new Matrix4();
+const _sphere = new Sphere();
+const _p = new Vector3();
+
+/** before a structure rebuild: the old meshes go with the old scene graph */
+export function clearHaulTrains(): void {
+  systems.length = 0;
+}
+
+/** the route point `s` m along a loop (the shader's lerp) */
+function routeAt(h: HaulSystem, s: number, out: Vector3): Vector3 {
+  const sv = (((s % h.total) + h.total) % h.total) / h.step;
+  const i0 = Math.min(h.n - 1, Math.max(0, Math.floor(sv)));
+  const f = sv - i0;
+  const a = i0 * 4;
+  const b = a + 4;
+  const p = h.pts;
+  return out.set(
+    (p[a] as number) + ((p[b] as number) - (p[a] as number)) * f,
+    (p[a + 1] as number) + ((p[b + 1] as number) - (p[a + 1] as number)) * f,
+    (p[a + 2] as number) + ((p[b + 2] as number) - (p[a + 2] as number)) * f,
+  );
+}
+
+/**
+ * Per frame, from the FINAL camera pose (Engine.onPreRender): place every
+ * team on the shader's timeline and hand each instanced mesh the teams it
+ * draws — inside the frustum (the sphere also tried where the team's shadow
+ * falls, `sunDir` pointing to the sun), nearer than CULL_D, full or lite by
+ * LOD_D. `time` is the uWorldTime the frame renders with.
+ */
+export function updateHaulTrains(camera: Camera, sunDir: Vector3, time: number, counters: Record<string, number>): void {
+  if (systems.length === 0) return;
+  camera.updateMatrixWorld();
+  _mvp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  _frustum.setFromProjectionMatrix(_mvp, WebGPUCoordinateSystem);
+  const cam = camera.position;
+  const sy = Math.max(0.15, sunDir.y);
+  const shX = (-sunDir.x / sy) * 2;
+  const shZ = (-sunDir.z / sy) * 2;
+  let near = 0;
+  let far = 0;
+  for (const h of systems) {
+    const counts = h.slots.map(() => 0);
+    for (let k = 0; k < h.teams; k++) {
+      const tau = ((((time / h.PERIOD + k / h.teams) % 1) + 1) % 1) * h.PERIOD;
+      const sUp = Math.min(h.up, Math.max(0, tau * V_UP));
+      const sDn = Math.min(h.ldn, Math.max(0, (tau - h.TU - DWELL) * V_DOWN));
+      routeAt(h, sUp + sDn + TEAM_MID, _p);
+      const d = _p.distanceTo(cam);
+      if (d > CULL_D + TEAM_R) continue;
+      _sphere.set(_p, TEAM_R);
+      if (!_frustum.intersectsSphere(_sphere)) {
+        _sphere.center.set(_p.x + shX, _p.y, _p.z + shZ);
+        if (!_frustum.intersectsSphere(_sphere)) continue;
+      }
+      const lite = d > LOD_D;
+      const si = (lite ? VARIANTS : 0) + (k % VARIANTS);
+      const slot = h.slots[si] as Slot;
+      slot.ids[counts[si] as number] = k;
+      counts[si] = (counts[si] as number) + 1;
+      if (lite) far++;
+      else near++;
+    }
+    for (const [i, slot] of h.slots.entries()) {
+      const n = counts[i] as number;
+      // an empty slot is hidden, not drawn with no instances (WebGPU warns)
+      slot.mesh.visible = n > 0;
+      if (n > 0) {
+        slot.mesh.count = n;
+        slot.buf.value.needsUpdate = true;
+      }
+    }
+  }
+  counters['haul.near'] = near;
+  counters['haul.far'] = far;
 }
 
 /* ------------------------------------------------------------------ */
@@ -568,16 +712,23 @@ export function buildHaulTrains(
   const TD = LDN / V_DOWN;
   const PERIOD = TU + DWELL + TD + DWELL;
 
-  /* --- geometry ------------------------------------------------------------ */
-  const w = new TeamWriter();
-  for (let k = 0; k < TEAMS; k++) writeTeam(w, rng.fork(`team-${k}`), k, tura);
-  const geo = w.build();
+  /* --- geometry: VARIANTS teams, each full and lite (the same draws) -------- */
+  const geos: BufferGeometry[] = [];
+  for (const lite of [false, true]) {
+    for (let v = 0; v < VARIANTS; v++) {
+      const w = new TeamWriter();
+      w.lite = lite;
+      writeTeam(w, rng.fork(`team-${v}`), 0, tura);
+      geos.push(w.build());
+    }
+  }
 
-  /* --- the vertex stage ------------------------------------------------------ */
+  /* --- the vertex stage, one material per instanced mesh (its team list) --- */
   const route = instancedArray(loop.pts, 'vec4');
+  const makeMaterial = (teamOf: NF): MeshPhysicalNodeMaterial => {
   const hA = attribute('hA', 'vec4') as unknown as NV4;
   const ac = hA.x;
-  const team = hA.y;
+  const team = teamOf;
   const part = hA.z;
   const ph = hA.w;
   const isPart = (p: number): NF => step(p - 0.5, part).mul(step(part, p + 0.5)) as unknown as NF;
@@ -599,7 +750,10 @@ export function buildHaulTrains(
   const moveUp = clamp(min(tau, float(TU).sub(tau)).div(1.5), 0, 1);
   const moveDn = clamp(min(tau.sub(TU + DWELL), float(TU + DWELL + TD).sub(tau)).div(1.5), 0, 1);
   const walk = max(moveUp, moveDn);
-  const gait = sUp.div(STRIDE_UP).add(sDn.div(STRIDE_DOWN)).mul(Math.PI * 2).add(ph);
+  // each team its own pace within the step and its own tones (the variants
+  // are shared by several teams)
+  const tHash = fract(sin(team.mul(12.9898).add(4.1)).mul(43758.5453));
+  const gait = sUp.div(STRIDE_UP).add(sDn.div(STRIDE_DOWN)).mul(Math.PI * 2).add(ph).add(tHash.mul(6.28));
 
   // the route at this vertex's anchor
   const sv = fract(s.add(ac).div(loop.total)).mul(loop.total);
@@ -672,7 +826,8 @@ export function buildHaulTrains(
 
   const m = attribute('matid', 'float') as unknown as NF;
   const tone = attribute('tone', 'vec2') as unknown as NV2;
-  const t0 = varying(tone.x) as unknown as NF;
+  const tv = varying(mix(float(0.9), float(1.1), tHash)) as unknown as NF;
+  const t0 = (varying(tone.x) as unknown as NF).mul(tv);
   const t1 = varying(tone.y) as unknown as NF;
   let c = vec3(0.36, 0.22, 0.13).mul(t0) as unknown as NV3; // skin
   c = mix(c, vec3(0.82, 0.79, 0.7).mul(t1), step(M_LINEN - 0.5, m)) as unknown as NV3;
@@ -687,12 +842,25 @@ export function buildHaulTrains(
   mat.metalnessNode = float(0);
   mat.specularIntensity = 0.25;
   giLightMap(mat, gi, nWorld, 1.0);
+  return mat;
+  };
 
-  const mesh = new Mesh(geo, mat);
-  mesh.name = name;
-  mesh.frustumCulled = false; // placed in the vertex stage
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  scene.add(mesh);
+  /* --- the instanced meshes: [full v0 … v2, lite v0 … v2] ------------------- */
+  const slots: Slot[] = geos.map((geo, i) => {
+    const v = i % VARIANTS;
+    const cap = Math.ceil((TEAMS - v) / VARIANTS);
+    const ids = new Float32Array(Math.max(1, cap));
+    const buf = instancedArray(ids, 'float');
+    const mesh = new InstancedMesh(geo, makeMaterial(buf.element(instanceIndex) as unknown as NF), Math.max(1, cap));
+    mesh.name = `${name}-${i < VARIANTS ? 'near' : 'far'}-${v}`;
+    mesh.frustumCulled = false; // culled per team in updateHaulTrains
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData['figures'] = true; // small casters: ShadowSetup's low/safe policy
+    mesh.visible = false; // until the first cull
+    scene.add(mesh);
+    return { mesh, ids, buf };
+  });
+  systems.push({ pts: loop.pts, n: loop.n, step: loop.step, total: loop.total, up: loop.up, ldn: LDN, TU, TD, PERIOD, teams: TEAMS, slots });
   return { teams: TEAMS, loopM: loop.total, upM: loop.up, periodS: PERIOD, pts: loop.pts, step: loop.step, minTurnR };
 }

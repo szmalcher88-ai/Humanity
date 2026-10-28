@@ -15,7 +15,7 @@ import { buildKhafreComplex } from '../monuments/KhafreComplex';
 import { buildMenkaureComplex, menkaureLines } from '../monuments/MenkaureComplex';
 import { buildG1Works, g1WorksLines } from '../monuments/G1Works';
 import { buildKhufuLateWorks, khufuLateLines } from '../monuments/KhufuLateWorks';
-import { buildHaulTrains, quarryRoute, type RP } from '../monuments/HaulTrains';
+import { buildHaulTrains, clearHaulTrains, quarryRoute, updateHaulTrains, type RP } from '../monuments/HaulTrains';
 import { buildWorkerTown, townLines } from '../monuments/WorkerTown';
 import { buildHarborDistrict, harborLines } from '../monuments/HarborDistrict';
 import { buildIndustryDistrict } from '../monuments/IndustryDistrict';
@@ -43,7 +43,7 @@ import { buildOrchards, pickCanalPlots } from '../vegetation/Orchards';
 import { NileWater } from '../water/NileWater';
 import { buildHarbor, crewCount, fleetAt, fleetClearance, movingCount } from '../water/Vessels';
 import { runEvidenceAudit, stampEvidence } from '../water/HarbourEvidence';
-import { setWorldTime } from '../render/WorldClock';
+import { setWorldTime, uWorldTime } from '../render/WorldClock';
 import { buildDebris } from '../world/Debris';
 import { Heightfield } from '../world/Heightfield';
 import { WorkParticles } from '../world/Particles';
@@ -111,6 +111,7 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
   const khufuWorks = !atLeast(engine.params.epoch, 'KHAFRE_PERIOD');
   engine.stats.counters['epoch.khafre'] = khufuWorks ? 0 : 1;
   const rebuildStructures = (): void => {
+    clearHaulTrains(); // their meshes go with the old structures
     fpClear(STRUCT_FAMILIES);
     for (const c of [...structures.children]) {
       c.traverse((o) => {
@@ -354,6 +355,11 @@ export async function buildWorldScene(ctx: WorldContext): Promise<void> {
       if (prefixes.some((p) => o.name.startsWith(p))) o.visible = false;
     });
   }
+
+  // (2026-10-28) the hauling teams: placed and culled per team, every frame
+  engine.onPreRender(() => {
+    updateHaulTrains(camera, sunSky.sunDir, uWorldTime.value, engine.stats.counters);
+  });
 
   // PERF I: rebuild the indirect-draw offset lists from the FINAL camera pose
   if (cullingActive()) {

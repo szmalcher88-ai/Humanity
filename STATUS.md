@@ -544,8 +544,7 @@ sitting): fps medians A 60 / 40 / 40 / 60, B 60 / 40 / 60 / 60; scene ms
 A 40 (4 of 5) vs B 60, scene 10.40 vs 10.12, shadow 2.23 vs 2.12 — the teams
 cost ≈ 0.4 ms of GPU there (≈ 154k vertices in every pass, collapsed past
 1.1 km but still shaded), enough to tip that LATE view off the 60 Hz edge.
-OPEN: per-team culling (the scatter systems' indirect cells) would win it
-back.
+→ FIX-27b (below): culled per team.
 BATTERY (default; slow-adapter probe first): 18/19 + the advisory perf WARN
 (bm1 50, bm3 60, bm7 41 — the band of the last batteries); palms 5265 (floor
 5k), the slow-adapter probe PASSED.
@@ -560,6 +559,34 @@ HAIKU — FIX-27 (5 agents, read-only, the haiku-recon-3d skill's first run):
 | E | tools, gates, contracts | 40 | 5 | 5 | the dump/tour/perf flags |
 VERDICT: 35/36 (97 %) of the checked rows. The one wrong row is R5's class
 again: a modelled height where only a measurement will do.
+
+FIX-27b — THE TEAMS CULLED PER TEAM (done 2026-10-28; the human: "optimise
+for fps — skip the teams that are not visible, then merge to main").
+- Each team is an INSTANCE (`HaulTrains.ts`): per frame
+  (`Engine.onPreRender`, the final camera pose) the CPU runs the shader's
+  own timeline, places every team and hands each instanced mesh only the
+  teams inside the view frustum — the sphere also tried where the team's
+  shadow falls — and nearer than 1150 m; past 350 m a LITE geometry (legs
+  as one, no arms, ropes or cross-bearers; the same draws, so the same
+  figures' heights) stands in. Three geometry variants per route (teams
+  k mod 3) plus a per-team hash on the pace and the tones keep them from
+  reading as clones. A slot with no team is hidden, not drawn empty.
+- Counters `haul.near` / `haul.far`: bm1 0 / 8 (all 28 full before),
+  bm3 14 / 3, bm7 5 / 14, bm15 17 / 2.
+- PERF (the same A/B, one sitting, B = `?haul=0`): scene ms bm15 8.81 vs 8.54
+  (+0.27 — 19 teams in view), bm7 13.19 vs 13.25, bm1 10.33 vs 10.28, bm3
+  7.47 vs 7.40; bm1 again, 5 runs: 10.46 vs 10.75 — the 0.4 ms the first
+  build cost there is gone (0 full + 8 lite teams drawn). fps medians equal
+  in both arms (60 / 40 / 40 / 60): that sitting bm1 sat on the 40 Hz edge
+  WITH the teams off too (it read 60 the day before) — the edge, not the
+  teams.
+- CHECKS: LATE footprints 1198 (unchanged — the cull registers none); LATE
+  audit PASS; the LATE tour against FIX-27's: every frame at noise (> 24 on
+  ≤ 0.04 %, bm15's far teams now lite and toned per team). BATTERY
+  (default): 18/19 + the advisory perf WARN (bm1 51, bm3 67, bm7 42). A
+  first battery run that sitting read 17/19 with one failure its output
+  did not keep (only its tail was captured); the full re-run passed every
+  check — logged, not explained.
 
 T2-7 — THE SPHINX AT ITS REAL LEVEL: THE ESCARPMENT MOVED (done; the
 human's D-20 choice, alternative A; plan `docs/plans/T2-7_PLAN.md`; D-20
